@@ -1,8 +1,16 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="es" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Universidad Pedagógica Experimental Libertador (UPEL): carreras, formación online, cursos certificados y postgrados para educadores en Venezuela.">
+        <meta name="theme-color" content="#0a2540">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="UPEL">
+        <meta property="og:title" content="UPEL | Educación que transforma">
+        <meta property="og:description" content="Más de 40 años formando a los educadores de Venezuela. Explora carreras, cursos y programas 100% online.">
+        <meta property="og:locale" content="es_VE">
+        <meta name="twitter:card" content="summary_large_image">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>

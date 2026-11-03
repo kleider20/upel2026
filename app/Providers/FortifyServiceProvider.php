@@ -4,13 +4,19 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Enums\Role;
+use App\Http\Responses\LoginResponse;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 
@@ -21,7 +27,7 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
     }
 
     /**
@@ -30,8 +36,56 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureActions();
+        $this->configureAuthentication();
         $this->configureViews();
         $this->configureRateLimiting();
+    }
+
+    /**
+     * Autentica al usuario validando el portal desde el que intenta ingresar.
+     */
+    private function configureAuthentication(): void
+    {
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $user = User::query()
+                ->where(Fortify::username(), $request->input(Fortify::username()))
+                ->first();
+
+            if (! $user || ! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
+            }
+
+            $portal = $request->string('portal')->toString();
+            $allowedRoles = match ($portal) {
+                Role::Estudiante->value => [Role::Estudiante->value],
+                Role::Profesor->value => [Role::Profesor->value],
+                Role::Graduado->value => [Role::Graduado->value],
+                Role::Admin->value => Role::adminPortalValues(),
+                default => [],
+            };
+
+            if ($allowedRoles === [] || ! $user->hasAnyRole($allowedRoles)) {
+                throw ValidationException::withMessages([
+                    Fortify::username() => $this->portalErrorMessage($portal),
+                ]);
+            }
+
+            return $user;
+        });
+    }
+
+    /**
+     * Mensaje de error cuando el correo no pertenece al portal elegido.
+     */
+    private function portalErrorMessage(string $portal): string
+    {
+        return match ($portal) {
+            Role::Estudiante->value => 'No existe ninguna cuenta de estudiante registrada con este correo.',
+            Role::Profesor->value => 'No existe ninguna cuenta de profesor registrada con este correo.',
+            Role::Graduado->value => 'No existe ninguna cuenta de graduado registrada con este correo.',
+            Role::Admin->value => 'Este correo no tiene acceso al portal administrativo.',
+            default => 'Selecciona un tipo de acceso válido.',
+        };
     }
 
     /**

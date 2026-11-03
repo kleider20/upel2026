@@ -9,9 +9,93 @@
 
 @theme {
     --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Manrope', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+    --font-display:
+        'Playfair Display', Georgia, 'Times New Roman', ui-serif, serif;
+
+    /* Paleta institucional UPEL */
+    --color-upel-navy: #0a2540;
+    --color-upel-navy-800: #113a63;
+    --color-upel-navy-700: #174a7c;
+    --color-upel-blue: #1e5fa8;
+    --color-upel-blue-300: #6da8e8;
+    --color-upel-gold: #c9a227;
+    --color-upel-gold-light: #e8c15a;
+    --color-upel-green: #12876f;
+    --color-upel-slate: #5f6b7a;
+    --color-upel-mist: #e6eaf0;
+    --color-upel-cloud: #f6f8fa;
+
+    --radius-card: 20px;
+    --radius-button: 13px;
+    --radius-pill: 50px;
+
+    --animate-float: float 6s ease-in-out infinite;
+    --animate-float-slow: float 9s ease-in-out infinite;
+    --animate-hero-in: hero-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    --animate-fade-up: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    --animate-soft-pulse: soft-pulse 2.6s ease-in-out infinite;
+    --animate-marquee: marquee 32s linear infinite;
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-14px);
+        }
+    }
+
+    @keyframes hero-in {
+        from {
+            opacity: 0;
+            transform: translateX(32px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes fade-up {
+        from {
+            opacity: 0;
+            transform: translateY(18px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes soft-pulse {
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.65;
+            transform: scale(1.35);
+        }
+    }
+
+    @keyframes marquee {
+        from {
+            transform: translateX(0);
+        }
+
+        to {
+            transform: translateX(-50%);
+        }
+    }
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -140,4 +224,128 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 5.5rem;
+    }
+
+    ::selection {
+        background-color: var(--color-upel-gold-light);
+        color: var(--color-upel-navy);
+    }
 }
+
+@layer components {
+    /* Aparición suave al entrar en el viewport */
+    .reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition:
+            opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+            transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity, transform;
+    }
+
+    .reveal.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .landing-page {
+        background-color: var(--color-upel-cloud);
+        color: var(--color-upel-navy);
+        overflow-x: clip;
+    }
+
+    .landing-page :focus-visible {
+        outline: 3px solid var(--color-upel-gold);
+        outline-offset: 3px;
+    }
+
+    .skip-link {
+        position: fixed;
+        top: -100px;
+        left: 1rem;
+        z-index: 100;
+        border-radius: 0 0 12px 12px;
+        background: var(--color-upel-gold);
+        color: var(--color-upel-navy);
+        padding: 0.75rem 1.25rem;
+        font-weight: 700;
+        transition: top 0.2s ease;
+    }
+
+    .skip-link:focus {
+        top: 0;
+    }
+
+    /* Patrón de rejilla sutil usado en el hero y en la sección online */
+    .upel-grid {
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+        background-size: 56px 56px;
+    }
+
+    .upel-glass {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    .hide-scrollbar {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .gold-rule {
+        background: linear-gradient(
+            90deg,
+            transparent,
+            var(--color-upel-gold),
+            transparent
+        );
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    .animate-float,
+    .animate-float-slow,
+    .animate-hero-in,
+    .animate-soft-pulse,
+    .animate-marquee {
+        animation: none !important;
+    }
+}
+
+@media print {
+    @page {
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+

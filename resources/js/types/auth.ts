@@ -5,9 +5,18 @@ export type User = {
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
+    roles?: string[];
+    permissions?: string[];
+    portal_role?: string | null;
+    portal_role_label?: string | null;
     created_at: string;
     updated_at: string;
     [key: string]: unknown;
+};
+
+export type Flash = {
+    success?: string | null;
+    error?: string | null;
 };
 
 export type Auth = {
