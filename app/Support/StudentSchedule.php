@@ -7,8 +7,8 @@ namespace App\Support;
  *
  * Los datos se transcriben de los horarios publicados por la Coordinación de
  * Docencia del Instituto de Mejoramiento Profesional del Magisterio. Cada
- * semana se asocia a un día de la semana para poder filtrar el horario según
- * la modalidad de estudio que el estudiante eligió en su preinscripción.
+ * semana conserva el día en que se imparte para poder filtrar el horario según
+ * el horario de estudio que el estudiante eligió en su preinscripción.
  */
 final class StudentSchedule
 {
@@ -24,16 +24,13 @@ final class StudentSchedule
     ];
 
     /**
-     * Etiqueta de la hora de inicio que se muestra en cada celda.
+     * Días que corresponden a cada horario de estudio.
      *
-     * @var array<string, string>
+     * @var array<string, array<int, string>>
      */
-    private const HOURS = [
-        '8' => '8:00 am',
-        '10' => '10:00 am',
-        '11' => '11:00 am',
-        '12' => '12:00 pm',
-        '3' => '3:00 pm',
+    private const SCHEDULE_DAYS = [
+        'sabatino' => ['Sábado'],
+        'lunes_viernes' => ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
     ];
 
     /**
@@ -44,27 +41,27 @@ final class StudentSchedule
     private const CATALOG = [
         'EDPRI' => [
             1 => [
-                'title' => 'Horarios de actividades presenciales del período académico 2025-II',
+                'title' => 'HORARIOS DE ACTIVIDADES PRESENCIALES DEL PERÍODO ACADÉMICO 2025-II',
                 'career' => 'Educación Primaria',
                 'cohort' => '2025-II',
                 'period' => 'I',
                 'weeks' => [
-                    ['week' => 1, 'month' => 'Octubre', 'date' => '18/10', 'weekday' => 'Sábado'],
-                    ['week' => 2, 'month' => 'Octubre', 'date' => '25/10', 'weekday' => 'Sábado'],
-                    ['week' => 3, 'month' => 'Noviembre', 'date' => '01/11', 'weekday' => 'Sábado'],
-                    ['week' => 4, 'month' => 'Noviembre', 'date' => '08/11', 'weekday' => 'Sábado'],
-                    ['week' => 5, 'month' => 'Noviembre', 'date' => '15/11', 'weekday' => 'Sábado'],
-                    ['week' => 6, 'month' => 'Noviembre', 'date' => '22/11', 'weekday' => 'Sábado'],
-                    ['week' => 7, 'month' => 'Noviembre', 'date' => '29/11', 'weekday' => 'Sábado'],
-                    ['week' => 8, 'month' => 'Dic', 'date' => '06/12', 'weekday' => 'Sábado'],
-                    ['week' => 9, 'month' => 'Enero', 'date' => '10/12', 'weekday' => 'Miércoles'],
-                    ['week' => 10, 'month' => 'Enero', 'date' => '17/12', 'weekday' => 'Miércoles'],
-                    ['week' => 11, 'month' => 'Enero', 'date' => '24/12', 'weekday' => 'Miércoles'],
-                    ['week' => 12, 'month' => 'Enero', 'date' => '31/12', 'weekday' => 'Miércoles'],
-                    ['week' => 13, 'month' => 'Febrero', 'date' => '07/01', 'weekday' => 'Miércoles'],
-                    ['week' => 14, 'month' => 'Febrero', 'date' => '14/01', 'weekday' => 'Miércoles'],
-                    ['week' => 15, 'month' => 'Febrero', 'date' => '21/01', 'weekday' => 'Miércoles'],
-                    ['week' => 16, 'month' => 'Febrero', 'date' => '28/01', 'weekday' => 'Miércoles'],
+                    ['week' => 1, 'month' => 'Octubre', 'tone' => 'octubre', 'date' => '18/10', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 2, 'month' => 'Octubre', 'tone' => 'octubre', 'date' => '25/10', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 3, 'month' => 'Noviembre', 'tone' => 'noviembre', 'date' => '01/11', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 4, 'month' => 'Noviembre', 'tone' => 'noviembre', 'date' => '08/11', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 5, 'month' => 'Noviembre', 'tone' => 'noviembre', 'date' => '15/11', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 6, 'month' => 'Noviembre', 'tone' => 'noviembre', 'date' => '22/11', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 7, 'month' => 'Noviembre', 'tone' => 'noviembre', 'date' => '29/11', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 8, 'month' => 'Dic', 'tone' => 'diciembre', 'date' => '06/12', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 9, 'month' => 'Enero', 'tone' => 'enero', 'date' => '10/01', 'weekday' => 'Sábado', 'highlight' => 'red'],
+                    ['week' => 10, 'month' => 'Enero', 'tone' => 'enero', 'date' => '17/01', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 11, 'month' => 'Enero', 'tone' => 'enero', 'date' => '24/01', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 12, 'month' => 'Enero', 'tone' => 'enero', 'date' => '31/01', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 13, 'month' => 'Febrero', 'tone' => 'febrero', 'date' => '07/02', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 14, 'month' => 'Febrero', 'tone' => 'febrero', 'date' => '14/02', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 15, 'month' => 'Febrero', 'tone' => 'febrero', 'date' => '21/02', 'weekday' => 'Sábado', 'highlight' => null],
+                    ['week' => 16, 'month' => 'Febrero', 'tone' => 'febrero', 'date' => '28/02', 'weekday' => 'Sábado', 'highlight' => 'yellow'],
                 ],
                 'subjects' => [
                     [
@@ -77,7 +74,7 @@ final class StudentSchedule
                         'code' => 'EDU0101',
                         'name' => 'Educación Alimentaria y Nutricional',
                         'teacher' => 'María De Abreu',
-                        'hours' => [2 => '12', 4 => '3', 6 => '3', 8 => '3', 9 => '3', 11 => '3', 13 => '3', 15 => '3'],
+                        'hours' => [2 => '12', 4 => '3', 6 => '3', 8 => '3', 10 => '3', 12 => '3'],
                     ],
                     [
                         'code' => 'DES4120',
@@ -95,13 +92,13 @@ final class StudentSchedule
                         'code' => 'SOC4611',
                         'name' => 'Sociedad y Educación',
                         'teacher' => 'Leonardo Díaz',
-                        'hours' => [2 => '8', 4 => '8', 6 => '8', 8 => '8', 10 => '8', 12 => '8', 14 => '8', 16 => '8'],
+                        'hours' => [2 => '8', 4 => '8', 6 => '8', 8 => '8', 10 => '8', 12 => '8', 14 => '8'],
                     ],
                     [
                         'code' => 'INV4382',
                         'name' => 'Investigación I',
                         'teacher' => 'José Peñaloza',
-                        'hours' => [2 => '10', 4 => '11', 6 => '11', 8 => '11', 10 => '11', 12 => '11', 14 => '11', 16 => '11'],
+                        'hours' => [2 => '10', 4 => '11', 6 => '11', 8 => '11', 10 => '11', 12 => '11', 14 => '11'],
                     ],
                     [
                         'code' => 'TIC4641',
@@ -145,14 +142,24 @@ final class StudentSchedule
             return null;
         }
 
-        $weeks = $definition['weeks'];
+        $days = self::SCHEDULE_DAYS[$schedule ?? ''] ?? null;
+
+        $weeks = array_values(array_filter(
+            $definition['weeks'],
+            static fn (array $week): bool => $days === null || in_array($week['weekday'], $days, true),
+        ));
+
+        if ($weeks === []) {
+            return null;
+        }
+
         $weekNumbers = array_column($weeks, 'week');
 
         $subjects = array_map(
             static function (array $subject) use ($weekNumbers): array {
                 $hours = array_map(
                     static fn (int $week): ?string => isset($subject['hours'][$week])
-                        ? (self::HOURS[$subject['hours'][$week]] ?? $subject['hours'][$week])
+                        ? (string) $subject['hours'][$week]
                         : null,
                     $weekNumbers,
                 );
@@ -167,6 +174,19 @@ final class StudentSchedule
             $definition['subjects'],
         );
 
+        // La segunda cuadrícula del horario oficial solo registra las
+        // actividades a distancia: conserva las virtuales y deja el resto vacío.
+        $distanceSubjects = array_map(
+            static fn (array $subject): array => [
+                ...$subject,
+                'hours' => array_map(
+                    static fn (?string $hour): ?string => $hour === 'Virtual' ? 'Virtual' : null,
+                    $subject['hours'],
+                ),
+            ],
+            $subjects,
+        );
+
         return [
             'title' => $definition['title'],
             'career' => $definition['career'],
@@ -177,8 +197,9 @@ final class StudentSchedule
                 : 'Todos los días',
             'weeks' => $weeks,
             'subjects' => $subjects,
+            'distance_subjects' => $distanceSubjects,
             'time_slots' => array_values(self::TIME_SLOTS),
-            'distance_schedule' => $definition['distance_schedule'],
+            'distance_schedule' => $definition['distance_schedule'] ?? null,
         ];
     }
 }

@@ -141,7 +141,7 @@ test('el dashboard expone la modalidad de preinscripción y la duración del pé
         );
 });
 
-test('el horario del estudiante sabatino solo muestra los sábados', function () {
+test('el horario del estudiante sabatino muestra las 16 semanas del documento oficial', function () {
     $career = Career::factory()->create([
         'code' => 'EDPRI',
         'name' => 'Educación Primaria',
@@ -171,14 +171,64 @@ test('el horario del estudiante sabatino solo muestra los sábados', function ()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Student/Dashboard/Index')
             ->where('schedule.schedule_label', 'Sabatino')
-            ->has('schedule.weeks', 8)
+            ->has('schedule.weeks', 16)
+            ->where('schedule.weeks.0.date', '18/10')
+            ->where('schedule.weeks.8.date', '10/01')
+            ->where('schedule.weeks.15.date', '28/02')
             ->where('schedule.weeks.0.weekday', 'Sábado')
-            ->where('schedule.weeks.7.weekday', 'Sábado')
+            ->where('schedule.weeks.15.weekday', 'Sábado')
             ->where('schedule.subjects.0.code', 'INT4380')
             ->where('schedule.subjects.0.hours.0', null)
-            ->where('schedule.subjects.0.hours.2', '8:00 am')
+            ->where('schedule.subjects.0.hours.2', '8')
+            ->where('schedule.subjects.0.hours.8', '8')
             ->where('schedule.subjects.6.hours.0', 'Virtual')
+            ->where('schedule.distance_subjects.0.hours.0', null)
+            ->where('schedule.distance_subjects.6.hours.0', 'Virtual')
         );
+});
+
+test('el estudiante descarga su horario en PDF', function () {
+    $career = Career::factory()->create([
+        'code' => 'EDPRI',
+        'name' => 'Educación Primaria',
+        'duration_semesters' => 8,
+    ]);
+
+    $user = User::factory()->create(['must_change_password' => false]);
+    $user->assignRole(Role::Estudiante->value);
+
+    StudentProfile::factory()->create([
+        'user_id' => $user->id,
+        'career_id' => $career->id,
+        'current_semester' => 1,
+    ]);
+
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $user->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+        'schedule' => 'sabatino',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('student.schedule.pdf'));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('content-disposition', 'inline; filename="horario-educacion-primaria-i.pdf"');
+
+    expect((string) $response->getContent())
+        ->toStartWith('%PDF-1.4')
+        ->toContain('HORARIOS DE ACTIVIDADES PRESENCIALES')
+        ->toContain('Virtual')
+        ->toContain('/Im1')
+        ->toContain('/Im2');
+
+    $download = $this->actingAs($user)->get(route('student.schedule.pdf', ['download' => 1]));
+
+    $download->assertOk()
+        ->assertHeader('content-type', 'application/pdf')
+        ->assertHeader('content-disposition', 'attachment; filename="horario-educacion-primaria-i.pdf"');
 });
 
 test('el estudiante actualiza sus datos de contacto', function () {

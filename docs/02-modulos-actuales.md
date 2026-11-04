@@ -212,7 +212,7 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 | Mis calificaciones | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia. |
 | Mis profesores | `modules/MisProfesores.tsx` | Docentes de las materias inscritas con departamento y materias. |
 | Mi carrera y pénsum | `modules/MiCarreraPensum.tsx` | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE). |
-| Mi horario | `modules/MiHorario.tsx` | Horario oficial de actividades presenciales filtrado por el horario de preinscripción, con impresión y descarga en CSV. |
+| Mi horario | `modules/MiHorario.tsx` | Horario oficial de actividades presenciales (16 sábados) filtrado por el horario de preinscripción, con las dos cuadrículas del documento y descarga/impresión en PDF (`GET /estudiante/horario/pdf`). |
 | Mi perfil | `modules/MiPerfil.tsx` | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`). |
 | Mis trámites | `modules/MisTramites.tsx` | Solicitud de constancias y solvencias (`POST /estudiante/tramites`). |
 
@@ -222,7 +222,8 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 - `App\Support\StudentSchedule` transcribe el horario oficial de Educación Primaria
   período 1 y lo filtra por el horario de estudio del estudiante; `MiHorario` lo
-  imprime o lo descarga en CSV.
+  muestra completo y `App\Support\StudentSchedulePdf` genera el PDF oficial para
+  imprimir o descargar (sin dependencias externas).
 
 - La barra lateral (`components/student/Sidebar.tsx`) agrupa “Mi vida académica” y
   “Cuenta y Servicios”, e incluye cierre de sesión.

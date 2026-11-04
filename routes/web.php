@@ -15,6 +15,7 @@ use App\Http\Controllers\LandingController;
 use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\ProfessorGradeController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\Student\StudentScheduleController;
 use App\Http\Controllers\Student\TramiteController as StudentTramiteController;
 use App\Http\Middleware\EnsureAdminPortal;
 use Illuminate\Support\Facades\Route;
@@ -122,6 +123,7 @@ Route::middleware(['auth', 'verified', 'role:estudiante', 'password.defined'])
     ->name('student.')
     ->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/horario/pdf', [StudentScheduleController::class, 'download'])->name('schedule.pdf');
         Route::put('/perfil', [StudentDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::post('/tramites', [StudentTramiteController::class, 'store'])->name('tramites.store');
     });

@@ -79,8 +79,10 @@ export type StudentPensumSubject = {
 export type StudentScheduleWeek = {
     week: number;
     month: string;
+    tone: string;
     date: string;
     weekday: string;
+    highlight: 'red' | 'yellow' | null;
 };
 
 export type StudentScheduleSubject = {
@@ -98,6 +100,7 @@ export type StudentScheduleData = {
     schedule_label: string;
     weeks: StudentScheduleWeek[];
     subjects: StudentScheduleSubject[];
+    distance_subjects: StudentScheduleSubject[];
     time_slots: string[];
     distance_schedule: string | null;
 };

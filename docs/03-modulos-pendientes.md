@@ -53,8 +53,10 @@ al cerrar sesión.
 ### 5. Horarios académicos reales
 
 **Estado:** parcial. `MiHorario` ya muestra el horario oficial de Educación Primaria
-período 1 (`App\Support\StudentSchedule`) filtrado por el horario elegido en la
-preinscripción (sabatino → solo sábados), con impresión y descarga en CSV.
+período 1 (`App\Support\StudentSchedule`), con sus 16 semanas y las dos cuadrículas
+del documento, filtrado por el horario elegido en la preinscripción (sabatino →
+sábados). `GET /estudiante/horario/pdf` genera el PDF oficial
+(`App\Support\StudentSchedulePdf`) para imprimir o descargar.
 **Falta:**
 
 - Tablas `schedules`, `classrooms`, `time_slots` y carga del horario para todas las
@@ -62,7 +64,7 @@ preinscripción (sabatino → solo sábados), con impresión y descarga en CSV.
 - Asignación de día, hora, aula y docente por materia y período.
 - Validación de choques de horario.
 - Vista de horario para profesores y administración.
-- Exportación a PDF/calendario.
+- Exportación a calendario.
 
 ## Prioridad media
 

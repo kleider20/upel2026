@@ -5,16 +5,25 @@ namespace App\Support;
 /**
  * Genera el PDF del horario de actividades presenciales del estudiante.
  *
- * Es un generador mínimo basado en las fuentes estándar de PDF (Helvetica),
- * suficiente para tablas institucionales y sin dependencias externas.
+ * Reproduce el horario oficial publicado por la Coordinación de Docencia:
+ * encabezado institucional, dos cuadrículas de 16 semanas y las leyendas de
+ * franjas horarias. Usa las fuentes estándar de PDF, sin dependencias externas.
  */
 final class StudentSchedulePdf
 {
     private const PAGE_WIDTH = 842.0;
 
-    private const PAGE_HEIGHT = 595.0;
+    private const PAGE_HEIGHT = 595.32;
 
-    private const MARGIN = 28.0;
+    private const TABLE_LEFT = 52.0;
+
+    private const TABLE_RIGHT = 782.0;
+
+    private const CODE_WIDTH = 72.0;
+
+    private const NAME_WIDTH = 167.0;
+
+    private const TEACHER_WIDTH = 103.0;
 
     /**
      * @var array<int, int>
@@ -24,27 +33,43 @@ final class StudentSchedulePdf
     /**
      * @var array<int, int>
      */
-    private const GRAY = [100, 116, 139];
+    private const BLACK = [0, 0, 0];
 
     /**
      * @var array<int, int>
      */
-    private const BORDER = [203, 213, 225];
+    private const WHITE = [255, 255, 255];
 
     /**
      * @var array<int, int>
      */
-    private const HEADER_BACKGROUND = [241, 245, 249];
+    private const GRAY = [128, 128, 128];
 
     /**
      * @var array<int, int>
      */
-    private const VIRTUAL_BACKGROUND = [253, 243, 208];
+    private const RED = [255, 0, 0];
 
     /**
      * @var array<int, int>
      */
-    private const GOLD_TEXT = [138, 108, 13];
+    private const YELLOW = [255, 255, 0];
+
+    /**
+     * @var array<int, int>
+     */
+    private const ORANGE = [255, 192, 0];
+
+    /**
+     * @var array<string, array<int, int>>
+     */
+    private const MONTH_COLORS = [
+        'octubre' => [192, 230, 245],
+        'noviembre' => [251, 226, 213],
+        'diciembre' => [242, 206, 239],
+        'enero' => [218, 242, 208],
+        'febrero' => [202, 237, 251],
+    ];
 
     private string $content = '';
 
@@ -53,7 +78,7 @@ final class StudentSchedulePdf
      */
     public static function make(array $schedule): string
     {
-        return (new self())->build($schedule);
+        return (new self)->build($schedule);
     }
 
     /**
@@ -61,170 +86,275 @@ final class StudentSchedulePdf
      */
     private function build(array $schedule): string
     {
-        $left = self::MARGIN;
-        $right = self::PAGE_WIDTH - self::MARGIN;
-        $center = self::PAGE_WIDTH / 2;
-
-        $this->centeredAt($center, 36, 'Universidad Pedagógica Experimental Libertador', 8.5, true);
-        $this->centeredAt($center, 48, 'Instituto de Mejoramiento Profesional del Magisterio · Coordinación de Docencia', 7, false, self::GRAY);
-        $this->centeredAt($center, 63, (string) $schedule['title'], 9.5, true);
-        $this->centeredAt(
-            $center,
-            75,
-            sprintf(
-                'ESPECIALIDAD: %s    PERÍODO: %s    COHORTE: %s    HORARIO: %s',
-                $schedule['career'],
-                $schedule['period'],
-                $schedule['cohort'],
-                $schedule['schedule_label'],
-            ),
-            7.2,
-            true,
-        );
-
-        $columns = [
-            'code' => 46.0,
-            'name' => 150.0,
-            'teacher' => 78.0,
-        ];
+        $this->drawHeader($schedule);
 
         /** @var array<int, array<string, mixed>> $weeks */
         $weeks = $schedule['weeks'];
-        $weekWidth = ($right - $left - array_sum($columns)) / count($weeks);
 
-        $top = 88.0;
-        $monthRowHeight = 16.0;
-        $weekRowHeight = 28.0;
-        $bodyRowHeight = 30.0;
+        /** @var array<int, array<string, mixed>> $subjects */
+        $subjects = $schedule['subjects'];
 
-        // Fila de meses
-        $x = $left;
-        $this->cell($x, $top, $columns['code'] + $columns['name'] + $columns['teacher'], $monthRowHeight, self::HEADER_BACKGROUND);
-        $this->centeredInCell(
-            $x,
-            $top,
-            $columns['code'] + $columns['name'] + $columns['teacher'],
-            $monthRowHeight,
-            'Mes',
-            6.5,
-            true,
-            self::GRAY,
-        );
-        $x += $columns['code'] + $columns['name'] + $columns['teacher'];
+        /** @var array<int, array<string, mixed>> $distanceSubjects */
+        $distanceSubjects = $schedule['distance_subjects'] ?? $subjects;
+
+        $this->drawTable(159.0, $weeks, $subjects, true);
+        $this->drawTable(335.0, $weeks, $distanceSubjects, false);
+
+        $this->textAt(52, 499, 'Horario Presencial '.implode('   ', $schedule['time_slots']), 7, false, self::BLACK);
+
+        if ($schedule['distance_schedule'] !== null) {
+            $this->textAt(52, 516, (string) $schedule['distance_schedule'], 7, false, self::BLACK);
+        }
+
+        return $this->assemble($this->content);
+    }
+
+    /**
+     * @param  array<string, mixed>  $schedule
+     */
+    private function drawHeader(array $schedule): void
+    {
+        $center = self::PAGE_WIDTH / 2;
+
+        $this->image('upel-logo.jpg', 238.89, 65.70, 43.47, 33.15);
+        $this->image('impm-logo.jpg', 538.38, 61.77, 50.31, 35.37);
+
+        $this->centeredAt($center, 74, 'Universidad Pedagógica Experimental Libertador', 8, false, self::BLACK);
+        $this->centeredAt($center, 86, 'Instituto de Mejoramiento Profesional del Magisterio', 8, true, self::BLACK);
+        $this->centeredAt($center, 97, 'Coordinación de Docencia', 8, false, self::BLACK);
+        $this->centeredAt($center, 108, 'Extensión Académica La Guaira', 8, false, self::BLACK);
+        $this->centeredAt($center, 121, (string) $schedule['title'], 9, true, self::BLACK);
+
+        $this->line(52, 134, 782, 134, 1.2);
+        $this->line(52, 146, 782, 146, 1.2);
+
+        $this->textAt(53, 143, 'ESPECIALIDAD: '.$schedule['career'], 7.5, true, self::BLACK);
+        $this->textAt(469, 143, 'PERÍODO: '.$schedule['period'], 7.5, true, self::BLACK);
+        $this->textAt(614, 143, 'COHORTE: '.$schedule['cohort'], 7.5, true, self::BLACK);
+    }
+
+    /**
+     * Dibuja una cuadrícula completa del horario.
+     *
+     * @param  array<int, array<string, mixed>>  $weeks
+     * @param  array<int, array<string, mixed>>  $subjects
+     */
+    private function drawTable(float $top, array $weeks, array $subjects, bool $presencial): void
+    {
+        $firstWeekX = self::TABLE_LEFT + self::CODE_WIDTH + self::NAME_WIDTH + self::TEACHER_WIDTH;
+        $columns = max(1, count($weeks));
+        $weekWidth = (self::TABLE_RIGHT - $firstWeekX) / $columns;
+        $monthRow = 15.0;
+        $weekRow = 15.0;
+        $dateRow = 15.5;
+
+        // Encabezado de meses
+        $x = $firstWeekX;
 
         foreach ($this->monthGroups($weeks) as $group) {
             $width = $group['count'] * $weekWidth;
-            $this->cell($x, $top, $width, $monthRowHeight, self::HEADER_BACKGROUND);
-            $this->centeredInCell($x, $top, $width, $monthRowHeight, $group['month'], 6.5, true, self::NAVY);
+            $this->cell($x, $top, $width, $monthRow, self::MONTH_COLORS[$group['tone']] ?? self::WHITE);
+            $this->centeredInCell($x, $top, $width, $monthRow, $group['month'], 7, true, self::BLACK);
             $x += $width;
         }
 
-        // Fila de semanas y fechas
-        $top += $monthRowHeight;
-        $x = $left;
-        $this->cell($x, $top, $columns['code'], $weekRowHeight, self::HEADER_BACKGROUND);
-        $this->centeredInCell($x, $top, $columns['code'], $weekRowHeight, 'Código', 6.5, true, self::NAVY);
-        $x += $columns['code'];
+        // Encabezado de columnas fijas
+        $headerTop = $top + $monthRow;
+        $headerHeight = $weekRow + $dateRow;
 
-        $this->cell($x, $top, $columns['name'], $weekRowHeight, self::HEADER_BACKGROUND);
-        $this->centeredInCell($x, $top, $columns['name'], $weekRowHeight, 'Unidad / Eje Curricular', 6.5, true, self::NAVY);
-        $x += $columns['name'];
+        $this->cell(self::TABLE_LEFT, $headerTop, self::CODE_WIDTH, $headerHeight, self::WHITE);
+        $this->centeredInCell(self::TABLE_LEFT, $headerTop, self::CODE_WIDTH, $headerHeight, 'Código', 7, true, self::BLACK);
 
-        $this->cell($x, $top, $columns['teacher'], $weekRowHeight, self::HEADER_BACKGROUND);
-        $this->centeredInCell($x, $top, $columns['teacher'], $weekRowHeight, 'Docente', 6.5, true, self::NAVY);
-        $x += $columns['teacher'];
+        $this->cell(self::TABLE_LEFT + self::CODE_WIDTH, $headerTop, self::NAME_WIDTH, $headerHeight, self::WHITE);
+        $this->centeredInCell(
+            self::TABLE_LEFT + self::CODE_WIDTH,
+            $headerTop,
+            self::NAME_WIDTH,
+            $headerHeight,
+            'Unidad / Eje Curricular',
+            7,
+            true,
+            self::BLACK,
+        );
+
+        $teacherX = self::TABLE_LEFT + self::CODE_WIDTH + self::NAME_WIDTH;
+        $this->cell($teacherX, $headerTop, self::TEACHER_WIDTH, $weekRow, self::WHITE);
+        $this->centeredInCell($teacherX, $headerTop, self::TEACHER_WIDTH, $weekRow, 'Semana', 7, true, self::BLACK);
+        $this->cell($teacherX, $headerTop + $weekRow, self::TEACHER_WIDTH, $dateRow, self::WHITE);
+        $this->centeredInCell(
+            $teacherX,
+            $headerTop + $weekRow,
+            self::TEACHER_WIDTH,
+            $dateRow,
+            'Docente / Fecha',
+            7,
+            true,
+            self::BLACK,
+        );
+
+        // Números de semana
+        $x = $firstWeekX;
 
         foreach ($weeks as $week) {
-            $this->cell($x, $top, $weekWidth, $weekRowHeight, self::HEADER_BACKGROUND);
-            $this->centeredAt($x + ($weekWidth / 2), $top + 11, 'SEM '.$week['week'], 5.2, false, self::GRAY);
-            $this->centeredAt(
-                $x + ($weekWidth / 2),
-                $top + 22,
-                $this->shortWeekday((string) $week['weekday']).' '.$week['date'],
-                5.8,
-                true,
-                self::NAVY,
+            $numberFill = $week['highlight'] === 'red' ? self::RED : self::GRAY;
+            $this->cell($x, $headerTop, $weekWidth, $weekRow, $numberFill);
+            $this->centeredInCell($x, $headerTop, $weekWidth, $weekRow, (string) $week['week'], 7, false, self::BLACK);
+            $x += $weekWidth;
+        }
+
+        // Fechas
+        $x = $firstWeekX;
+
+        foreach ($weeks as $week) {
+            $dateFill = match ($week['highlight']) {
+                'red' => self::RED,
+                'yellow' => self::YELLOW,
+                default => self::GRAY,
+            };
+
+            $this->cell($x, $headerTop + $weekRow, $weekWidth, $dateRow, $dateFill);
+            $this->centeredInCell(
+                $x,
+                $headerTop + $weekRow,
+                $weekWidth,
+                $dateRow,
+                (string) $week['date'],
+                7,
+                false,
+                self::BLACK,
             );
             $x += $weekWidth;
         }
 
         // Filas de materias
-        $top += $weekRowHeight;
+        $bodyTop = $headerTop + $weekRow + $dateRow;
+        $rowHeight = $presencial ? 15.2 : 15.15;
 
-        /** @var array<int, array<string, mixed>> $subjects */
-        $subjects = $schedule['subjects'];
-
-        foreach ($subjects as $subject) {
-            $x = $left;
-
-            $this->cell($x, $top, $columns['code'], $bodyRowHeight, [255, 255, 255]);
-            $this->centeredInCell($x, $top, $columns['code'], $bodyRowHeight, (string) $subject['code'], 6.2, true, self::NAVY);
-            $x += $columns['code'];
-
-            $this->cell($x, $top, $columns['name'], $bodyRowHeight, [255, 255, 255]);
-            $this->centeredInCell($x, $top, $columns['name'], $bodyRowHeight, (string) $subject['name'], 6.2, false, self::NAVY);
-            $x += $columns['name'];
-
-            $this->cell($x, $top, $columns['teacher'], $bodyRowHeight, [255, 255, 255]);
-            $this->centeredInCell($x, $top, $columns['teacher'], $bodyRowHeight, (string) $subject['teacher'], 6.0, false, self::GRAY);
-            $x += $columns['teacher'];
+        foreach ($subjects as $index => $subject) {
+            $rowTop = $bodyTop + ($index * $rowHeight);
 
             /** @var array<int, string|null> $hours */
             $hours = $subject['hours'];
 
-            foreach ($hours as $hour) {
-                $isVirtual = $hour === 'Virtual';
+            $this->cell(self::TABLE_LEFT, $rowTop, self::CODE_WIDTH, $rowHeight, self::WHITE);
+            $this->centeredInCell(
+                self::TABLE_LEFT,
+                $rowTop,
+                self::CODE_WIDTH,
+                $rowHeight,
+                (string) $subject['code'],
+                7,
+                true,
+                self::BLACK,
+            );
 
-                $this->cell(
-                    $x,
-                    $top,
-                    $weekWidth,
-                    $bodyRowHeight,
-                    $isVirtual ? self::VIRTUAL_BACKGROUND : [255, 255, 255],
-                );
+            $this->cell(self::TABLE_LEFT + self::CODE_WIDTH, $rowTop, self::NAME_WIDTH, $rowHeight, self::WHITE);
+            $this->centeredInCell(
+                self::TABLE_LEFT + self::CODE_WIDTH,
+                $rowTop,
+                self::NAME_WIDTH,
+                $rowHeight,
+                (string) $subject['name'],
+                7,
+                false,
+                self::BLACK,
+            );
+
+            $this->cell($teacherX, $rowTop, self::TEACHER_WIDTH, $rowHeight, self::WHITE);
+            $this->centeredInCell(
+                $teacherX,
+                $rowTop,
+                self::TEACHER_WIDTH,
+                $rowHeight,
+                (string) $subject['teacher'],
+                7,
+                false,
+                self::BLACK,
+            );
+
+            $isVirtualRow = $hours !== []
+                && count(array_filter($hours, static fn (?string $hour): bool => $hour === 'Virtual')) === count($hours);
+
+            if ($isVirtualRow) {
+                $this->drawVirtualRow($firstWeekX, $rowTop, $weekWidth, $rowHeight, $columns);
+
+                continue;
+            }
+
+            $x = $firstWeekX;
+
+            foreach ($weeks as $weekIndex => $week) {
+                $fill = $this->bodyFill($week, $presencial);
+                $this->cell($x, $rowTop, $weekWidth, $rowHeight, $fill);
                 $this->centeredInCell(
                     $x,
-                    $top,
+                    $rowTop,
                     $weekWidth,
-                    $bodyRowHeight,
-                    $hour ?? '-',
-                    6.2,
-                    $isVirtual,
-                    $isVirtual ? self::GOLD_TEXT : self::NAVY,
+                    $rowHeight,
+                    $hours[$weekIndex] ?? '',
+                    7,
+                    false,
+                    self::BLACK,
                 );
                 $x += $weekWidth;
             }
+        }
+    }
 
-            $top += $bodyRowHeight;
+    /**
+     * Color de una celda del cuerpo según el tipo de cuadrícula.
+     *
+     * @param  array<string, mixed>  $week
+     * @return array<int, int>
+     */
+    private function bodyFill(array $week, bool $presencial): array
+    {
+        if (! $presencial) {
+            return self::MONTH_COLORS[$week['tone']] ?? self::WHITE;
         }
 
-        // Leyendas
-        $top += 18;
-        $this->textAt($left, $top, 'Horario presencial: '.implode(' · ', $schedule['time_slots']), 6.8, false, self::GRAY);
-        $top += 11;
+        return match ($week['highlight']) {
+            'red' => self::RED,
+            'yellow' => self::MONTH_COLORS['febrero'],
+            default => self::GRAY,
+        };
+    }
 
-        if ($schedule['distance_schedule'] !== null) {
-            $this->textAt($left, $top, (string) $schedule['distance_schedule'], 6.8, false, self::GRAY);
-            $top += 11;
+    /**
+     * Dibuja la franja naranja de actividades virtuales.
+     */
+    private function drawVirtualRow(float $firstWeekX, float $top, float $weekWidth, float $height, int $columns): void
+    {
+        $width = $columns * $weekWidth;
+        $split = $columns >= 8 ? 7 : $columns;
+
+        $this->rect($firstWeekX, $top, $width, $height, self::ORANGE);
+
+        if ($split < $columns) {
+            $this->line($firstWeekX + ($split * $weekWidth), $top, $firstWeekX + ($split * $weekWidth), $top + $height, 0.5);
         }
 
-        $this->textAt(
-            $left,
-            $top,
-            'Sábados: actividades presenciales · Miércoles: actividades a distancia entre semana.',
-            6.8,
-            false,
-            self::GRAY,
-        );
+        $this->centeredInCell($firstWeekX, $top, $split * $weekWidth, $height, 'Virtual', 7, false, self::BLACK);
 
-        return $this->assemble($this->content);
+        if ($split < $columns) {
+            $this->centeredInCell(
+                $firstWeekX + ($split * $weekWidth),
+                $top,
+                ($columns - $split) * $weekWidth,
+                $height,
+                'Virtual',
+                7,
+                false,
+                self::BLACK,
+            );
+        }
     }
 
     /**
      * Agrupa las semanas consecutivas por mes.
      *
      * @param  array<int, array<string, mixed>>  $weeks
-     * @return array<int, array{month: string, count: int}>
+     * @return array<int, array{month: string, tone: string, count: int}>
      */
     private function monthGroups(array $weeks): array
     {
@@ -239,19 +369,14 @@ final class StudentSchedulePdf
                 continue;
             }
 
-            $groups[] = ['month' => (string) $week['month'], 'count' => 1];
+            $groups[] = [
+                'month' => (string) $week['month'],
+                'tone' => (string) $week['tone'],
+                'count' => 1,
+            ];
         }
 
         return $groups;
-    }
-
-    private function shortWeekday(string $weekday): string
-    {
-        return match ($weekday) {
-            'Miércoles' => 'Mié',
-            'Sábado' => 'Sáb',
-            default => mb_substr($weekday, 0, 3),
-        };
     }
 
     private function textAt(
@@ -260,7 +385,7 @@ final class StudentSchedulePdf
         string $text,
         float $size,
         bool $bold = false,
-        array $color = self::NAVY,
+        array $color = self::BLACK,
     ): void {
         $this->content .= sprintf(
             "BT /%s %.2F Tf %.3F %.3F %.3F rg 1 0 0 1 %.2F %.2F Tm (%s) Tj ET\n",
@@ -281,7 +406,7 @@ final class StudentSchedulePdf
         string $text,
         float $size,
         bool $bold = false,
-        array $color = self::NAVY,
+        array $color = self::BLACK,
     ): void {
         $this->textAt($centerX - ($this->textWidth($text, $size, $bold) / 2), $top, $text, $size, $bold, $color);
     }
@@ -294,44 +419,133 @@ final class StudentSchedulePdf
         string $text,
         float $size,
         bool $bold = false,
-        array $color = self::NAVY,
+        array $color = self::BLACK,
     ): void {
+        if ($text === '') {
+            return;
+        }
+
         $centerX = $x + ($width / 2);
         $baseline = $top + ($height / 2) + ($size * 0.35);
 
         $this->centeredAt($centerX, $baseline, $text, $size, $bold, $color);
     }
 
+    /**
+     * Dibuja una celda con relleno y borde.
+     *
+     * @param  array<int, int>  $fill
+     */
     private function cell(float $x, float $top, float $width, float $height, array $fill): void
     {
-        $y = self::PAGE_HEIGHT - $top - $height;
+        $this->rect($x, $top, $width, $height, $fill);
+        $this->strokeRect($x, $top, $width, $height);
+    }
 
+    /**
+     * @param  array<int, int>  $fill
+     */
+    private function rect(float $x, float $top, float $width, float $height, array $fill): void
+    {
         $this->content .= sprintf(
             "%.3F %.3F %.3F rg %.2F %.2F %.2F %.2F re f\n",
             $fill[0] / 255,
             $fill[1] / 255,
             $fill[2] / 255,
             $x,
-            $y,
-            $width,
-            $height,
-        );
-
-        $this->content .= sprintf(
-            "%.3F %.3F %.3F RG 0.5 w %.2F %.2F %.2F %.2F re S\n",
-            self::BORDER[0] / 255,
-            self::BORDER[1] / 255,
-            self::BORDER[2] / 255,
-            $x,
-            $y,
+            self::PAGE_HEIGHT - $top - $height,
             $width,
             $height,
         );
     }
 
+    private function strokeRect(float $x, float $top, float $width, float $height): void
+    {
+        $this->content .= sprintf(
+            "0 0 0 RG 0.5 w %.2F %.2F %.2F %.2F re S\n",
+            $x,
+            self::PAGE_HEIGHT - $top - $height,
+            $width,
+            $height,
+        );
+    }
+
+    private function line(float $x1, float $y1, float $x2, float $y2, float $width): void
+    {
+        $this->content .= sprintf(
+            "0 0 0 RG %.2F w %.2F %.2F m %.2F %.2F l S\n",
+            $width,
+            $x1,
+            self::PAGE_HEIGHT - $y1,
+            $x2,
+            self::PAGE_HEIGHT - $y2,
+        );
+    }
+
+    private function image(string $file, float $x, float $top, float $width, float $height): void
+    {
+        $path = public_path('images/schedule/'.$file);
+
+        if (! is_file($path)) {
+            return;
+        }
+
+        $name = $file === 'upel-logo.jpg' ? 'Im1' : 'Im2';
+
+        $this->content .= sprintf(
+            "q %.2F 0 0 %.2F %.2F %.2F cm /%s Do Q\n",
+            $width,
+            $height,
+            $x,
+            self::PAGE_HEIGHT - $top - $height,
+            $name,
+        );
+    }
+
     private function textWidth(string $text, float $size, bool $bold = false): float
     {
-        return mb_strlen($text) * $size * ($bold ? 0.56 : 0.5);
+        $units = 0;
+
+        foreach (mb_str_split($text) as $character) {
+            $units += $this->characterWidth($character);
+        }
+
+        return ($units / 1000) * $size * ($bold ? 1.02 : 1.0);
+    }
+
+    /**
+     * Ancho aproximado de un carácter en Helvetica (unidades de 1/1000 em).
+     */
+    private function characterWidth(string $character): int
+    {
+        $widths = [
+            ' ' => 278, '!' => 278, '"' => 355, '#' => 556, '$' => 556, '%' => 889, '&' => 667,
+            "'" => 191, '(' => 333, ')' => 333, '*' => 389, '+' => 584, ',' => 278, '-' => 333,
+            '.' => 278, '/' => 278, ':' => 278, ';' => 278, '<' => 584, '=' => 584, '>' => 584,
+            '?' => 556, '@' => 1015, '[' => 278, '\\' => 278, ']' => 278, '^' => 469, '_' => 556,
+            '`' => 333, '{' => 334, '|' => 260, '}' => 334, '~' => 584, '·' => 278, '–' => 556,
+            '—' => 1000, '°' => 400, 'Á' => 667, 'É' => 667, 'Í' => 278, 'Ó' => 778, 'Ú' => 722,
+            'Ñ' => 722, 'á' => 556, 'é' => 556, 'í' => 222, 'ó' => 556, 'ú' => 556, 'ñ' => 556,
+            'ü' => 556, 'Ü' => 722,
+        ];
+
+        if (isset($widths[$character])) {
+            return $widths[$character];
+        }
+
+        if (preg_match('/^[A-Z]$/', $character) === 1) {
+            return 667;
+        }
+
+        if (preg_match('/^[a-z]$/', $character) === 1) {
+            return 500;
+        }
+
+        if (preg_match('/^[0-9]$/', $character) === 1) {
+            return 556;
+        }
+
+        return 500;
     }
 
     private function escape(string $text): string
@@ -339,7 +553,7 @@ final class StudentSchedulePdf
         $encoded = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $text);
 
         if ($encoded === false) {
-            $encoded = $text;
+            $encoded = preg_replace('/[^\x20-\x7E]/', '', $text) ?? $text;
         }
 
         return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $encoded);
@@ -349,13 +563,17 @@ final class StudentSchedulePdf
     {
         $stream = rtrim($stream, "\n")."\n";
 
+        $images = $this->imageObjects();
+
         $objects = [
             1 => '<< /Type /Catalog /Pages 2 0 R >>',
             2 => '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-            3 => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>',
+            3 => '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595.32] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> /XObject << /Im1 7 0 R /Im2 8 0 R >> >> /Contents 4 0 R >>',
             4 => '<< /Length '.strlen($stream)." >>\nstream\n".$stream.'endstream',
             5 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
             6 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+            7 => $images['Im1'],
+            8 => $images['Im2'],
         ];
 
         $pdf = "%PDF-1.4\n";
@@ -367,14 +585,74 @@ final class StudentSchedulePdf
         }
 
         $xref = strlen($pdf);
-        $pdf .= "xref\n0 7\n0000000000 65535 f \n";
+        $pdf .= "xref\n0 9\n0000000000 65535 f \n";
 
-        for ($number = 1; $number <= 6; $number++) {
+        for ($number = 1; $number <= 8; $number++) {
             $pdf .= sprintf("%010d 00000 n \n", $offsets[$number]);
         }
 
-        $pdf .= "trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n".$xref."\n%%EOF";
+        $pdf .= "trailer\n<< /Size 9 /Root 1 0 R >>\nstartxref\n".$xref."\n%%EOF";
 
         return $pdf;
+    }
+
+    /**
+     * @return array{Im1: string, Im2: string}
+     */
+    private function imageObjects(): array
+    {
+        return [
+            'Im1' => $this->jpegObject(public_path('images/schedule/upel-logo.jpg')),
+            'Im2' => $this->jpegObject(public_path('images/schedule/impm-logo.jpg')),
+        ];
+    }
+
+    private function jpegObject(string $path): string
+    {
+        if (! is_file($path)) {
+            return 'null';
+        }
+
+        $data = (string) file_get_contents($path);
+        [$width, $height] = $this->jpegSize($data);
+
+        return sprintf(
+            '<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>'."\nstream\n%s\nendstream",
+            $width,
+            $height,
+            strlen($data),
+            $data,
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function jpegSize(string $data): array
+    {
+        $length = strlen($data);
+        $offset = 2;
+
+        while ($offset + 9 < $length) {
+            if (ord($data[$offset]) !== 0xFF) {
+                $offset++;
+
+                continue;
+            }
+
+            $marker = ord($data[$offset + 1]);
+
+            if ($marker >= 0xC0 && $marker <= 0xC3) {
+                $height = (ord($data[$offset + 5]) << 8) | ord($data[$offset + 6]);
+                $width = (ord($data[$offset + 7]) << 8) | ord($data[$offset + 8]);
+
+                return [$width, $height];
+            }
+
+            $segmentLength = (ord($data[$offset + 2]) << 8) | ord($data[$offset + 3]);
+            $offset += 2 + $segmentLength;
+        }
+
+        return [1, 1];
     }
 }
