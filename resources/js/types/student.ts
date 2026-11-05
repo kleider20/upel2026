@@ -80,7 +80,7 @@ export type StudentScheduleWeek = {
     week: number;
     month: string;
     tone: string;
-    date: string;
+    day: string;
     weekday: string;
     highlight: 'red' | 'yellow' | null;
 };

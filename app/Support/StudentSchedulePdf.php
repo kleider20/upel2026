@@ -40,37 +40,6 @@ final class StudentSchedulePdf
      */
     private const WHITE = [255, 255, 255];
 
-    /**
-     * @var array<int, int>
-     */
-    private const GRAY = [128, 128, 128];
-
-    /**
-     * @var array<int, int>
-     */
-    private const RED = [255, 0, 0];
-
-    /**
-     * @var array<int, int>
-     */
-    private const YELLOW = [255, 255, 0];
-
-    /**
-     * @var array<int, int>
-     */
-    private const ORANGE = [255, 192, 0];
-
-    /**
-     * @var array<string, array<int, int>>
-     */
-    private const MONTH_COLORS = [
-        'octubre' => [192, 230, 245],
-        'noviembre' => [251, 226, 213],
-        'diciembre' => [242, 206, 239],
-        'enero' => [218, 242, 208],
-        'febrero' => [202, 237, 251],
-    ];
-
     private string $content = '';
 
     /**
@@ -100,10 +69,19 @@ final class StudentSchedulePdf
         $this->drawTable(159.0, $weeks, $subjects, true);
         $this->drawTable(335.0, $weeks, $distanceSubjects, false);
 
-        $this->textAt(52, 499, 'Horario Presencial '.implode('   ', $schedule['time_slots']), 7, false, self::BLACK);
+        $this->textAt(52, 499, 'Horario Presencial '.implode('   ', $schedule['time_slots']), 7, true, self::BLACK);
 
         if ($schedule['distance_schedule'] !== null) {
-            $this->textAt(52, 516, (string) $schedule['distance_schedule'], 7, false, self::BLACK);
+            $label = (string) $schedule['distance_schedule'].' ';
+            $this->textAt(52, 516, $label, 7, false, self::BLACK);
+            $this->textAt(
+                52 + $this->textWidth($label, 7),
+                516,
+                (string) ($schedule['distance_time'] ?? ''),
+                7,
+                true,
+                self::BLACK,
+            );
         }
 
         return $this->assemble($this->content);
@@ -153,7 +131,7 @@ final class StudentSchedulePdf
 
         foreach ($this->monthGroups($weeks) as $group) {
             $width = $group['count'] * $weekWidth;
-            $this->cell($x, $top, $width, $monthRow, self::MONTH_COLORS[$group['tone']] ?? self::WHITE);
+            $this->cell($x, $top, $width, $monthRow, self::WHITE);
             $this->centeredInCell($x, $top, $width, $monthRow, $group['month'], 7, true, self::BLACK);
             $x += $width;
         }
@@ -196,8 +174,7 @@ final class StudentSchedulePdf
         $x = $firstWeekX;
 
         foreach ($weeks as $week) {
-            $numberFill = $week['highlight'] === 'red' ? self::RED : self::GRAY;
-            $this->cell($x, $headerTop, $weekWidth, $weekRow, $numberFill);
+            $this->cell($x, $headerTop, $weekWidth, $weekRow, self::WHITE);
             $this->centeredInCell($x, $headerTop, $weekWidth, $weekRow, (string) $week['week'], 7, false, self::BLACK);
             $x += $weekWidth;
         }
@@ -206,21 +183,15 @@ final class StudentSchedulePdf
         $x = $firstWeekX;
 
         foreach ($weeks as $week) {
-            $dateFill = match ($week['highlight']) {
-                'red' => self::RED,
-                'yellow' => self::YELLOW,
-                default => self::GRAY,
-            };
-
-            $this->cell($x, $headerTop + $weekRow, $weekWidth, $dateRow, $dateFill);
+            $this->cell($x, $headerTop + $weekRow, $weekWidth, $dateRow, self::WHITE);
             $this->centeredInCell(
                 $x,
                 $headerTop + $weekRow,
                 $weekWidth,
                 $dateRow,
-                (string) $week['date'],
+                (string) $week['day'],
                 7,
-                false,
+                true,
                 self::BLACK,
             );
             $x += $weekWidth;
@@ -284,8 +255,7 @@ final class StudentSchedulePdf
             $x = $firstWeekX;
 
             foreach ($weeks as $weekIndex => $week) {
-                $fill = $this->bodyFill($week, $presencial);
-                $this->cell($x, $rowTop, $weekWidth, $rowHeight, $fill);
+                $this->cell($x, $rowTop, $weekWidth, $rowHeight, self::WHITE);
                 $this->centeredInCell(
                     $x,
                     $rowTop,
@@ -302,25 +272,6 @@ final class StudentSchedulePdf
     }
 
     /**
-     * Color de una celda del cuerpo según el tipo de cuadrícula.
-     *
-     * @param  array<string, mixed>  $week
-     * @return array<int, int>
-     */
-    private function bodyFill(array $week, bool $presencial): array
-    {
-        if (! $presencial) {
-            return self::MONTH_COLORS[$week['tone']] ?? self::WHITE;
-        }
-
-        return match ($week['highlight']) {
-            'red' => self::RED,
-            'yellow' => self::MONTH_COLORS['febrero'],
-            default => self::GRAY,
-        };
-    }
-
-    /**
      * Dibuja la franja naranja de actividades virtuales.
      */
     private function drawVirtualRow(float $firstWeekX, float $top, float $weekWidth, float $height, int $columns): void
@@ -328,7 +279,8 @@ final class StudentSchedulePdf
         $width = $columns * $weekWidth;
         $split = $columns >= 8 ? 7 : $columns;
 
-        $this->rect($firstWeekX, $top, $width, $height, self::ORANGE);
+        $this->rect($firstWeekX, $top, $width, $height, self::WHITE);
+        $this->strokeRect($firstWeekX, $top, $width, $height);
 
         if ($split < $columns) {
             $this->line($firstWeekX + ($split * $weekWidth), $top, $firstWeekX + ($split * $weekWidth), $top + $height, 0.5);

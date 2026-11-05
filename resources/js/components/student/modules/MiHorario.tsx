@@ -2,76 +2,26 @@ import { Calendar, Clock, Download, Info, Printer } from 'lucide-react';
 import { pdf as schedulePdf } from '@/routes/student/schedule';
 import type { StudentDashboardProps, StudentScheduleData, StudentScheduleSubject } from '@/types/student';
 
-const MONTH_COLORS: Record<string, string> = {
-  octubre: '#c0e6f5',
-  noviembre: '#fbe2d5',
-  diciembre: '#f2ceef',
-  enero: '#daf2d0',
-  febrero: '#caedfb',
-};
-
-const CELL_GRAY = '#808080';
-const CELL_RED = '#ff0000';
-const CELL_YELLOW = '#ffff00';
-const CELL_ORANGE = '#ffc000';
-
 function monthGroups(schedule: StudentScheduleData) {
-  return schedule.weeks.reduce<{ month: string; tone: string; weeks: number }[]>((groups, week) => {
+  return schedule.weeks.reduce<{ month: string; weeks: number }[]>((groups, week) => {
     const last = groups[groups.length - 1];
 
     if (last !== undefined && last.month === week.month) {
       last.weeks += 1;
     } else {
-      groups.push({ month: week.month, tone: week.tone, weeks: 1 });
+      groups.push({ month: week.month, weeks: 1 });
     }
 
     return groups;
   }, []);
 }
 
-function weekHeaderColor(schedule: StudentScheduleData, index: number, row: 'number' | 'date') {
-  const week = schedule.weeks[index];
-
-  if (row === 'number') {
-    return week.highlight === 'red' ? CELL_RED : CELL_GRAY;
-  }
-
-  if (week.highlight === 'red') {
-    return CELL_RED;
-  }
-
-  if (week.highlight === 'yellow') {
-    return CELL_YELLOW;
-  }
-
-  return CELL_GRAY;
-}
-
-function bodyCellColor(schedule: StudentScheduleData, index: number, presencial: boolean) {
-  const week = schedule.weeks[index];
-
-  if (!presencial) {
-    return MONTH_COLORS[week.tone] ?? '#ffffff';
-  }
-
-  if (week.highlight === 'red') {
-    return CELL_RED;
-  }
-
-  if (week.highlight === 'yellow') {
-    return MONTH_COLORS.febrero;
-  }
-
-  return CELL_GRAY;
-}
-
 type ScheduleTableProps = {
   schedule: StudentScheduleData;
   subjects: StudentScheduleSubject[];
-  presencial: boolean;
 };
 
-function ScheduleTable({ schedule, subjects, presencial }: ScheduleTableProps) {
+function ScheduleTable({ schedule, subjects }: ScheduleTableProps) {
   const splitIndex = schedule.weeks.length >= 8 ? 7 : schedule.weeks.length;
 
   return (
@@ -84,8 +34,7 @@ function ScheduleTable({ schedule, subjects, presencial }: ScheduleTableProps) {
               <th
                 key={`${group.month}-${group.weeks}`}
                 colSpan={group.weeks}
-                className="border border-black px-1 py-1 text-center font-bold"
-                style={{ backgroundColor: MONTH_COLORS[group.tone] ?? '#ffffff' }}
+                className="border border-black bg-white px-1 py-1 text-center font-bold"
               >
                 {group.month}
               </th>
@@ -105,11 +54,10 @@ function ScheduleTable({ schedule, subjects, presencial }: ScheduleTableProps) {
               Unidad / Eje Curricular
             </th>
             <th className="border border-black bg-white px-1 py-1 text-center font-bold uppercase">Semana</th>
-            {schedule.weeks.map((week, index) => (
+            {schedule.weeks.map((week) => (
               <th
                 key={`number-${week.week}`}
-                className="border border-black px-0.5 py-1 text-center font-normal"
-                style={{ backgroundColor: weekHeaderColor(schedule, index, 'number') }}
+                className="border border-black bg-white px-0.5 py-1 text-center font-normal"
               >
                 {week.week}
               </th>
@@ -117,13 +65,12 @@ function ScheduleTable({ schedule, subjects, presencial }: ScheduleTableProps) {
           </tr>
           <tr>
             <th className="border border-black bg-white px-1 py-1 text-center font-bold">Docente / Fecha</th>
-            {schedule.weeks.map((week, index) => (
+            {schedule.weeks.map((week) => (
               <th
                 key={`date-${week.week}`}
-                className="border border-black px-0.5 py-1 text-center font-normal"
-                style={{ backgroundColor: weekHeaderColor(schedule, index, 'date') }}
+                className="border border-black bg-white px-0.5 py-1 text-center font-bold"
               >
-                {week.date}
+                {week.day}
               </th>
             ))}
           </tr>
@@ -146,16 +93,14 @@ function ScheduleTable({ schedule, subjects, presencial }: ScheduleTableProps) {
                   <>
                     <td
                       colSpan={splitIndex}
-                      className="border border-black px-1 py-1 text-center font-semibold"
-                      style={{ backgroundColor: CELL_ORANGE }}
+                      className="border border-black bg-white px-1 py-1 text-center"
                     >
                       Virtual
                     </td>
                     {splitIndex < schedule.weeks.length && (
                       <td
                         colSpan={schedule.weeks.length - splitIndex}
-                        className="border border-black px-1 py-1 text-center font-semibold"
-                        style={{ backgroundColor: CELL_ORANGE }}
+                        className="border border-black bg-white px-1 py-1 text-center"
                       >
                         Virtual
                       </td>
@@ -165,8 +110,7 @@ function ScheduleTable({ schedule, subjects, presencial }: ScheduleTableProps) {
                   schedule.weeks.map((week, index) => (
                     <td
                       key={`${subject.code}-${week.week}`}
-                      className="border border-black px-0.5 py-1 text-center"
-                      style={{ backgroundColor: bodyCellColor(schedule, index, presencial) }}
+                      className="border border-black bg-white px-0.5 py-1 text-center"
                     >
                       {subject.hours[index] ?? ''}
                     </td>
@@ -268,11 +212,11 @@ export function MiHorario({ schedule }: StudentDashboardProps) {
         </div>
 
         <div className="space-y-6 px-4 py-5">
-          <ScheduleTable schedule={schedule} subjects={schedule.subjects} presencial />
-          <ScheduleTable schedule={schedule} subjects={schedule.distance_subjects} presencial={false} />
+          <ScheduleTable schedule={schedule} subjects={schedule.subjects} />
+          <ScheduleTable schedule={schedule} subjects={schedule.distance_subjects} />
         </div>
 
-        <div className="space-y-1 border-t border-border px-5 py-4 text-[0.68rem] font-semibold text-muted-foreground">
+        <div className="space-y-1 border-t border-border px-5 py-4 text-[0.68rem] font-bold text-muted-foreground">
           <p className="flex items-start gap-1.5">
             <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-upel-gold" />
             <span>
