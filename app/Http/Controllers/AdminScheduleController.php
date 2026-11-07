@@ -64,6 +64,7 @@ class AdminScheduleController extends Controller
                 'created_at' => $schedule->created_at?->format('d/m/Y'),
                 'show_url' => route('admin.schedules.show', $schedule),
                 'pdf_url' => route('admin.schedules.pdf', $schedule),
+                'edit_url' => route('admin.schedules.edit', $schedule),
                 'delete_url' => route('admin.schedules.destroy', $schedule),
             ]);
 
@@ -92,7 +93,72 @@ class AdminScheduleController extends Controller
         $this->authorizeManage($request);
 
         return Inertia::render('admin/schedules/form', [
+            'schedule' => null,
             ...$this->formOptions(),
+        ]);
+    }
+
+    /**
+     * Formulario para editar un horario publicado.
+     */
+    public function edit(Request $request, Schedule $schedule): InertiaResponse
+    {
+        $this->authorizeManage($request);
+
+        $schedule->load('subjects');
+
+        $subjects = $schedule->subjects
+            ->map(static function (Subject $subject): array {
+                $dates = $subject->pivot->dates;
+                $dateTimes = $subject->pivot->date_times;
+
+                if (is_string($dates)) {
+                    $dates = json_decode($dates, true);
+                }
+
+                if (is_string($dateTimes)) {
+                    $dateTimes = json_decode($dateTimes, true);
+                }
+
+                $dates = is_array($dates) ? array_values($dates) : [];
+                $dateTimes = is_array($dateTimes) ? $dateTimes : [];
+                $startsAt = substr((string) $subject->pivot->starts_at, 0, 5);
+                $endsAt = substr((string) $subject->pivot->ends_at, 0, 5);
+
+                foreach ($dates as $date) {
+                    $dateTimes[$date] ??= [
+                        'starts_at' => $startsAt,
+                        'ends_at' => $endsAt,
+                    ];
+                }
+
+                return [
+                    'position' => (int) $subject->pivot->position,
+                    'subject_id' => (string) $subject->id,
+                    'professor_id' => $subject->pivot->professor_id !== null
+                        ? (string) $subject->pivot->professor_id
+                        : '',
+                    'teacher_name' => (string) ($subject->pivot->teacher_name ?? ''),
+                    'dates' => $dates,
+                    'date_times' => $dateTimes,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return Inertia::render('admin/schedules/form', [
+            'schedule' => [
+                'id' => $schedule->id,
+                'career_id' => (string) $schedule->career_id,
+                'period' => (string) $schedule->period,
+                'cohort' => $schedule->cohort,
+                'study_schedule' => (string) $schedule->study_schedule,
+                'modality' => (string) $schedule->modality,
+                'starts_on' => $schedule->starts_on?->toDateString() ?? '',
+                'ends_on' => $schedule->ends_on?->toDateString() ?? '',
+                'subjects' => $subjects,
+            ],
+            ...$this->formOptions($schedule),
         ]);
     }
 
@@ -105,39 +171,12 @@ class AdminScheduleController extends Controller
         $subjects = $validated['subjects'] ?? [];
 
         unset($validated['subjects']);
+        $subjectData = self::subjectPivotData($subjects);
 
-        $schedule = DB::transaction(static function () use ($validated, $subjects): Schedule {
+        $schedule = DB::transaction(static function () use ($validated, $subjectData): Schedule {
             $schedule = Schedule::create($validated);
 
-            $schedule->subjects()->sync(
-                collect($subjects)
-                    ->mapWithKeys(static function (array $subject): array {
-                        $professorId = $subject['professor_id'] ?? null;
-                        $professorId = $professorId === null || $professorId === ''
-                            ? null
-                            : (int) $professorId;
-                        $teacherName = trim((string) ($subject['teacher_name'] ?? ''));
-                        $dates = array_values(array_unique(array_map(
-                            static fn (string $date): string => $date,
-                            $subject['dates'] ?? [],
-                        )));
-                        sort($dates);
-
-                        return [
-                            (int) $subject['subject_id'] => [
-                                'position' => (int) $subject['position'],
-                                'professor_id' => $professorId,
-                                'teacher_name' => $professorId === null && $teacherName !== ''
-                                    ? $teacherName
-                                    : null,
-                                'dates' => json_encode($dates),
-                                'starts_at' => $subject['starts_at'],
-                                'ends_at' => $subject['ends_at'],
-                            ],
-                        ];
-                    })
-                    ->all(),
-            );
+            $schedule->subjects()->sync($subjectData);
 
             return $schedule;
         });
@@ -145,6 +184,27 @@ class AdminScheduleController extends Controller
         return redirect()
             ->route('admin.schedules.show', $schedule)
             ->with('success', "El horario {$schedule->cohort} fue publicado correctamente.");
+    }
+
+    /**
+     * Actualiza un horario publicado y sus materias seleccionadas.
+     */
+    public function update(ScheduleRequest $request, Schedule $schedule): RedirectResponse
+    {
+        $validated = $request->validated();
+        $subjects = $validated['subjects'] ?? [];
+
+        unset($validated['subjects']);
+        $subjectData = self::subjectPivotData($subjects);
+
+        DB::transaction(static function () use ($schedule, $validated, $subjectData): void {
+            $schedule->update($validated);
+            $schedule->subjects()->sync($subjectData);
+        });
+
+        return redirect()
+            ->route('admin.schedules.show', $schedule)
+            ->with('success', "El horario {$schedule->cohort} fue actualizado correctamente.");
     }
 
     /**
@@ -174,6 +234,7 @@ class AdminScheduleController extends Controller
                 'created_at' => $schedule->created_at?->format('d/m/Y H:i'),
             ],
             'pdf_url' => route('admin.schedules.pdf', $schedule),
+            'edit_url' => route('admin.schedules.edit', $schedule),
             'delete_url' => route('admin.schedules.destroy', $schedule),
             'can_manage' => $request->user()?->can(Permission::SchedulesManage->value) ?? false,
         ]);
@@ -188,7 +249,7 @@ class AdminScheduleController extends Controller
 
         $schedule->loadMissing('career');
 
-        $definition = $schedule->toScheduleArray();
+        $definition = $schedule->toScheduleArray(forPdf: true);
 
         $filename = sprintf(
             'horario-%s-%s-%s.pdf',
@@ -244,15 +305,66 @@ class AdminScheduleController extends Controller
     }
 
     /**
-     * Opciones compartidas por el formulario de alta.
+     * Convierte las materias validadas al formato de sincronización de la relación.
+     *
+     * @param  array<int, array<string, mixed>>  $subjects
+     * @return array<int, array<string, mixed>>
+     */
+    private static function subjectPivotData(array $subjects): array
+    {
+        return collect($subjects)
+            ->mapWithKeys(static function (array $subject): array {
+                $professorId = $subject['professor_id'] ?? null;
+                $professorId = $professorId === null || $professorId === ''
+                    ? null
+                    : (int) $professorId;
+                $teacherName = trim((string) ($subject['teacher_name'] ?? ''));
+                $dates = array_values(array_unique(array_map(
+                    static fn (string $date): string => $date,
+                    $subject['dates'] ?? [],
+                )));
+                sort($dates);
+                $dateTimes = array_intersect_key(
+                    $subject['date_times'],
+                    array_flip($dates),
+                );
+                $firstDateTime = reset($dateTimes);
+
+                return [
+                    (int) $subject['subject_id'] => [
+                        'position' => (int) $subject['position'],
+                        'professor_id' => $professorId,
+                        'teacher_name' => $professorId === null && $teacherName !== ''
+                            ? $teacherName
+                            : null,
+                        'dates' => json_encode($dates),
+                        'date_times' => json_encode($dateTimes),
+                        'starts_at' => $firstDateTime['starts_at'] ?? null,
+                        'ends_at' => $firstDateTime['ends_at'] ?? null,
+                    ],
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * Opciones compartidas por los formularios de alta y edición.
      *
      * @return array<string, mixed>
      */
-    private function formOptions(): array
+    private function formOptions(?Schedule $schedule = null): array
     {
+        $scheduleSubjectIds = $schedule?->subjects->pluck('id')->all() ?? [];
+
         return [
             'careers' => Career::query()
-                ->where('is_active', true)
+                ->where(static function ($query) use ($schedule): void {
+                    $query->where('is_active', true);
+
+                    if ($schedule !== null) {
+                        $query->orWhereKey($schedule->career_id);
+                    }
+                })
                 ->with(['offerings' => static fn ($query) => $query
                     ->where('is_active', true)
                     ->orderBy('schedule')
@@ -296,7 +408,13 @@ class AdminScheduleController extends Controller
                 ->all(),
             'template' => StudentSchedule::template(),
             'subjects' => Subject::query()
-                ->where('is_active', true)
+                ->where(static function ($query) use ($scheduleSubjectIds): void {
+                    $query->where('is_active', true);
+
+                    if ($scheduleSubjectIds !== []) {
+                        $query->orWhereIn('id', $scheduleSubjectIds);
+                    }
+                })
                 ->with('professors:id,name')
                 ->orderBy('semester')
                 ->orderBy('name')

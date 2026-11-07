@@ -4,6 +4,7 @@ import {
     CalendarDays,
     Download,
     FileDown,
+    Pencil,
     Printer,
     Trash2,
 } from 'lucide-react';
@@ -30,6 +31,7 @@ type Props = {
     schedule: StudentScheduleData;
     meta: ScheduleMeta;
     pdf_url: string;
+    edit_url: string;
     delete_url: string;
     can_manage: boolean;
 };
@@ -41,6 +43,7 @@ export default function AdminScheduleShow({
     schedule,
     meta,
     pdf_url,
+    edit_url,
     delete_url,
     can_manage,
 }: Props) {
@@ -167,17 +170,29 @@ export default function AdminScheduleShow({
                             Descargar PDF
                         </a>
                         {can_manage ? (
-                            <button
-                                type="button"
-                                onClick={deleteSchedule}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-[0.65rem] font-bold text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
-                            >
-                                <Trash2
-                                    className="size-3.5"
-                                    aria-hidden="true"
-                                />
-                                Eliminar horario
-                            </button>
+                            <>
+                                <Link
+                                    href={edit_url}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[0.65rem] font-bold text-upel-blue transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                >
+                                    <Pencil
+                                        className="size-3.5"
+                                        aria-hidden="true"
+                                    />
+                                    Editar horario
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={deleteSchedule}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-[0.65rem] font-bold text-red-600 transition-colors hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
+                                >
+                                    <Trash2
+                                        className="size-3.5"
+                                        aria-hidden="true"
+                                    />
+                                    Eliminar horario
+                                </button>
+                            </>
                         ) : null}
                     </div>
                 </div>

@@ -101,6 +101,10 @@ Route::middleware(['auth', EnsureAdminPortal::class])
             ->name('schedules.create');
         Route::post('schedules', [AdminScheduleController::class, 'store'])
             ->name('schedules.store');
+        Route::get('schedules/{schedule}/edit', [AdminScheduleController::class, 'edit'])
+            ->name('schedules.edit');
+        Route::put('schedules/{schedule}', [AdminScheduleController::class, 'update'])
+            ->name('schedules.update');
         Route::get('schedules/{schedule}', [AdminScheduleController::class, 'show'])
             ->name('schedules.show');
         Route::get('schedules/{schedule}/pdf', [AdminScheduleController::class, 'pdf'])

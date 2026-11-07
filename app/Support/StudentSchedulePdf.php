@@ -127,7 +127,11 @@ final class StudentSchedulePdf
         foreach ($this->monthGroups($weeks) as $group) {
             $width = $group['count'] * $weekWidth;
             $this->cell($x, $top, $width, $monthRow, self::WHITE);
-            $this->centeredInCell($x, $top, $width, $monthRow, $group['month'], 7, true, self::BLACK);
+            $month = $this->textWidth($group['month'], 7, true) > $width - 2.5
+                ? mb_substr($group['month'], 0, 3)
+                : $group['month'];
+            $monthSize = $this->fitSize($month, $width - 2.5, 7);
+            $this->centeredInCell($x, $top, $width, $monthRow, $month, $monthSize, true, self::BLACK);
             $x += $width;
         }
 

@@ -198,6 +198,49 @@ export function buildScheduleWeeks({
     });
 }
 
+export function selectedScheduleWeeks(
+    weeks: StudentScheduleWeek[],
+    selectedDates: string[],
+): StudentScheduleWeek[] {
+    const selectedDateSet = new Set(selectedDates);
+
+    return weeks.flatMap((week) => {
+        const dates = (week.dates ?? []).filter((date) =>
+            selectedDateSet.has(date),
+        );
+
+        if (dates.length === 0) {
+            return [];
+        }
+
+        const firstDate = parseDate(dates[0]);
+        const months = new Set(dates.map((date) => date.slice(5, 7)));
+
+        return [
+            {
+                ...week,
+                date: dates[0],
+                month:
+                    firstDate === null
+                        ? week.month
+                        : MONTHS[firstDate.getMonth()],
+                tone:
+                    firstDate === null
+                        ? week.tone
+                        : MONTHS[firstDate.getMonth()].toLowerCase(),
+                day: dates
+                    .map((date) =>
+                        months.size > 1
+                            ? `${date.slice(8, 10)}/${date.slice(5, 7)}`
+                            : date.slice(8, 10),
+                    )
+                    .join(', '),
+                dates,
+            },
+        ];
+    });
+}
+
 export function formatTime(value: string): string {
     const [hours, minutes] = value.split(':').map(Number);
 
@@ -208,9 +251,7 @@ export function formatTime(value: string): string {
     const hour = hours % 12 === 0 ? 12 : hours % 12;
     const suffix = hours < 12 ? 'am' : 'pm';
 
-    return minutes === 0
-        ? `${hour} ${suffix}`
-        : `${hour}:${String(minutes).padStart(2, '0')} ${suffix}`;
+    return `${hour}:${String(minutes).padStart(2, '0')} ${suffix}`;
 }
 
 export function formatTimeRange(startsAt: string, endsAt: string): string {

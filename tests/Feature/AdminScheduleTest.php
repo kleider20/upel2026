@@ -8,12 +8,81 @@ use App\Models\Schedule;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
+use App\Support\ScheduleCalendar;
+use App\Support\StudentSchedulePdf;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
+});
+
+test('schedule time slots include minutes for whole-hour times', function () {
+    expect(ScheduleCalendar::timeSlots([
+        ['starts_at' => '08:00', 'ends_at' => '10:00'],
+        ['starts_at' => '11:00', 'ends_at' => '14:30'],
+        ['starts_at' => '11:00', 'ends_at' => '15:00'],
+        ['starts_at' => '15:00', 'ends_at' => '17:00'],
+    ]))->toBe([
+        '1.- 8:00 am - 10:00 am',
+        '2.- 11:00 am - 2:30 pm',
+        '3.- 11:00 am - 3:00 pm',
+        '4.- 3:00 pm - 5:00 pm',
+    ]);
+});
+
+test('schedule pdf abbreviates month names only when the month cell is too narrow', function () {
+    $weeks = [];
+
+    foreach (array_merge(
+        array_fill(0, 11, 'Enero'),
+        ['Diciembre'],
+        array_fill(0, 12, 'Febrero'),
+    ) as $index => $month) {
+        $weeks[] = [
+            'week' => $index + 1,
+            'month' => $month,
+            'tone' => mb_strtolower($month),
+            'day' => (string) ($index + 1),
+            'highlight' => null,
+        ];
+    }
+
+    $narrowPdf = StudentSchedulePdf::make([
+        'title' => 'Horario de prueba',
+        'career' => 'Educación Primaria',
+        'period' => 'I',
+        'cohort' => '2025-II',
+        'weeks' => $weeks,
+        'subjects' => [],
+        'distance_subjects' => [],
+        'time_slots' => [],
+        'distance_schedule' => null,
+        'distance_time' => null,
+    ]);
+    $widePdf = StudentSchedulePdf::make([
+        'title' => 'Horario de prueba',
+        'career' => 'Educación Primaria',
+        'period' => 'I',
+        'cohort' => '2025-II',
+        'weeks' => [[
+            'week' => 1,
+            'month' => 'Diciembre',
+            'tone' => 'diciembre',
+            'day' => '06',
+            'highlight' => null,
+        ]],
+        'subjects' => [],
+        'distance_subjects' => [],
+        'time_slots' => [],
+        'distance_schedule' => null,
+        'distance_time' => null,
+    ]);
+
+    expect($narrowPdf)->toContain('(Dic) Tj ET')
+        ->and($narrowPdf)->not->toContain('(Diciembre) Tj ET')
+        ->and($widePdf)->toContain('(Diciembre) Tj ET');
 });
 
 /**
@@ -35,7 +104,7 @@ function scheduleManager(): User
  */
 function scheduleSubject(int $position, int $subjectId, array $overrides = []): array
 {
-    return [
+    $subject = [
         'position' => $position,
         'subject_id' => $subjectId,
         'dates' => ['2025-08-02'],
@@ -43,6 +112,16 @@ function scheduleSubject(int $position, int $subjectId, array $overrides = []): 
         'ends_at' => '12:00',
         ...$overrides,
     ];
+
+    $subject['date_times'] ??= array_fill_keys(
+        $subject['dates'],
+        [
+            'starts_at' => $subject['starts_at'],
+            'ends_at' => $subject['ends_at'],
+        ],
+    );
+
+    return $subject;
 }
 
 /**
@@ -122,6 +201,7 @@ test('academic managers can list schedules with filters and stats', function () 
             ->where('schedules.data.0.career', 'Educación Primaria')
             ->where('schedules.data.0.period_label', 'I')
             ->where('schedules.data.0.cohort', '2025-II')
+            ->has('schedules.data.0.edit_url')
             ->where('filters.search', 'Primaria')
             ->has('careers')
             ->has('stats', 4)
@@ -201,15 +281,14 @@ test('academic managers can create a schedule with the official template', funct
             ->where('schedule.cohort', '2025-II')
             ->where('schedule.title', 'HORARIOS DE ACTIVIDADES PRESENCIALES DEL PERÍODO ACADÉMICO 2025-II')
             ->where('schedule.schedule_label', 'Sabatino')
-            ->has('schedule.weeks', 16)
+            ->has('schedule.weeks', 2)
             ->has('schedule.subjects', 2)
             ->has('schedule.distance_subjects', 2)
             ->where('schedule.subjects.0.code', $subjects->first()->code)
             ->where('schedule.subjects.0.name', $subjects->first()->name)
             ->where('schedule.subjects.0.teacher', 'Ana Pérez')
-            ->where('schedule.subjects.0.hours.0', '8 am - 12 pm')
-            ->where('schedule.subjects.0.hours.1', '8 am - 12 pm')
-            ->where('schedule.subjects.0.hours.2', null)
+            ->where('schedule.subjects.0.hours.0', '8:00 am - 12:00 pm')
+            ->where('schedule.subjects.0.hours.1', '8:00 am - 12:00 pm')
             ->where('schedule.subjects.0.pdf_hours.0', '8-12')
             ->where('schedule.subjects.1.code', $subjects->last()->code)
             ->where('schedule.subjects.1.teacher', 'Amada Prim')
@@ -217,6 +296,107 @@ test('academic managers can create a schedule with the official template', funct
             ->where('meta.schedule_label', 'Sabatino')
             ->where('can_manage', true)
         );
+});
+
+test('academic managers can edit a published schedule and its date-specific times', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $subject = Subject::factory()->for($career)->create([
+        'semester' => 1,
+        'modality' => 'presencial',
+    ]);
+    $schedule = Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2025-II',
+        'study_schedule' => 'sabatino',
+        'modality' => 'mixta',
+        'starts_on' => '2025-08-02',
+        'ends_on' => '2025-11-15',
+    ]);
+    $schedule->subjects()->attach($subject->id, [
+        'position' => 1,
+        'dates' => json_encode(['2025-08-02']),
+        'date_times' => json_encode([
+            '2025-08-02' => ['starts_at' => '09:00', 'ends_at' => '12:00'],
+        ]),
+        'starts_at' => '09:00',
+        'ends_at' => '12:00',
+    ]);
+
+    $this->actingAs(scheduleManager())
+        ->get(route('admin.schedules.edit', $schedule))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/schedules/form')
+            ->where('schedule.id', $schedule->id)
+            ->where('schedule.cohort', '2025-II')
+            ->where('schedule.subjects.0.position', 1)
+            ->where('schedule.subjects.0.dates', ['2025-08-02'])
+            ->where('schedule.subjects.0.date_times.2025-08-02.starts_at', '09:00')
+        );
+
+    $this->actingAs(scheduleManager())
+        ->put(route('admin.schedules.update', $schedule), schedulePayload($career->id, [
+            scheduleSubject(1, $subject->id, [
+                'dates' => ['2025-08-09'],
+                'date_times' => [
+                    '2025-08-09' => ['starts_at' => '14:00', 'ends_at' => '16:00'],
+                ],
+            ]),
+        ]))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.schedules.show', $schedule));
+
+    $schedule->refresh()->load('subjects');
+
+    expect($schedule->cohort)->toBe('2025-II')
+        ->and($schedule->subjects)->toHaveCount(1)
+        ->and(json_decode((string) $schedule->subjects[0]->pivot->dates, true))
+        ->toBe(['2025-08-09'])
+        ->and(json_decode((string) $schedule->subjects[0]->pivot->date_times, true))
+        ->toBe([
+            '2025-08-09' => ['starts_at' => '14:00', 'ends_at' => '16:00'],
+        ]);
+
+    $this->actingAs(scheduleManager())
+        ->get(route('admin.schedules.show', $schedule))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('schedule.weeks.0.day', '09')
+            ->where('schedule.subjects.0.hours', ['2:00 pm - 4:00 pm'])
+        );
+});
+
+test('schedule managers cannot update a schedule to another schedules cohort', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $subject = Subject::factory()->for($career)->create(['semester' => 1]);
+    $schedule = Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2025-II',
+    ]);
+    Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2026-I',
+    ]);
+
+    $this->actingAs(scheduleManager())
+        ->put(route('admin.schedules.update', $schedule), schedulePayload($career->id, [
+            scheduleSubject(1, $subject->id),
+        ], [
+            'cohort' => '2026-I',
+        ]))
+        ->assertSessionHasErrors('cohort');
+
+    expect($schedule->refresh()->cohort)->toBe('2025-II');
+});
+
+test('staff without schedule management permission cannot edit a published schedule', function () {
+    $schedule = Schedule::factory()->create();
+    $user = User::factory()->create();
+    $user->assignRole(Role::PersonalAdministrativo->value);
+
+    $this->actingAs($user)
+        ->get(route('admin.schedules.edit', $schedule))
+        ->assertForbidden();
 });
 
 test('sabatino schedules generate one column per saturday inside the range', function () {
@@ -250,25 +430,19 @@ test('sabatino schedules generate one column per saturday inside the range', fun
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/schedules/show')
-            ->has('schedule.weeks', 5)
+            ->has('schedule.weeks', 2)
             ->where('schedule.weeks.0.day', '02')
             ->where('schedule.weeks.0.month', 'Agosto')
-            ->where('schedule.weeks.4.day', '30')
+            ->where('schedule.weeks.1.day', '16')
             ->where('schedule.subjects.0.hours', [
-                '1 pm - 5 pm',
-                null,
-                '1 pm - 5 pm',
-                null,
-                null,
+                '1:00 pm - 5:00 pm',
+                '1:00 pm - 5:00 pm',
             ])
             ->where('schedule.subjects.0.pdf_hours', [
                 '1-5',
-                null,
                 '1-5',
-                null,
-                null,
             ])
-            ->where('schedule.time_slots', ['1.- 1 pm - 5 pm'])
+            ->where('schedule.time_slots', ['1.- 1:00 pm - 5:00 pm'])
         );
 });
 
@@ -289,6 +463,10 @@ test('weekday schedules group class dates by week and show the selected days', f
                 'dates' => ['2025-08-04', '2025-08-06'],
                 'starts_at' => '09:00',
                 'ends_at' => '11:00',
+                'date_times' => [
+                    '2025-08-04' => ['starts_at' => '09:00', 'ends_at' => '11:00'],
+                    '2025-08-06' => ['starts_at' => '13:00', 'ends_at' => '15:00'],
+                ],
             ]),
             scheduleSubject(2, $subjects->last()->id, [
                 'dates' => ['2025-08-11', '2025-08-12', '2025-08-13', '2025-08-14', '2025-08-15'],
@@ -311,25 +489,27 @@ test('weekday schedules group class dates by week and show the selected days', f
             ->component('admin/schedules/show')
             ->where('schedule.schedule_label', 'Lunes a viernes')
             ->has('schedule.weeks', 2)
-            ->where('schedule.weeks.0.day', '04-08')
+            ->where('schedule.weeks.0.day', '04, 06')
             ->where('schedule.weeks.0.dates', [
                 '2025-08-04',
-                '2025-08-05',
                 '2025-08-06',
-                '2025-08-07',
-                '2025-08-08',
             ])
-            ->where('schedule.weeks.1.day', '11-15')
+            ->where('schedule.weeks.1.day', '11, 12, 13, 14, 15')
             ->where('schedule.subjects.0.hours', [
-                'Lun, Mié · 9 am - 11 am',
+                'Lun · 9:00 am - 11:00 am / Mié · 1:00 pm - 3:00 pm',
                 null,
             ])
-            ->where('schedule.subjects.0.pdf_hours', ['LX 9-11', null])
+            ->where('schedule.subjects.0.pdf_hours', ['L 9-11 / X 1-3', null])
             ->where('schedule.subjects.1.hours', [
                 null,
-                'Lun a Vie · 1 pm - 5 pm',
+                'Lun a Vie · 1:00 pm - 5:00 pm',
             ])
             ->where('schedule.subjects.1.pdf_hours', [null, 'L-V 1-5'])
+            ->where('schedule.time_slots', [
+                '1.- 9:00 am - 11:00 am',
+                '2.- 1:00 pm - 3:00 pm',
+                '3.- 1:00 pm - 5:00 pm',
+            ])
         );
 });
 
@@ -369,11 +549,30 @@ test('schedule class times must be ordered', function () {
     $this->actingAs(scheduleManager())
         ->post(route('admin.schedules.store'), schedulePayload($career->id, [
             scheduleSubject(1, $subject->id, [
-                'starts_at' => '12:00',
-                'ends_at' => '08:00',
+                'date_times' => [
+                    '2025-08-02' => ['starts_at' => '12:00', 'ends_at' => '08:00'],
+                ],
             ]),
         ]))
-        ->assertSessionHasErrors('subjects.0.ends_at');
+        ->assertSessionHasErrors('subjects.0.date_times.2025-08-02.ends_at');
+
+    expect(Schedule::query()->count())->toBe(0);
+});
+
+test('schedule times must be defined for exactly the selected dates', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $subject = Subject::factory()->for($career)->create(['semester' => 1]);
+
+    $this->actingAs(scheduleManager())
+        ->post(route('admin.schedules.store'), schedulePayload($career->id, [
+            scheduleSubject(1, $subject->id, [
+                'dates' => ['2025-08-02', '2025-08-09'],
+                'date_times' => [
+                    '2025-08-02' => ['starts_at' => '08:00', 'ends_at' => '12:00'],
+                ],
+            ]),
+        ]))
+        ->assertSessionHasErrors('subjects.0.date_times');
 
     expect(Schedule::query()->count())->toBe(0);
 });
@@ -511,7 +710,7 @@ test('presencial subjects never inherit Virtual from the template slot', functio
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/schedules/show')
             ->where('schedule.subjects.0.code', $subject->code)
-            ->where('schedule.subjects.0.hours', array_fill(0, 16, '8 am - 12 pm'))
+            ->where('schedule.subjects.0.hours', array_fill(0, 16, '8:00 am - 12:00 pm'))
             ->where('schedule.distance_subjects.0.hours', array_fill(0, 16, null))
         );
 });
@@ -595,6 +794,73 @@ test('the same career, period and cohort cannot be published twice', function ()
         ->assertSessionHasErrors('cohort');
 
     expect(Schedule::query()->count())->toBe(1);
+});
+
+test('the published schedule pdf excludes dates without assigned hours except range boundaries', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $subject = Subject::factory()->for($career)->create([
+        'semester' => 1,
+        'modality' => 'presencial',
+    ]);
+    $onlineSubject = Subject::factory()->for($career)->create([
+        'semester' => 1,
+        'modality' => 'online',
+    ]);
+    $dates = saturdayRange('2025-11-29', '2026-01-10');
+    $schedule = Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2025-II',
+        'study_schedule' => 'sabatino',
+        'starts_on' => '2025-11-29',
+        'ends_on' => '2026-01-10',
+    ]);
+    $schedule->subjects()->attach($subject->id, [
+        'position' => 1,
+        'dates' => json_encode($dates),
+        'date_times' => json_encode([
+            '2025-11-29' => ['starts_at' => '', 'ends_at' => ''],
+            '2025-12-06' => ['starts_at' => '11:30', 'ends_at' => '14:30'],
+            '2025-12-13' => ['starts_at' => '', 'ends_at' => ''],
+            '2025-12-20' => ['starts_at' => '', 'ends_at' => ''],
+            '2025-12-27' => ['starts_at' => '', 'ends_at' => ''],
+            '2026-01-03' => ['starts_at' => '', 'ends_at' => ''],
+            '2026-01-10' => ['starts_at' => '', 'ends_at' => ''],
+        ]),
+        'starts_at' => '08:00',
+        'ends_at' => '12:00',
+    ]);
+    $onlineDateTimes = array_fill_keys(
+        $dates,
+        ['starts_at' => '19:00', 'ends_at' => '21:00'],
+    );
+    $schedule->subjects()->attach($onlineSubject->id, [
+        'position' => 2,
+        'dates' => json_encode($dates),
+        'date_times' => json_encode($onlineDateTimes),
+        'starts_at' => '19:00',
+        'ends_at' => '21:00',
+    ]);
+    $manager = scheduleManager();
+
+    $response = $this->actingAs($manager)
+        ->get(route('admin.schedules.pdf', $schedule));
+
+    $response
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $pdfContent = $response->getContent();
+
+    expect($pdfContent)->toContain('(29) Tj ET')
+        ->and($pdfContent)->toContain('(06) Tj ET')
+        ->and($pdfContent)->toContain('(10) Tj ET')
+        ->and($pdfContent)->toContain('(11) Tj ET')
+        ->and($pdfContent)->not->toContain('(13) Tj ET')
+        ->and($pdfContent)->not->toContain('(20) Tj ET')
+        ->and($pdfContent)->not->toContain('(27) Tj ET')
+        ->and($pdfContent)->not->toContain('(03) Tj ET');
+
+    expect($schedule->toScheduleArray()['weeks'])->toHaveCount(7);
 });
 
 test('academic managers can download and delete a published schedule', function () {

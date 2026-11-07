@@ -73,8 +73,9 @@ class ScheduleRequest extends FormRequest
             'subjects.*.teacher_name' => ['nullable', 'string', 'max:120'],
             'subjects.*.dates' => ['required', 'array', 'min:1'],
             'subjects.*.dates.*' => ['required', 'date_format:Y-m-d'],
-            'subjects.*.starts_at' => ['required', 'date_format:H:i'],
-            'subjects.*.ends_at' => ['required', 'date_format:H:i'],
+            'subjects.*.date_times' => ['required', 'array'],
+            'subjects.*.date_times.*.starts_at' => ['required', 'date_format:H:i'],
+            'subjects.*.date_times.*.ends_at' => ['required', 'date_format:H:i'],
         ];
     }
 
@@ -216,8 +217,7 @@ class ScheduleRequest extends FormRequest
                     ? trim((string) ($subject['teacher_name'] ?? ''))
                     : '';
                 $dates = is_array($subject) ? ($subject['dates'] ?? []) : [];
-                $startsAt = is_array($subject) ? (string) ($subject['starts_at'] ?? '') : '';
-                $endsAt = is_array($subject) ? (string) ($subject['ends_at'] ?? '') : '';
+                $dateTimes = is_array($subject) ? ($subject['date_times'] ?? []) : [];
 
                 if ($allowedDates !== [] && is_array($dates)) {
                     $invalidDate = false;
@@ -245,15 +245,38 @@ class ScheduleRequest extends FormRequest
                     }
                 }
 
-                if (
-                    preg_match('/^\d{2}:\d{2}$/', $startsAt) === 1
-                    && preg_match('/^\d{2}:\d{2}$/', $endsAt) === 1
-                    && $endsAt <= $startsAt
-                ) {
-                    $validator->errors()->add(
-                        "subjects.{$index}.ends_at",
-                        'La hora de fin debe ser posterior a la hora de inicio.',
-                    );
+                if (is_array($dates) && is_array($dateTimes)) {
+                    $selectedDates = array_values(array_unique($dates));
+                    $configuredDates = array_keys($dateTimes);
+                    sort($selectedDates);
+                    sort($configuredDates);
+
+                    if ($selectedDates !== $configuredDates) {
+                        $validator->errors()->add(
+                            "subjects.{$index}.date_times",
+                            'Define una hora de inicio y fin únicamente para cada fecha seleccionada.',
+                        );
+                    }
+
+                    foreach ($dateTimes as $date => $dateTime) {
+                        if (! is_array($dateTime)) {
+                            continue;
+                        }
+
+                        $startsAt = (string) ($dateTime['starts_at'] ?? '');
+                        $endsAt = (string) ($dateTime['ends_at'] ?? '');
+
+                        if (
+                            preg_match('/^\d{2}:\d{2}$/', $startsAt) === 1
+                            && preg_match('/^\d{2}:\d{2}$/', $endsAt) === 1
+                            && $endsAt <= $startsAt
+                        ) {
+                            $validator->errors()->add(
+                                "subjects.{$index}.date_times.{$date}.ends_at",
+                                'La hora de fin debe ser posterior a la hora de inicio.',
+                            );
+                        }
+                    }
                 }
 
                 if ($professorId !== null && $professorId !== '') {
@@ -306,10 +329,11 @@ class ScheduleRequest extends FormRequest
             'subjects.*.dates.min' => 'Selecciona al menos un día de clase para cada materia.',
             'subjects.*.dates.*.date_format' => 'Cada día de clase debe ser una fecha válida.',
             'subjects.*.dates.*.distinct' => 'Una fecha no puede repetirse en la misma materia.',
-            'subjects.*.starts_at.required' => 'Indica la hora de inicio de la materia.',
-            'subjects.*.starts_at.date_format' => 'La hora de inicio debe tener el formato HH:MM.',
-            'subjects.*.ends_at.required' => 'Indica la hora de fin de la materia.',
-            'subjects.*.ends_at.date_format' => 'La hora de fin debe tener el formato HH:MM.',
+            'subjects.*.date_times.required' => 'Define las horas para cada fecha seleccionada.',
+            'subjects.*.date_times.*.starts_at.required' => 'Indica la hora de inicio de esta fecha.',
+            'subjects.*.date_times.*.starts_at.date_format' => 'La hora de inicio debe tener el formato HH:MM.',
+            'subjects.*.date_times.*.ends_at.required' => 'Indica la hora de fin de esta fecha.',
+            'subjects.*.date_times.*.ends_at.date_format' => 'La hora de fin debe tener el formato HH:MM.',
         ];
     }
 }

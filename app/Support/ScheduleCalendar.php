@@ -115,6 +115,54 @@ final class ScheduleCalendar
     }
 
     /**
+     * Conserva solo las semanas y fechas elegidas para las materias.
+     *
+     * @param  array<int, array<string, mixed>>  $weeks
+     * @param  array<int, string>  $selectedDates
+     * @return array<int, array<string, mixed>>
+     */
+    public static function selectedWeeks(array $weeks, array $selectedDates): array
+    {
+        $selectedDateSet = array_flip($selectedDates);
+        $selectedWeeks = [];
+
+        foreach ($weeks as $week) {
+            $dates = array_values(array_filter(
+                $week['dates'],
+                static fn (string $date): bool => isset($selectedDateSet[$date]),
+            ));
+
+            if ($dates === []) {
+                continue;
+            }
+
+            $firstSelectedDate = Carbon::parse($dates[0]);
+            $months = array_unique(array_map(
+                static fn (string $date): int => (int) Carbon::parse($date)->format('m'),
+                $dates,
+            ));
+
+            $week['date'] = $dates[0];
+            $week['dates'] = $dates;
+            $week['month'] = self::MONTHS[$firstSelectedDate->month];
+            $week['tone'] = strtolower(self::MONTHS[$firstSelectedDate->month]);
+            $week['day'] = implode(', ', array_map(
+                static function (string $date) use ($months): string {
+                    $parsedDate = Carbon::parse($date);
+
+                    return count($months) > 1
+                        ? $parsedDate->format('d/m')
+                        : $parsedDate->format('d');
+                },
+                $dates,
+            ));
+            $selectedWeeks[] = $week;
+        }
+
+        return $selectedWeeks;
+    }
+
+    /**
      * Etiqueta de 12 horas para una franja de clase.
      */
     public static function timeLabel(?string $startsAt, ?string $endsAt): string
@@ -136,6 +184,21 @@ final class ScheduleCalendar
         }
 
         return self::compactTime($startsAt).'-'.self::compactTime($endsAt);
+    }
+
+    /**
+     * Hora de inicio resumida para las celdas del PDF.
+     */
+    public static function compactStartTime(?string $startsAt): string
+    {
+        if ($startsAt === null || $startsAt === '') {
+            return '';
+        }
+
+        $parsed = Carbon::parse($startsAt);
+        $hour = $parsed->hour % 12;
+
+        return (string) ($hour === 0 ? 12 : $hour);
     }
 
     /**
@@ -194,7 +257,10 @@ final class ScheduleCalendar
             }
         }
 
-        uasort($slots, static fn (array $a, array $b): int => strcmp($a[0], $b[0]));
+        uasort(
+            $slots,
+            static fn (array $a, array $b): int => strcmp($a[0], $b[0]) ?: strcmp($a[1], $b[1]),
+        );
 
         $labels = [];
 
@@ -312,9 +378,7 @@ final class ScheduleCalendar
         $hour = $hour === 0 ? 12 : $hour;
         $suffix = $parsed->hour < 12 ? 'am' : 'pm';
 
-        return $parsed->minute === 0
-            ? "{$hour} {$suffix}"
-            : "{$hour}:".str_pad((string) $parsed->minute, 2, '0', STR_PAD_LEFT)." {$suffix}";
+        return "{$hour}:".str_pad((string) $parsed->minute, 2, '0', STR_PAD_LEFT)." {$suffix}";
     }
 
     private static function compactTime(string $time): string

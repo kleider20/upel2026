@@ -185,7 +185,7 @@ final class StudentSchedule
      * calendario (sábados o semanas de lunes a viernes). Si no, se conserva la
      * plantilla oficial de 16 sábados.
      *
-     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, starts_at?: string|null, ends_at?: string|null}>|null  $subjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, date_times?: array<string, array{starts_at: string, ends_at: string}>, starts_at?: string|null, ends_at?: string|null}>|null  $subjects
      * @return array<string, mixed>
      */
     public static function build(
@@ -196,6 +196,7 @@ final class StudentSchedule
         ?array $subjects = null,
         ?string $startsOn = null,
         ?string $endsOn = null,
+        bool $forPdf = false,
     ): array {
         if ($startsOn !== null && $endsOn !== null && $schedule !== null) {
             return self::presentRange(
@@ -206,6 +207,7 @@ final class StudentSchedule
                 $startsOn,
                 $endsOn,
                 $subjects ?? [],
+                $forPdf,
             );
         }
 
@@ -311,7 +313,7 @@ final class StudentSchedule
     /**
      * Arma el horario a partir del rango de fechas elegido por la administración.
      *
-     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, starts_at?: string|null, ends_at?: string|null}>  $selectedSubjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, date_times?: array<string, array{starts_at: string, ends_at: string}>, starts_at?: string|null, ends_at?: string|null}>  $selectedSubjects
      * @return array<string, mixed>
      */
     private static function presentRange(
@@ -322,19 +324,78 @@ final class StudentSchedule
         string $startsOn,
         string $endsOn,
         array $selectedSubjects,
+        bool $forPdf,
     ): array {
+        if ($forPdf) {
+            $selectedSubjects = array_map(
+                static function (array $selected): array {
+                    if (($selected['modality'] ?? null) === 'online') {
+                        return $selected;
+                    }
+
+                    $dateTimes = $selected['date_times'] ?? [];
+                    $hasDateSpecificTimes = $dateTimes !== [];
+                    $startsAt = $selected['starts_at'] ?? null;
+                    $endsAt = $selected['ends_at'] ?? null;
+                    $dates = array_values(array_filter(
+                        $selected['dates'] ?? [],
+                        static function (string $date) use ($dateTimes, $hasDateSpecificTimes, $startsAt, $endsAt): bool {
+                            $dateTime = $dateTimes[$date] ?? null;
+
+                            if (is_array($dateTime)) {
+                                return ($dateTime['starts_at'] ?? '') !== ''
+                                    && ($dateTime['ends_at'] ?? '') !== '';
+                            }
+
+                            return ! $hasDateSpecificTimes
+                                && $startsAt !== null
+                                && $startsAt !== ''
+                                && $endsAt !== null
+                                && $endsAt !== '';
+                        },
+                    ));
+
+                    return [
+                        ...$selected,
+                        'dates' => $dates,
+                        'date_times' => array_intersect_key($dateTimes, array_flip($dates)),
+                    ];
+                },
+                $selectedSubjects,
+            );
+        }
+
         $weeks = ScheduleCalendar::weeks($startsOn, $endsOn, $schedule);
 
         $templateSubjects = array_values(self::template()['subjects']);
         $subjects = [];
         $timeSlots = [];
         $isSaturday = $schedule === 'sabatino';
+        $allSelectedDates = [];
+
+        foreach ($selectedSubjects as $selected) {
+            if ($forPdf && ($selected['modality'] ?? null) === 'online') {
+                continue;
+            }
+
+            $allSelectedDates = array_merge($allSelectedDates, $selected['dates'] ?? []);
+        }
+
+        if ($forPdf) {
+            $allSelectedDates = array_merge($allSelectedDates, [$startsOn, $endsOn]);
+        }
+
+        $weeks = ScheduleCalendar::selectedWeeks(
+            $weeks,
+            array_values(array_unique($allSelectedDates)),
+        );
 
         foreach ($selectedSubjects as $selected) {
             $selectedDates = array_flip($selected['dates'] ?? []);
             $isOnline = ($selected['modality'] ?? null) === 'online';
             $startsAt = $selected['starts_at'] ?? null;
             $endsAt = $selected['ends_at'] ?? null;
+            $dateTimes = $selected['date_times'] ?? [];
             $hours = [];
             $pdfHours = [];
 
@@ -358,20 +419,55 @@ final class StudentSchedule
                     continue;
                 }
 
-                $timeLabel = ScheduleCalendar::timeLabel($startsAt, $endsAt);
-                $hours[] = $isSaturday
-                    ? $timeLabel
-                    : ScheduleCalendar::daysLabel($weekDates).' · '.$timeLabel;
-                $pdfHours[] = $isSaturday
-                    ? ScheduleCalendar::compactTimeLabel($startsAt, $endsAt)
-                    : ScheduleCalendar::compactDays($weekDates).' '.ScheduleCalendar::compactTimeLabel($startsAt, $endsAt);
+                $timeGroups = [];
 
-                if ($timeLabel !== '') {
+                foreach ($weekDates as $date) {
+                    $dateTime = $dateTimes[$date] ?? [
+                        'starts_at' => $startsAt,
+                        'ends_at' => $endsAt,
+                    ];
+
+                    $dateStartsAt = $dateTime['starts_at'] ?? null;
+                    $dateEndsAt = $dateTime['ends_at'] ?? null;
+                    $key = (string) $dateStartsAt.'-'.(string) $dateEndsAt;
+                    $timeGroups[$key] ??= [
+                        'dates' => [],
+                        'starts_at' => $dateStartsAt,
+                        'ends_at' => $dateEndsAt,
+                    ];
+                    $timeGroups[$key]['dates'][] = $date;
+                }
+
+                $hourLabels = [];
+                $pdfHourLabels = [];
+
+                foreach ($timeGroups as $timeGroup) {
+                    $timeLabel = ScheduleCalendar::timeLabel(
+                        $timeGroup['starts_at'],
+                        $timeGroup['ends_at'],
+                    );
+
+                    if ($timeLabel === '') {
+                        continue;
+                    }
+
+                    $hourLabels[] = $isSaturday
+                        ? $timeLabel
+                        : ScheduleCalendar::daysLabel($timeGroup['dates']).' · '.$timeLabel;
+                    $pdfTimeLabel = $forPdf
+                        ? ScheduleCalendar::compactStartTime($timeGroup['starts_at'])
+                        : ScheduleCalendar::compactTimeLabel($timeGroup['starts_at'], $timeGroup['ends_at']);
+                    $pdfHourLabels[] = $isSaturday
+                        ? $pdfTimeLabel
+                        : ScheduleCalendar::compactDays($timeGroup['dates']).' '.$pdfTimeLabel;
                     $timeSlots[$timeLabel] = [
-                        'starts_at' => (string) $startsAt,
-                        'ends_at' => (string) $endsAt,
+                        'starts_at' => (string) $timeGroup['starts_at'],
+                        'ends_at' => (string) $timeGroup['ends_at'],
                     ];
                 }
+
+                $hours[] = implode(' / ', $hourLabels);
+                $pdfHours[] = implode(' / ', $pdfHourLabels);
             }
 
             $subjects[] = [

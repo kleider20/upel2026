@@ -63,7 +63,7 @@ class Schedule extends Model
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'schedule_subjects')
-            ->withPivot('position', 'professor_id', 'teacher_name', 'dates', 'starts_at', 'ends_at')
+            ->withPivot('position', 'professor_id', 'teacher_name', 'dates', 'date_times', 'starts_at', 'ends_at')
             ->withTimestamps()
             ->orderBy('schedule_subjects.position');
     }
@@ -81,7 +81,7 @@ class Schedule extends Model
      *
      * @return array<string, mixed>
      */
-    public function toScheduleArray(?string $studySchedule = null): array
+    public function toScheduleArray(?string $studySchedule = null, bool $forPdf = false): array
     {
         $this->loadMissing(['career', 'subjects.professors']);
 
@@ -98,6 +98,12 @@ class Schedule extends Model
                     $dates = json_decode($dates, true);
                 }
 
+                $dateTimes = $subject->pivot->date_times;
+
+                if (is_string($dateTimes)) {
+                    $dateTimes = json_decode($dateTimes, true);
+                }
+
                 return [
                     'position' => (int) $subject->pivot->position,
                     'code' => $subject->code,
@@ -107,6 +113,7 @@ class Schedule extends Model
                         ?? $subject->professors->first()?->name,
                     'modality' => $subject->modality,
                     'dates' => is_array($dates) ? array_values($dates) : [],
+                    'date_times' => is_array($dateTimes) ? $dateTimes : [],
                     'starts_at' => $subject->pivot->starts_at,
                     'ends_at' => $subject->pivot->ends_at,
                 ];
@@ -121,6 +128,7 @@ class Schedule extends Model
             $subjects === [] ? null : $subjects,
             $this->starts_on?->toDateString(),
             $this->ends_on?->toDateString(),
+            $forPdf,
         );
     }
 }

@@ -7,6 +7,7 @@ import {
     Eye,
     FileDown,
     Filter,
+    Pencil,
     Plus,
     Search,
     Trash2,
@@ -34,6 +35,7 @@ type ScheduleRow = {
     created_at: string | null;
     show_url: string;
     pdf_url: string;
+    edit_url: string;
     delete_url: string;
 };
 
@@ -363,6 +365,18 @@ export default function AdminSchedulesIndex({
                                                         />
                                                         Ver
                                                     </Link>
+                                                    {can_manage ? (
+                                                        <Link
+                                                            href={row.edit_url}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.65rem] font-bold text-upel-blue transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                                        >
+                                                            <Pencil
+                                                                className="size-3.5"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Editar
+                                                        </Link>
+                                                    ) : null}
                                                     <a
                                                         href={row.pdf_url}
                                                         target="_blank"

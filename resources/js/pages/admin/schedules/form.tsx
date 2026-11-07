@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     BookOpen,
     CalendarDays,
+    ChevronDown,
     Clock,
     Loader2,
     Save,
@@ -19,11 +20,13 @@ import {
     formatTimeRange,
     groupClassDates,
     monthsBetween,
+    selectedScheduleWeeks,
     timeSlotLabels,
 } from '@/lib/schedule-calendar';
 import {
     index as schedulesIndex,
     store as schedulesStore,
+    update as schedulesUpdate,
 } from '@/routes/admin/schedules';
 import type {
     StudentScheduleData,
@@ -95,10 +98,8 @@ type SubjectChoice = {
     subject_id: string;
     professor_id: string;
     teacher_name: string;
-    starts_at: string;
-    ends_at: string;
     dates: string[];
-    date_times?: Record<string, { starts_at: string; ends_at: string }>;
+    date_times: Record<string, { starts_at: string; ends_at: string }>;
 };
 
 type ScheduleFormData = {
@@ -112,10 +113,16 @@ type ScheduleFormData = {
     subjects: SubjectChoice[];
 };
 
+type ExistingSchedule = Omit<ScheduleFormData, 'subjects'> & {
+    id: number;
+    subjects: (Omit<SubjectChoice, 'position'> & { position: number })[];
+};
+
 type Props = {
     careers: CareerOption[];
     template: ScheduleTemplate;
     subjects: SubjectOption[];
+    schedule: ExistingSchedule | null;
 };
 
 const labelClass =
@@ -135,25 +142,39 @@ export default function AdminScheduleForm({
     careers,
     template,
     subjects: subjectCatalog,
+    schedule,
 }: Props) {
+    const isEditing = schedule !== null;
+    const [openSubjectIndex, setOpenSubjectIndex] = useState<number | null>(
+        () =>
+            schedule?.subjects[0] !== undefined
+                ? schedule.subjects[0].position - 1
+                : 0,
+    );
     const form = useForm<ScheduleFormData>({
-        career_id: '',
-        period: '1',
-        cohort: '',
-        study_schedule: '',
-        modality: '',
-        starts_on: '',
-        ends_on: '',
-        subjects: template.subjects.map((_subject, index) => ({
-            position: String(index + 1),
-            subject_id: '',
-            professor_id: '',
-            teacher_name: '',
-            starts_at: DEFAULT_STARTS_AT,
-            ends_at: DEFAULT_ENDS_AT,
-            dates: [],
-            date_times: {},
-        })),
+        career_id: schedule?.career_id ?? '',
+        period: schedule?.period ?? '1',
+        cohort: schedule?.cohort ?? '',
+        study_schedule: schedule?.study_schedule ?? '',
+        modality: schedule?.modality ?? '',
+        starts_on: schedule?.starts_on ?? '',
+        ends_on: schedule?.ends_on ?? '',
+        subjects: template.subjects.map((_subject, index) => {
+            const existingSubject = schedule?.subjects.find(
+                (choice) => choice.position === index + 1,
+            );
+
+            return {
+                ...(existingSubject ?? {
+                    subject_id: '',
+                    professor_id: '',
+                    teacher_name: '',
+                    dates: [],
+                    date_times: {},
+                }),
+                position: String(index + 1),
+            };
+        }),
     });
 
     const selectedCareer = careers.find(
@@ -161,18 +182,18 @@ export default function AdminScheduleForm({
     );
 
     const careerSchedules = selectedCareer?.schedules ?? [];
-    
+
     // Filtrar modalidades por el tipo de horario seleccionado
     const careerModalities = useMemo(() => {
         if (!selectedCareer) return [];
         const studySchedule = form.data.study_schedule;
         if (!studySchedule) return [];
-        
+
         // Obtener las ofertas que coinciden con el tipo de horario seleccionado
         const offeringsForSchedule = selectedCareer.offerings.filter(
-            (offering) => offering.schedule === studySchedule
+            (offering) => offering.schedule === studySchedule,
         );
-        
+
         // Extraer las modalidades únicas de esas ofertas
         const modalitiesMap = new Map<string, ScheduleTypeOption>();
         offeringsForSchedule.forEach((offering) => {
@@ -182,7 +203,7 @@ export default function AdminScheduleForm({
             };
             modalitiesMap.set(offering.modality, modalityOption);
         });
-        
+
         return Array.from(modalitiesMap.values());
     }, [selectedCareer, form.data.study_schedule]);
 
@@ -237,6 +258,23 @@ export default function AdminScheduleForm({
         [form.data.starts_on, form.data.ends_on, form.data.study_schedule],
     );
 
+    const selectedDates = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    form.data.subjects.flatMap((choice) =>
+                        choice.subject_id === '' ? [] : choice.dates,
+                    ),
+                ),
+            ),
+        [form.data.subjects],
+    );
+
+    const previewWeeks = useMemo(
+        () => selectedScheduleWeeks(weeks, selectedDates),
+        [selectedDates, weeks],
+    );
+
     const months = useMemo(
         () =>
             monthsBetween({
@@ -272,10 +310,6 @@ export default function AdminScheduleForm({
                         : undefined;
                 const chosenTeacherName = choice.teacher_name.trim();
                 const chosenDates = new Set(choice.dates);
-                const timeLabel = formatTimeRange(
-                    choice.starts_at,
-                    choice.ends_at,
-                );
 
                 return {
                     code: subject.code,
@@ -285,7 +319,7 @@ export default function AdminScheduleForm({
                         (chosenTeacherName !== ''
                             ? chosenTeacherName
                             : (subject.professors[0]?.name ?? slot.teacher)),
-                    hours: weeks.map((week) => {
+                    hours: previewWeeks.map((week) => {
                         const matches = (week.dates ?? []).filter((date) =>
                             chosenDates.has(date),
                         );
@@ -298,9 +332,49 @@ export default function AdminScheduleForm({
                             return 'Virtual';
                         }
 
-                        return form.data.study_schedule === 'sabatino'
-                            ? timeLabel
-                            : `${daysLabel(matches)} · ${timeLabel}`;
+                        const timeGroups = new Map<
+                            string,
+                            {
+                                starts_at: string;
+                                ends_at: string;
+                                dates: string[];
+                            }
+                        >();
+
+                        matches.forEach((date) => {
+                            const dateTime = choice.date_times[date];
+
+                            if (dateTime === undefined) {
+                                return;
+                            }
+
+                            const key = `${dateTime.starts_at}-${dateTime.ends_at}`;
+                            const group = timeGroups.get(key) ?? {
+                                starts_at: dateTime.starts_at,
+                                ends_at: dateTime.ends_at,
+                                dates: [],
+                            };
+                            group.dates.push(date);
+                            timeGroups.set(key, group);
+                        });
+
+                        return Array.from(timeGroups.values())
+                            .map((group) => {
+                                const timeLabel = formatTimeRange(
+                                    group.starts_at,
+                                    group.ends_at,
+                                );
+
+                                if (timeLabel === '') {
+                                    return '';
+                                }
+
+                                return form.data.study_schedule === 'sabatino'
+                                    ? timeLabel
+                                    : `${daysLabel(group.dates)} · ${timeLabel}`;
+                            })
+                            .filter((label) => label !== '')
+                            .join(' / ');
                     }),
                 };
             })
@@ -313,7 +387,7 @@ export default function AdminScheduleForm({
         form.data.study_schedule,
         subjectById,
         template,
-        weeks,
+        previewWeeks,
     ]);
 
     const preview = useMemo<StudentScheduleData>(() => {
@@ -339,10 +413,15 @@ export default function AdminScheduleForm({
                         'online'
                     );
                 })
-                .map((choice) => ({
-                    starts_at: choice.starts_at,
-                    ends_at: choice.ends_at,
-                })),
+                .flatMap((choice) =>
+                    choice.dates.map((date) => choice.date_times[date]),
+                )
+                .filter(
+                    (
+                        dateTime,
+                    ): dateTime is { starts_at: string; ends_at: string } =>
+                        dateTime !== undefined,
+                ),
         );
 
         return {
@@ -351,7 +430,7 @@ export default function AdminScheduleForm({
             cohort,
             period: periodLabel,
             schedule_label: scheduleTypeLabel,
-            weeks,
+            weeks: previewWeeks,
             subjects: previewSubjects,
             distance_subjects: distanceSubjects,
             time_slots: slots,
@@ -367,7 +446,7 @@ export default function AdminScheduleForm({
         selectedCareer,
         subjectById,
         template,
-        weeks,
+        previewWeeks,
     ]);
 
     const clearSubjects = (choices: SubjectChoice[]): SubjectChoice[] =>
@@ -376,15 +455,15 @@ export default function AdminScheduleForm({
             subject_id: '',
             professor_id: '',
             teacher_name: '',
-            starts_at: DEFAULT_STARTS_AT,
-            ends_at: DEFAULT_ENDS_AT,
             dates: [],
+            date_times: {},
         }));
 
     const resetDates = (choices: SubjectChoice[]): SubjectChoice[] =>
         choices.map((choice) => ({
             ...choice,
             dates: [],
+            date_times: {},
         }));
 
     const selectCareer = (value: string) => {
@@ -392,29 +471,33 @@ export default function AdminScheduleForm({
 
         form.setData((current) => {
             const careerSchedules = career?.schedules ?? [];
-            
+
             // Obtener las ofertas para esta carrera
             const careerOfferings = career?.offerings ?? [];
-            
+
             // Filtrar ofertas por el tipo de horario actual si existe
             const offeringsForCurrentSchedule = current.study_schedule
-                ? careerOfferings.filter((o) => o.schedule === current.study_schedule)
+                ? careerOfferings.filter(
+                      (o) => o.schedule === current.study_schedule,
+                  )
                 : careerOfferings;
-            
+
             // Obtener modalidades disponibles para el tipo de horario actual
             const availableModalities = offeringsForCurrentSchedule
                 .map((o) => o.modality)
                 .filter((m, index, self) => self.indexOf(m) === index);
 
-            const nextSchedule = careerSchedules.length > 0 && careerSchedules.some(
-                (option) => option.value === current.study_schedule,
-            )
-                ? current.study_schedule
-                : (careerSchedules[0]?.value ?? '');
+            const nextSchedule =
+                careerSchedules.length > 0 &&
+                careerSchedules.some(
+                    (option) => option.value === current.study_schedule,
+                )
+                    ? current.study_schedule
+                    : (careerSchedules[0]?.value ?? '');
 
             // Si el tipo de horario ha cambiado, reiniciar la modalidad
             let nextModality = current.modality;
-            
+
             // Si hay un tipo de horario seleccionado y modalidades disponibles
             if (nextSchedule && availableModalities.length > 0) {
                 // Si la modalidad actual está disponible para este tipo de horario, mantenerla
@@ -453,17 +536,22 @@ export default function AdminScheduleForm({
         form.setData((current) => {
             // Si hay una carrera seleccionada, obtener las modalidades disponibles para este tipo de horario
             let nextModality = current.modality;
-            
+
             if (selectedCareer) {
                 const careerOfferings = selectedCareer.offerings;
                 const offeringsForSchedule = careerOfferings.filter(
-                    (o) => o.schedule === value
+                    (o) => o.schedule === value,
                 );
-                
-                const availableModalities = offeringsForSchedule.map((o) => o.modality);
-                
+
+                const availableModalities = offeringsForSchedule.map(
+                    (o) => o.modality,
+                );
+
                 // Si la modalidad actual no está disponible para este tipo de horario, seleccionar la primera
-                if (availableModalities.length > 0 && !availableModalities.includes(current.modality)) {
+                if (
+                    availableModalities.length > 0 &&
+                    !availableModalities.includes(current.modality)
+                ) {
                     nextModality = availableModalities[0];
                 }
                 // Si no hay modalidades disponibles, limpiar
@@ -473,7 +561,7 @@ export default function AdminScheduleForm({
             } else {
                 nextModality = '';
             }
-            
+
             return {
                 ...current,
                 study_schedule: value,
@@ -522,6 +610,8 @@ export default function AdminScheduleForm({
                               defaultProfessor === undefined
                                   ? (slot?.teacher ?? '')
                                   : '',
+                          dates: subjectId === '' ? [] : item.dates,
+                          date_times: subjectId === '' ? {} : item.date_times,
                       }
                     : item,
             ),
@@ -546,19 +636,6 @@ export default function AdminScheduleForm({
         );
     };
 
-    const setTime = (
-        index: number,
-        key: 'starts_at' | 'ends_at',
-        value: string,
-    ) => {
-        form.setData(
-            'subjects',
-            form.data.subjects.map((choice, position) =>
-                position === index ? { ...choice, [key]: value } : choice,
-            ),
-        );
-    };
-
     const toggleDate = (index: number, date: string) => {
         form.setData(
             'subjects',
@@ -571,16 +648,16 @@ export default function AdminScheduleForm({
                 const newDates = selected
                     ? choice.dates.filter((item) => item !== date)
                     : [...choice.dates, date].sort();
-                
-                // Handle date_times
+
                 const newDateTimes = { ...choice.date_times };
                 if (!selected) {
-                    // Adding date - initialize if doesn't exist
                     if (!newDateTimes[date]) {
-                        newDateTimes[date] = { starts_at: '', ends_at: '' };
+                        newDateTimes[date] = {
+                            starts_at: DEFAULT_STARTS_AT,
+                            ends_at: DEFAULT_ENDS_AT,
+                        };
                     }
                 } else {
-                    // Removing date - remove from date_times
                     delete newDateTimes[date];
                 }
 
@@ -604,17 +681,21 @@ export default function AdminScheduleForm({
                 const newDates = selected
                     ? classDates.map((date) => date.date)
                     : [];
-                
-                // Update date_times
-                const newDateTimes: Record<string, { starts_at: string; ends_at: string }> = {};
+
+                const newDateTimes: Record<
+                    string,
+                    { starts_at: string; ends_at: string }
+                > = {};
                 if (selected) {
                     classDates.forEach((dateObj) => {
                         const date = dateObj.date;
-                        // Keep existing times if they exist, otherwise initialize empty
                         if (choice.date_times?.[date]) {
                             newDateTimes[date] = choice.date_times[date];
                         } else {
-                            newDateTimes[date] = { starts_at: '', ends_at: '' };
+                            newDateTimes[date] = {
+                                starts_at: DEFAULT_STARTS_AT,
+                                ends_at: DEFAULT_ENDS_AT,
+                            };
                         }
                     });
                 }
@@ -628,7 +709,12 @@ export default function AdminScheduleForm({
         );
     };
 
-    const setDateTime = (index: number, date: string, field: 'starts_at' | 'ends_at', value: string) => {
+    const setDateTime = (
+        index: number,
+        date: string,
+        field: 'starts_at' | 'ends_at',
+        value: string,
+    ) => {
         form.setData(
             'subjects',
             form.data.subjects.map((choice, position) => {
@@ -638,9 +724,15 @@ export default function AdminScheduleForm({
 
                 const newDateTimes = { ...choice.date_times };
                 if (!newDateTimes[date]) {
-                    newDateTimes[date] = { starts_at: '', ends_at: '' };
+                    newDateTimes[date] = {
+                        starts_at: DEFAULT_STARTS_AT,
+                        ends_at: DEFAULT_ENDS_AT,
+                    };
                 }
-                newDateTimes[date][field] = value;
+                newDateTimes[date] = {
+                    ...newDateTimes[date],
+                    [field]: value,
+                };
 
                 return {
                     ...choice,
@@ -676,7 +768,12 @@ export default function AdminScheduleForm({
                 choice.dates.length > 0 &&
                 choice.dates.every((date) => {
                     const dateTime = choice.date_times?.[date];
-                    return dateTime && dateTime.starts_at !== '' && dateTime.ends_at !== '';
+                    return (
+                        dateTime !== undefined &&
+                        dateTime.starts_at !== '' &&
+                        dateTime.ends_at !== '' &&
+                        dateTime.ends_at > dateTime.starts_at
+                    );
                 }),
         );
 
@@ -697,18 +794,28 @@ export default function AdminScheduleForm({
             ),
         }));
 
+        if (schedule !== null) {
+            form.put(schedulesUpdate.url(schedule.id));
+
+            return;
+        }
+
         form.post(schedulesStore.url());
     };
 
     return (
         <>
-            <Head title="Nuevo horario" />
+            <Head title={isEditing ? 'Editar horario' : 'Nuevo horario'} />
 
             <div className="space-y-6">
                 <PageHeader
                     eyebrow="Gestión académica"
-                    title="Nuevo horario"
-                    description="Define el rango de clases y publica el horario oficial de una carrera, período y cohorte."
+                    title={isEditing ? 'Editar horario' : 'Nuevo horario'}
+                    description={
+                        isEditing
+                            ? 'Actualiza los datos, materias, fechas y horas del horario publicado.'
+                            : 'Define el rango de clases y publica el horario oficial de una carrera, período y cohorte.'
+                    }
                     actions={
                         <Link
                             href={schedulesIndex()}
@@ -798,19 +905,26 @@ export default function AdminScheduleForm({
                                                 }
                                                 className={inputClass}
                                             >
-                                                {selectedCareer === undefined ? (
+                                                {selectedCareer ===
+                                                undefined ? (
                                                     <option value="">
                                                         Selecciona una carrera
                                                     </option>
                                                 ) : (
-                                                    careerSchedules.map((option) => (
-                                                        <option
-                                                            key={option.value}
-                                                            value={option.value}
-                                                        >
-                                                            {option.label}
-                                                        </option>
-                                                    ))
+                                                    careerSchedules.map(
+                                                        (option) => (
+                                                            <option
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </option>
+                                                        ),
+                                                    )
                                                 )}
                                             </select>
                                             <InputError
@@ -840,25 +954,37 @@ export default function AdminScheduleForm({
                                                     form.errors.modality,
                                                 )}
                                                 disabled={
-                                                    selectedCareer === undefined || form.data.study_schedule === ''
+                                                    selectedCareer ===
+                                                        undefined ||
+                                                    form.data.study_schedule ===
+                                                        ''
                                                 }
                                                 className={inputClass}
                                             >
-                                                {selectedCareer === undefined || form.data.study_schedule === '' ? (
+                                                {selectedCareer === undefined ||
+                                                form.data.study_schedule ===
+                                                    '' ? (
                                                     <option value="">
-                                                        {selectedCareer === undefined 
-                                                            ? 'Selecciona una carrera' 
+                                                        {selectedCareer ===
+                                                        undefined
+                                                            ? 'Selecciona una carrera'
                                                             : 'Selecciona un tipo de horario'}
                                                     </option>
                                                 ) : (
-                                                    careerModalities.map((option) => (
-                                                        <option
-                                                            key={option.value}
-                                                            value={option.value}
-                                                        >
-                                                            {option.label}
-                                                        </option>
-                                                    ))
+                                                    careerModalities.map(
+                                                        (option) => (
+                                                            <option
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </option>
+                                                        ),
+                                                    )
                                                 )}
                                             </select>
                                             <InputError
@@ -1072,7 +1198,9 @@ export default function AdminScheduleForm({
                                     ) : (
                                         <Save className="h-3.5 w-3.5" />
                                     )}
-                                    Publicar horario
+                                    {isEditing
+                                        ? 'Guardar cambios'
+                                        : 'Publicar horario'}
                                 </button>
                                 <Link
                                     href={schedulesIndex()}
@@ -1134,13 +1262,6 @@ export default function AdminScheduleForm({
                                                     form.errors[
                                                         `subjects.${index}.dates`
                                                     ];
-                                                const timeError =
-                                                    form.errors[
-                                                        `subjects.${index}.starts_at`
-                                                    ] ??
-                                                    form.errors[
-                                                        `subjects.${index}.ends_at`
-                                                    ];
                                                 const professors =
                                                     selected?.professors ?? [];
                                                 const professorNames = new Set(
@@ -1163,404 +1284,574 @@ export default function AdminScheduleForm({
                                                             ''
                                                           ? `teacher:${choice.teacher_name}`
                                                           : '';
-                                                const timeLabel =
-                                                    formatTimeRange(
-                                                        choice.starts_at,
-                                                        choice.ends_at,
+                                                const isOpen =
+                                                    openSubjectIndex === index;
+                                                const selectedTeacher =
+                                                    choice.professor_id !== ''
+                                                        ? (professors.find(
+                                                              (professor) =>
+                                                                  String(
+                                                                      professor.id,
+                                                                  ) ===
+                                                                  choice.professor_id,
+                                                          )?.name ?? '')
+                                                        : choice.teacher_name;
+                                                const hasRowErrors =
+                                                    rowError !== undefined ||
+                                                    professorError !==
+                                                        undefined ||
+                                                    datesError !== undefined ||
+                                                    Object.keys(
+                                                        form.errors,
+                                                    ).some((key) =>
+                                                        key.startsWith(
+                                                            `subjects.${index}.date_times`,
+                                                        ),
                                                     );
-
                                                 return (
                                                     <div
                                                         key={choice.position}
-                                                        className="rounded-xl border border-border/70 bg-upel-cloud/20 p-3 dark:bg-muted/20"
+                                                        className={`overflow-hidden rounded-xl border bg-upel-cloud/20 dark:bg-muted/20 ${
+                                                            isOpen
+                                                                ? 'border-upel-blue/50'
+                                                                : 'border-border/70'
+                                                        }`}
                                                     >
-                                                        <div className="grid gap-2 sm:grid-cols-[2rem_minmax(0,1fr)_11rem_6.5rem] sm:items-start">
-                                                            <span className="mt-2.5 hidden h-6 w-6 items-center justify-center rounded-lg bg-upel-cloud text-[0.65rem] font-extrabold text-upel-navy sm:flex dark:bg-muted dark:text-foreground">
+                                                        <button
+                                                            type="button"
+                                                            aria-expanded={
+                                                                isOpen
+                                                            }
+                                                            aria-controls={`subject-panel-${choice.position}`}
+                                                            onClick={() =>
+                                                                setOpenSubjectIndex(
+                                                                    isOpen
+                                                                        ? null
+                                                                        : index,
+                                                                )
+                                                            }
+                                                            className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-upel-cloud/50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-upel-blue dark:hover:bg-muted/50"
+                                                        >
+                                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-upel-cloud text-[0.65rem] font-extrabold text-upel-navy dark:bg-muted dark:text-foreground">
                                                                 {index + 1}
                                                             </span>
-                                                            <div>
-                                                                <label
-                                                                    htmlFor={`subject-${index}`}
-                                                                    className="sr-only"
-                                                                >
-                                                                    Materia de
-                                                                    la fila{' '}
+                                                            <span className="min-w-0 flex-1">
+                                                                <span className="block text-[0.6rem] font-bold tracking-wide text-muted-foreground uppercase">
+                                                                    Materia{' '}
                                                                     {index + 1}
-                                                                </label>
-                                                                <select
-                                                                    id={`subject-${index}`}
-                                                                    value={
-                                                                        choice.subject_id
-                                                                    }
-                                                                    onChange={(
-                                                                        event,
-                                                                    ) =>
-                                                                        setSubject(
-                                                                            index,
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    aria-invalid={Boolean(
-                                                                        rowError,
-                                                                    )}
-                                                                    className={
-                                                                        inputClass
-                                                                    }
-                                                                >
-                                                                    <option value="">
-                                                                        Selecciona
-                                                                        una
-                                                                        materia
-                                                                    </option>
-                                                                    {optionsFor(
-                                                                        index,
-                                                                    ).map(
-                                                                        (
-                                                                            subject,
-                                                                        ) => (
-                                                                            <option
-                                                                                key={
-                                                                                    subject.id
-                                                                                }
-                                                                                value={
-                                                                                    subject.id
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    subject.name
-                                                                                }
+                                                                </span>
+                                                                <span className="block truncate text-xs font-bold text-upel-navy dark:text-foreground">
+                                                                    {selected?.name ??
+                                                                        'Selecciona una materia'}
+                                                                </span>
+                                                                <span className="block truncate text-[0.62rem] text-muted-foreground">
+                                                                    {hasRowErrors
+                                                                        ? 'Revisa los datos de esta materia'
+                                                                        : selected ===
+                                                                            undefined
+                                                                          ? 'Pendiente de configurar'
+                                                                          : [
+                                                                                selectedTeacher,
+                                                                                `${choice.dates.length} fechas`,
+                                                                            ]
+                                                                                .filter(
+                                                                                    Boolean,
+                                                                                )
+                                                                                .join(
+                                                                                    ' · ',
+                                                                                )}
+                                                                </span>
+                                                            </span>
+                                                            <ChevronDown
+                                                                aria-hidden="true"
+                                                                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                                                                    isOpen
+                                                                        ? 'rotate-180'
+                                                                        : ''
+                                                                }`}
+                                                            />
+                                                        </button>
+                                                        {isOpen ? (
+                                                            <div
+                                                                id={`subject-panel-${choice.position}`}
+                                                                className="space-y-3 border-t border-border/70 p-3"
+                                                            >
+                                                                <div className="grid gap-2 sm:grid-cols-[2rem_minmax(0,1fr)_11rem_6.5rem] sm:items-start">
+                                                                    <span className="mt-2.5 hidden h-6 w-6 items-center justify-center rounded-lg bg-upel-cloud text-[0.65rem] font-extrabold text-upel-navy sm:flex dark:bg-muted dark:text-foreground">
+                                                                        {index +
+                                                                            1}
+                                                                    </span>
+                                                                    <div>
+                                                                        <label
+                                                                            htmlFor={`subject-${index}`}
+                                                                            className="sr-only"
+                                                                        >
+                                                                            Materia
+                                                                            de
+                                                                            la
+                                                                            fila{' '}
+                                                                            {index +
+                                                                                1}
+                                                                        </label>
+                                                                        <select
+                                                                            id={`subject-${index}`}
+                                                                            value={
+                                                                                choice.subject_id
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setSubject(
+                                                                                    index,
+                                                                                    event
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            aria-invalid={Boolean(
+                                                                                rowError,
+                                                                            )}
+                                                                            className={
+                                                                                inputClass
+                                                                            }
+                                                                        >
+                                                                            <option value="">
+                                                                                Selecciona
+                                                                                una
+                                                                                materia
                                                                             </option>
-                                                                        ),
-                                                                    )}
-                                                                </select>
-                                                                {selected?.modality ===
-                                                                'online' ? (
-                                                                    <p className="mt-1 text-[0.62rem] font-bold text-upel-blue">
-                                                                        Modalidad
-                                                                        online ·
-                                                                        se
-                                                                        mostrará
-                                                                        como
-                                                                        Virtual
-                                                                    </p>
-                                                                ) : null}
-                                                                <InputError
-                                                                    message={
-                                                                        rowError
-                                                                    }
-                                                                    className="mt-1 text-xs"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    htmlFor={`professor-${index}`}
-                                                                    className="sr-only"
-                                                                >
-                                                                    Docente de
-                                                                    la materia{' '}
-                                                                    {index + 1}
-                                                                </label>
-                                                                <select
-                                                                    id={`professor-${index}`}
-                                                                    value={
-                                                                        teacherValue
-                                                                    }
-                                                                    onChange={(
-                                                                        event,
-                                                                    ) =>
-                                                                        setTeacher(
-                                                                            index,
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                    disabled={
-                                                                        selected ===
-                                                                        undefined
-                                                                    }
-                                                                    aria-invalid={Boolean(
-                                                                        professorError,
-                                                                    )}
-                                                                    className={
-                                                                        inputClass
-                                                                    }
-                                                                >
-                                                                    {teacherValue ===
-                                                                    '' ? (
-                                                                        <option value="">
-                                                                            Selecciona
-                                                                            una
-                                                                            materia
-                                                                        </option>
-                                                                    ) : null}
-                                                                    {professors.length >
-                                                                    0 ? (
-                                                                        <optgroup label="Docentes asignados a la materia">
-                                                                            {professors.map(
+                                                                            {optionsFor(
+                                                                                index,
+                                                                            ).map(
                                                                                 (
-                                                                                    professor,
+                                                                                    subject,
                                                                                 ) => (
                                                                                     <option
-                                                                                        key={`professor-${professor.id}`}
-                                                                                        value={`professor:${professor.id}`}
+                                                                                        key={
+                                                                                            subject.id
+                                                                                        }
+                                                                                        value={
+                                                                                            subject.id
+                                                                                        }
                                                                                     >
                                                                                         {
-                                                                                            professor.name
+                                                                                            subject.name
                                                                                         }
                                                                                     </option>
                                                                                 ),
                                                                             )}
-                                                                        </optgroup>
-                                                                    ) : null}
-                                                                    <optgroup label="Docentes de la plantilla">
-                                                                        {plantillaTeachers.map(
-                                                                            (
-                                                                                teacher,
-                                                                            ) => (
-                                                                                <option
-                                                                                    key={`teacher-${teacher}`}
-                                                                                    value={`teacher:${teacher}`}
-                                                                                >
-                                                                                    {
-                                                                                        teacher
-                                                                                    }
-                                                                                </option>
-                                                                            ),
-                                                                        )}
-                                                                    </optgroup>
-                                                                </select>
-                                                                <InputError
-                                                                    message={
-                                                                        professorError
-                                                                    }
-                                                                    className="mt-1 text-xs"
-                                                                />
-                                                            </div>
-                                                            <div className="mt-0.5 flex h-10 items-center justify-center rounded-xl border border-border bg-upel-cloud/50 px-3 dark:bg-muted/40">
-                                                                <span className="font-mono text-[0.7rem] font-bold text-upel-navy dark:text-foreground">
-                                                                    {selected?.code ??
-                                                                        '—'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        {selected !==
-                                                        undefined ? (
-                                                            <div className="mt-3 space-y-3">
-                                                                <div className="flex flex-wrap items-end gap-2">
-                                                                    <div className="w-[7.5rem]">
-                                                                        <label
-                                                                            htmlFor={`starts-at-${index}`}
-                                                                            className={
-                                                                                labelClass
-                                                                            }
-                                                                        >
-                                                                            Hora
-                                                                            de
-                                                                            inicio
-                                                                        </label>
-                                                                        <input
-                                                                            id={`starts-at-${index}`}
-                                                                            type="time"
-                                                                            value={
-                                                                                choice.starts_at
-                                                                            }
-                                                                            onChange={(
-                                                                                event,
-                                                                            ) =>
-                                                                                setTime(
-                                                                                    index,
-                                                                                    'starts_at',
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className={
-                                                                                inputClass
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                    <div className="w-[7.5rem]">
-                                                                        <label
-                                                                            htmlFor={`ends-at-${index}`}
-                                                                            className={
-                                                                                labelClass
-                                                                            }
-                                                                        >
-                                                                            Hora
-                                                                            de
-                                                                            fin
-                                                                        </label>
-                                                                        <input
-                                                                            id={`ends-at-${index}`}
-                                                                            type="time"
-                                                                            value={
-                                                                                choice.ends_at
-                                                                            }
-                                                                            onChange={(
-                                                                                event,
-                                                                            ) =>
-                                                                                setTime(
-                                                                                    index,
-                                                                                    'ends_at',
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className={
-                                                                                inputClass
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                    <span className="flex h-10 items-center rounded-xl border border-border bg-white px-3 text-[0.7rem] font-bold text-upel-navy dark:bg-card dark:text-foreground">
-                                                                        {timeLabel !==
-                                                                        ''
-                                                                            ? timeLabel
-                                                                            : 'Define la hora'}
-                                                                    </span>
-                                                                    <span className="flex h-10 items-center rounded-xl bg-upel-cloud px-3 text-[0.68rem] font-bold text-upel-blue dark:bg-muted">
-                                                                        {
-                                                                            choice
-                                                                                .dates
-                                                                                .length
-                                                                        }{' '}
-                                                                        días
-                                                                        marcados
-                                                                    </span>
-                                                                </div>
-                                                                <InputError
-                                                                    message={
-                                                                        timeError
-                                                                    }
-                                                                    className="text-xs"
-                                                                />
-
-                                                                {classDates.length ===
-                                                                0 ? (
-                                                                    <p className="rounded-lg border border-dashed border-border px-3 py-2 text-[0.68rem] font-semibold text-muted-foreground">
-                                                                        Define
-                                                                        primero
-                                                                        el rango
-                                                                        de
-                                                                        fechas
-                                                                        para
-                                                                        elegir
-                                                                        los días
-                                                                        de
-                                                                        clase.
-                                                                    </p>
-                                                                ) : (
-                                                                    <div className="space-y-2">
-                                                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                                                            <p className="text-[0.66rem] font-bold tracking-wide text-muted-foreground uppercase">
-                                                                                Días
-                                                                                de
-                                                                                clase
+                                                                        </select>
+                                                                        {selected?.modality ===
+                                                                        'online' ? (
+                                                                            <p className="mt-1 text-[0.62rem] font-bold text-upel-blue">
+                                                                                Modalidad
+                                                                                online
+                                                                                ·
+                                                                                se
+                                                                                mostrará
+                                                                                como
+                                                                                Virtual
                                                                             </p>
-                                                                            <div className="flex gap-1.5">
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() =>
-                                                                                        setAllDates(
-                                                                                            index,
-                                                                                            true,
-                                                                                        )
-                                                                                    }
-                                                                                    className="rounded-md border border-border bg-white px-2 py-1 text-[0.62rem] font-bold text-upel-blue dark:bg-card"
-                                                                                >
-                                                                                    Todos
-                                                                                </button>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() =>
-                                                                                        setAllDates(
-                                                                                            index,
-                                                                                            false,
-                                                                                        )
-                                                                                    }
-                                                                                    className="rounded-md border border-border bg-white px-2 py-1 text-[0.62rem] font-bold text-muted-foreground dark:bg-card"
-                                                                                >
-                                                                                    Limpiar
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {dateGroups.map(
-                                                                            (
-                                                                                group,
-                                                                            ) => (
-                                                                                <div
-                                                                                    key={
-                                                                                        group.month_key
-                                                                                    }
-                                                                                    className="flex flex-wrap items-center gap-1.5"
-                                                                                >
-                                                                                    <span className="w-16 text-[0.6rem] font-bold text-muted-foreground">
-                                                                                        {
-                                                                                            group.month
-                                                                                        }
-                                                                                    </span>
-                                                                                    {group.dates.map(
+                                                                        ) : null}
+                                                                        <InputError
+                                                                            message={
+                                                                                rowError
+                                                                            }
+                                                                            className="mt-1 text-xs"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label
+                                                                            htmlFor={`professor-${index}`}
+                                                                            className="sr-only"
+                                                                        >
+                                                                            Docente
+                                                                            de
+                                                                            la
+                                                                            materia{' '}
+                                                                            {index +
+                                                                                1}
+                                                                        </label>
+                                                                        <select
+                                                                            id={`professor-${index}`}
+                                                                            value={
+                                                                                teacherValue
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setTeacher(
+                                                                                    index,
+                                                                                    event
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            disabled={
+                                                                                selected ===
+                                                                                undefined
+                                                                            }
+                                                                            aria-invalid={Boolean(
+                                                                                professorError,
+                                                                            )}
+                                                                            className={
+                                                                                inputClass
+                                                                            }
+                                                                        >
+                                                                            {teacherValue ===
+                                                                            '' ? (
+                                                                                <option value="">
+                                                                                    Selecciona
+                                                                                    una
+                                                                                    materia
+                                                                                </option>
+                                                                            ) : null}
+                                                                            {professors.length >
+                                                                            0 ? (
+                                                                                <optgroup label="Docentes asignados a la materia">
+                                                                                    {professors.map(
                                                                                         (
-                                                                                            date,
-                                                                                        ) => {
-                                                                                            const active =
-                                                                                                choice.dates.includes(
-                                                                                                    date.date,
-                                                                                                );
-
-                                                                                            return (
-                                                                                                <button
-                                                                                                    key={
-                                                                                                        date.date
-                                                                                                    }
-                                                                                                    type="button"
-                                                                                                    onClick={() =>
-                                                                                                        toggleDate(
-                                                                                                            index,
-                                                                                                            date.date,
-                                                                                                        )
-                                                                                                    }
-                                                                                                    aria-pressed={
-                                                                                                        active
-                                                                                                    }
-                                                                                                    title={`${date.weekday} ${date.day} de ${date.month}`}
-                                                                                                    className={`flex h-7 min-w-7 flex-col items-center justify-center rounded-md border px-1 text-[0.58rem] leading-none font-bold transition-colors ${
-                                                                                                        active
-                                                                                                            ? 'border-upel-blue bg-upel-blue text-white'
-                                                                                                            : 'border-border bg-white text-upel-navy hover:border-upel-blue dark:bg-card dark:text-foreground'
-                                                                                                    }`}
-                                                                                                >
-                                                                                                    <span>
-                                                                                                        {
-                                                                                                            date.day
-                                                                                                        }
-                                                                                                    </span>
-                                                                                                    <span className="text-[0.5rem] font-semibold opacity-80">
-                                                                                                        {
-                                                                                                            date.weekday_short
-                                                                                                        }
-                                                                                                    </span>
-                                                                                                </button>
-                                                                                            );
-                                                                                        },
+                                                                                            professor,
+                                                                                        ) => (
+                                                                                            <option
+                                                                                                key={`professor-${professor.id}`}
+                                                                                                value={`professor:${professor.id}`}
+                                                                                            >
+                                                                                                {
+                                                                                                    professor.name
+                                                                                                }
+                                                                                            </option>
+                                                                                        ),
                                                                                     )}
+                                                                                </optgroup>
+                                                                            ) : null}
+                                                                            <optgroup label="Docentes de la plantilla">
+                                                                                {plantillaTeachers.map(
+                                                                                    (
+                                                                                        teacher,
+                                                                                    ) => (
+                                                                                        <option
+                                                                                            key={`teacher-${teacher}`}
+                                                                                            value={`teacher:${teacher}`}
+                                                                                        >
+                                                                                            {
+                                                                                                teacher
+                                                                                            }
+                                                                                        </option>
+                                                                                    ),
+                                                                                )}
+                                                                            </optgroup>
+                                                                        </select>
+                                                                        <InputError
+                                                                            message={
+                                                                                professorError
+                                                                            }
+                                                                            className="mt-1 text-xs"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="mt-0.5 flex h-10 items-center justify-center rounded-xl border border-border bg-upel-cloud/50 px-3 dark:bg-muted/40">
+                                                                        <span className="font-mono text-[0.7rem] font-bold text-upel-navy dark:text-foreground">
+                                                                            {selected?.code ??
+                                                                                '—'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {selected !==
+                                                                undefined ? (
+                                                                    <div className="mt-3 space-y-3">
+                                                                        <span className="inline-flex h-8 items-center rounded-xl bg-upel-cloud px-3 text-[0.68rem] font-bold text-upel-blue dark:bg-muted">
+                                                                            {
+                                                                                choice
+                                                                                    .dates
+                                                                                    .length
+                                                                            }{' '}
+                                                                            fechas
+                                                                            marcadas
+                                                                        </span>
+
+                                                                        {classDates.length ===
+                                                                        0 ? (
+                                                                            <p className="rounded-lg border border-dashed border-border px-3 py-2 text-[0.68rem] font-semibold text-muted-foreground">
+                                                                                Define
+                                                                                primero
+                                                                                el
+                                                                                rango
+                                                                                de
+                                                                                fechas
+                                                                                para
+                                                                                elegir
+                                                                                los
+                                                                                días
+                                                                                de
+                                                                                clase.
+                                                                            </p>
+                                                                        ) : (
+                                                                            <div className="space-y-2">
+                                                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                                    <p className="text-[0.66rem] font-bold tracking-wide text-muted-foreground uppercase">
+                                                                                        Días
+                                                                                        de
+                                                                                        clase
+                                                                                    </p>
+                                                                                    <div className="flex gap-1.5">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() =>
+                                                                                                setAllDates(
+                                                                                                    index,
+                                                                                                    true,
+                                                                                                )
+                                                                                            }
+                                                                                            className="rounded-md border border-border bg-white px-2 py-1 text-[0.62rem] font-bold text-upel-blue dark:bg-card"
+                                                                                        >
+                                                                                            Todos
+                                                                                        </button>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() =>
+                                                                                                setAllDates(
+                                                                                                    index,
+                                                                                                    false,
+                                                                                                )
+                                                                                            }
+                                                                                            className="rounded-md border border-border bg-white px-2 py-1 text-[0.62rem] font-bold text-muted-foreground dark:bg-card"
+                                                                                        >
+                                                                                            Limpiar
+                                                                                        </button>
+                                                                                    </div>
                                                                                 </div>
-                                                                            ),
+
+                                                                                {dateGroups.map(
+                                                                                    (
+                                                                                        group,
+                                                                                    ) => (
+                                                                                        <div
+                                                                                            key={
+                                                                                                group.month_key
+                                                                                            }
+                                                                                            className="flex flex-wrap items-center gap-1.5"
+                                                                                        >
+                                                                                            <span className="w-16 text-[0.6rem] font-bold text-muted-foreground">
+                                                                                                {
+                                                                                                    group.month
+                                                                                                }
+                                                                                            </span>
+                                                                                            {group.dates.map(
+                                                                                                (
+                                                                                                    date,
+                                                                                                ) => {
+                                                                                                    const active =
+                                                                                                        choice.dates.includes(
+                                                                                                            date.date,
+                                                                                                        );
+
+                                                                                                    return (
+                                                                                                        <button
+                                                                                                            key={
+                                                                                                                date.date
+                                                                                                            }
+                                                                                                            type="button"
+                                                                                                            onClick={() =>
+                                                                                                                toggleDate(
+                                                                                                                    index,
+                                                                                                                    date.date,
+                                                                                                                )
+                                                                                                            }
+                                                                                                            aria-pressed={
+                                                                                                                active
+                                                                                                            }
+                                                                                                            title={`${date.weekday} ${date.day} de ${date.month}`}
+                                                                                                            className={`flex h-7 min-w-7 flex-col items-center justify-center rounded-md border px-1 text-[0.58rem] leading-none font-bold transition-colors ${
+                                                                                                                active
+                                                                                                                    ? 'border-upel-blue bg-upel-blue text-white'
+                                                                                                                    : 'border-border bg-white text-upel-navy hover:border-upel-blue dark:bg-card dark:text-foreground'
+                                                                                                            }`}
+                                                                                                        >
+                                                                                                            <span>
+                                                                                                                {
+                                                                                                                    date.day
+                                                                                                                }
+                                                                                                            </span>
+                                                                                                            <span className="text-[0.5rem] font-semibold opacity-80">
+                                                                                                                {
+                                                                                                                    date.weekday_short
+                                                                                                                }
+                                                                                                            </span>
+                                                                                                        </button>
+                                                                                                    );
+                                                                                                },
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ),
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        <InputError
+                                                                            message={
+                                                                                datesError
+                                                                            }
+                                                                            className="text-xs"
+                                                                        />
+
+                                                                        {choice
+                                                                            .dates
+                                                                            .length >
+                                                                            0 && (
+                                                                            <div className="space-y-2 border-t border-border/70 pt-3">
+                                                                                <p className="text-[0.66rem] font-bold tracking-wide text-muted-foreground uppercase">
+                                                                                    Horario
+                                                                                    por
+                                                                                    fecha
+                                                                                </p>
+                                                                                {choice.dates.map(
+                                                                                    (
+                                                                                        date,
+                                                                                    ) => {
+                                                                                        const classDate =
+                                                                                            classDates.find(
+                                                                                                (
+                                                                                                    item,
+                                                                                                ) =>
+                                                                                                    item.date ===
+                                                                                                    date,
+                                                                                            );
+                                                                                        const dateTime =
+                                                                                            choice
+                                                                                                .date_times[
+                                                                                                date
+                                                                                            ];
+                                                                                        const startsAtError =
+                                                                                            form
+                                                                                                .errors[
+                                                                                                `subjects.${index}.date_times.${date}.starts_at`
+                                                                                            ];
+                                                                                        const endsAtError =
+                                                                                            form
+                                                                                                .errors[
+                                                                                                `subjects.${index}.date_times.${date}.ends_at`
+                                                                                            ];
+
+                                                                                        return (
+                                                                                            <div
+                                                                                                key={
+                                                                                                    date
+                                                                                                }
+                                                                                                className="grid gap-2 rounded-lg border border-border/70 bg-white/70 p-2 sm:grid-cols-[minmax(0,1fr)_8rem_8rem] dark:bg-card/70"
+                                                                                            >
+                                                                                                <p className="flex items-center text-[0.68rem] font-bold text-upel-navy dark:text-foreground">
+                                                                                                    {
+                                                                                                        classDate?.weekday
+                                                                                                    }{' '}
+                                                                                                    {
+                                                                                                        classDate?.day
+                                                                                                    }{' '}
+                                                                                                    de{' '}
+                                                                                                    {
+                                                                                                        classDate?.month
+                                                                                                    }
+                                                                                                </p>
+                                                                                                <div>
+                                                                                                    <label
+                                                                                                        htmlFor={`starts-at-${index}-${date}`}
+                                                                                                        className={
+                                                                                                            labelClass
+                                                                                                        }
+                                                                                                    >
+                                                                                                        Inicio
+                                                                                                    </label>
+                                                                                                    <input
+                                                                                                        id={`starts-at-${index}-${date}`}
+                                                                                                        type="time"
+                                                                                                        value={
+                                                                                                            dateTime?.starts_at ??
+                                                                                                            ''
+                                                                                                        }
+                                                                                                        onChange={(
+                                                                                                            event,
+                                                                                                        ) =>
+                                                                                                            setDateTime(
+                                                                                                                index,
+                                                                                                                date,
+                                                                                                                'starts_at',
+                                                                                                                event
+                                                                                                                    .target
+                                                                                                                    .value,
+                                                                                                            )
+                                                                                                        }
+                                                                                                        aria-invalid={Boolean(
+                                                                                                            startsAtError,
+                                                                                                        )}
+                                                                                                        className={
+                                                                                                            inputClass
+                                                                                                        }
+                                                                                                    />
+                                                                                                    <InputError
+                                                                                                        message={
+                                                                                                            startsAtError
+                                                                                                        }
+                                                                                                        className="mt-1 text-xs"
+                                                                                                    />
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                    <label
+                                                                                                        htmlFor={`ends-at-${index}-${date}`}
+                                                                                                        className={
+                                                                                                            labelClass
+                                                                                                        }
+                                                                                                    >
+                                                                                                        Fin
+                                                                                                    </label>
+                                                                                                    <input
+                                                                                                        id={`ends-at-${index}-${date}`}
+                                                                                                        type="time"
+                                                                                                        value={
+                                                                                                            dateTime?.ends_at ??
+                                                                                                            ''
+                                                                                                        }
+                                                                                                        onChange={(
+                                                                                                            event,
+                                                                                                        ) =>
+                                                                                                            setDateTime(
+                                                                                                                index,
+                                                                                                                date,
+                                                                                                                'ends_at',
+                                                                                                                event
+                                                                                                                    .target
+                                                                                                                    .value,
+                                                                                                            )
+                                                                                                        }
+                                                                                                        aria-invalid={Boolean(
+                                                                                                            endsAtError,
+                                                                                                        )}
+                                                                                                        className={
+                                                                                                            inputClass
+                                                                                                        }
+                                                                                                    />
+                                                                                                    <InputError
+                                                                                                        message={
+                                                                                                            endsAtError
+                                                                                                        }
+                                                                                                        className="mt-1 text-xs"
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    },
+                                                                                )}
+                                                                                <InputError
+                                                                                    message={
+                                                                                        form
+                                                                                            .errors[
+                                                                                            `subjects.${index}.date_times`
+                                                                                        ]
+                                                                                    }
+                                                                                    className="text-xs"
+                                                                                />
+                                                                            </div>
                                                                         )}
                                                                     </div>
-                                                                )}
-                                                                <InputError
-                                                                    message={
-                                                                        datesError
-                                                                    }
-                                                                    className="text-xs"
-                                                                />
+                                                                ) : null}
                                                             </div>
                                                         ) : null}
                                                     </div>
