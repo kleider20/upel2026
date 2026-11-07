@@ -29,6 +29,8 @@ type ScheduleRow = {
     period: number;
     period_label: string;
     cohort: string;
+    modality_label: string;
+    schedule_label: string;
     created_at: string | null;
     show_url: string;
     pdf_url: string;
@@ -299,6 +301,8 @@ export default function AdminSchedulesIndex({
                                             'Carrera',
                                             'Período',
                                             'Cohorte',
+                                            'Modalidad',
+                                            'Tipo',
                                             'Publicado',
                                             'Acciones',
                                         ].map((column) => (
@@ -318,7 +322,7 @@ export default function AdminSchedulesIndex({
                                             key={row.id}
                                             className="transition-colors hover:bg-upel-cloud/50 dark:hover:bg-muted/30"
                                         >
-                                            <td className="max-w-[320px] px-5 py-3.5 align-middle">
+                                            <td className="max-w-[280px] px-5 py-3.5 align-middle">
                                                 <p className="text-xs font-bold text-foreground">
                                                     {row.career}
                                                 </p>
@@ -333,6 +337,16 @@ export default function AdminSchedulesIndex({
                                             </td>
                                             <td className="px-5 py-3.5 align-middle text-xs font-semibold text-foreground">
                                                 {row.cohort}
+                                            </td>
+                                            <td className="px-5 py-3.5 align-middle">
+                                                <span className="inline-flex min-w-9 items-center justify-center rounded-lg bg-upel-blue/5 px-2 py-1 text-xs font-bold text-upel-blue dark:bg-white/10 dark:text-foreground">
+                                                    {row.modality_label}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5 align-middle">
+                                                <span className="inline-flex min-w-9 items-center justify-center rounded-lg bg-upel-navy/5 px-2 py-1 text-xs font-bold text-upel-navy dark:bg-white/10 dark:text-foreground">
+                                                    {row.schedule_label}
+                                                </span>
                                             </td>
                                             <td className="px-5 py-3.5 align-middle text-xs font-medium text-muted-foreground">
                                                 {row.created_at ?? '—'}

@@ -42,6 +42,19 @@ type CareerOption = {
     code: string;
     duration_semesters: number;
     periods: PeriodOption[];
+    offerings: OfferingOption[];
+    schedules: ScheduleTypeOption[];
+    modalities: ScheduleTypeOption[];
+};
+
+type OfferingOption = {
+    id: number;
+    modality: string;
+    modality_label: string;
+    schedule: string;
+    schedule_label: string;
+    shift: string;
+    shift_label: string;
 };
 
 type TemplateSubject = {
@@ -85,6 +98,7 @@ type SubjectChoice = {
     starts_at: string;
     ends_at: string;
     dates: string[];
+    date_times?: Record<string, { starts_at: string; ends_at: string }>;
 };
 
 type ScheduleFormData = {
@@ -92,6 +106,7 @@ type ScheduleFormData = {
     period: string;
     cohort: string;
     study_schedule: string;
+    modality: string;
     starts_on: string;
     ends_on: string;
     subjects: SubjectChoice[];
@@ -100,7 +115,6 @@ type ScheduleFormData = {
 type Props = {
     careers: CareerOption[];
     template: ScheduleTemplate;
-    study_schedules: ScheduleTypeOption[];
     subjects: SubjectOption[];
 };
 
@@ -120,18 +134,14 @@ const DEFAULT_ENDS_AT = '12:00';
 export default function AdminScheduleForm({
     careers,
     template,
-    study_schedules: scheduleTypes,
     subjects: subjectCatalog,
 }: Props) {
     const form = useForm<ScheduleFormData>({
         career_id: '',
         period: '1',
         cohort: '',
-        study_schedule: scheduleTypes.some(
-            (option) => option.value === 'sabatino',
-        )
-            ? 'sabatino'
-            : (scheduleTypes[0]?.value ?? 'sabatino'),
+        study_schedule: '',
+        modality: '',
         starts_on: '',
         ends_on: '',
         subjects: template.subjects.map((_subject, index) => ({
@@ -142,12 +152,39 @@ export default function AdminScheduleForm({
             starts_at: DEFAULT_STARTS_AT,
             ends_at: DEFAULT_ENDS_AT,
             dates: [],
+            date_times: {},
         })),
     });
 
     const selectedCareer = careers.find(
         (career) => String(career.id) === form.data.career_id,
     );
+
+    const careerSchedules = selectedCareer?.schedules ?? [];
+    
+    // Filtrar modalidades por el tipo de horario seleccionado
+    const careerModalities = useMemo(() => {
+        if (!selectedCareer) return [];
+        const studySchedule = form.data.study_schedule;
+        if (!studySchedule) return [];
+        
+        // Obtener las ofertas que coinciden con el tipo de horario seleccionado
+        const offeringsForSchedule = selectedCareer.offerings.filter(
+            (offering) => offering.schedule === studySchedule
+        );
+        
+        // Extraer las modalidades únicas de esas ofertas
+        const modalitiesMap = new Map<string, ScheduleTypeOption>();
+        offeringsForSchedule.forEach((offering) => {
+            const modalityOption: ScheduleTypeOption = {
+                value: offering.modality,
+                label: offering.modality_label,
+            };
+            modalitiesMap.set(offering.modality, modalityOption);
+        });
+        
+        return Array.from(modalitiesMap.values());
+    }, [selectedCareer, form.data.study_schedule]);
 
     const periodLabel =
         selectedCareer?.periods.find(
@@ -212,9 +249,9 @@ export default function AdminScheduleForm({
     const dateGroups = useMemo(() => groupClassDates(classDates), [classDates]);
 
     const scheduleTypeLabel =
-        scheduleTypes.find(
+        careerSchedules.find(
             (option) => option.value === form.data.study_schedule,
-        )?.label ?? 'Sabatino';
+        )?.label ?? '—';
 
     const previewSubjects = useMemo<StudentScheduleSubject[]>(() => {
         return form.data.subjects
@@ -353,14 +390,55 @@ export default function AdminScheduleForm({
     const selectCareer = (value: string) => {
         const career = careers.find((option) => String(option.id) === value);
 
-        form.setData((current) => ({
-            ...current,
-            career_id: value,
-            period: career
-                ? String(career.periods[0]?.value ?? 1)
-                : current.period,
-            subjects: clearSubjects(current.subjects),
-        }));
+        form.setData((current) => {
+            const careerSchedules = career?.schedules ?? [];
+            
+            // Obtener las ofertas para esta carrera
+            const careerOfferings = career?.offerings ?? [];
+            
+            // Filtrar ofertas por el tipo de horario actual si existe
+            const offeringsForCurrentSchedule = current.study_schedule
+                ? careerOfferings.filter((o) => o.schedule === current.study_schedule)
+                : careerOfferings;
+            
+            // Obtener modalidades disponibles para el tipo de horario actual
+            const availableModalities = offeringsForCurrentSchedule
+                .map((o) => o.modality)
+                .filter((m, index, self) => self.indexOf(m) === index);
+
+            const nextSchedule = careerSchedules.length > 0 && careerSchedules.some(
+                (option) => option.value === current.study_schedule,
+            )
+                ? current.study_schedule
+                : (careerSchedules[0]?.value ?? '');
+
+            // Si el tipo de horario ha cambiado, reiniciar la modalidad
+            let nextModality = current.modality;
+            
+            // Si hay un tipo de horario seleccionado y modalidades disponibles
+            if (nextSchedule && availableModalities.length > 0) {
+                // Si la modalidad actual está disponible para este tipo de horario, mantenerla
+                if (availableModalities.includes(current.modality)) {
+                    nextModality = current.modality;
+                } else {
+                    // De lo contrario, seleccionar la primera modalidad disponible
+                    nextModality = availableModalities[0] ?? '';
+                }
+            } else {
+                nextModality = '';
+            }
+
+            return {
+                ...current,
+                career_id: value,
+                period: career
+                    ? String(career.periods[0]?.value ?? 1)
+                    : current.period,
+                study_schedule: nextSchedule,
+                modality: nextModality,
+                subjects: clearSubjects(current.subjects),
+            };
+        });
     };
 
     const selectPeriod = (value: string) => {
@@ -372,10 +450,43 @@ export default function AdminScheduleForm({
     };
 
     const selectStudySchedule = (value: string) => {
+        form.setData((current) => {
+            // Si hay una carrera seleccionada, obtener las modalidades disponibles para este tipo de horario
+            let nextModality = current.modality;
+            
+            if (selectedCareer) {
+                const careerOfferings = selectedCareer.offerings;
+                const offeringsForSchedule = careerOfferings.filter(
+                    (o) => o.schedule === value
+                );
+                
+                const availableModalities = offeringsForSchedule.map((o) => o.modality);
+                
+                // Si la modalidad actual no está disponible para este tipo de horario, seleccionar la primera
+                if (availableModalities.length > 0 && !availableModalities.includes(current.modality)) {
+                    nextModality = availableModalities[0];
+                }
+                // Si no hay modalidades disponibles, limpiar
+                else if (availableModalities.length === 0) {
+                    nextModality = '';
+                }
+            } else {
+                nextModality = '';
+            }
+            
+            return {
+                ...current,
+                study_schedule: value,
+                modality: nextModality,
+                subjects: resetDates(current.subjects),
+            };
+        });
+    };
+
+    const selectModality = (value: string) => {
         form.setData((current) => ({
             ...current,
-            study_schedule: value,
-            subjects: resetDates(current.subjects),
+            modality: value,
         }));
     };
 
@@ -457,12 +568,26 @@ export default function AdminScheduleForm({
                 }
 
                 const selected = choice.dates.includes(date);
+                const newDates = selected
+                    ? choice.dates.filter((item) => item !== date)
+                    : [...choice.dates, date].sort();
+                
+                // Handle date_times
+                const newDateTimes = { ...choice.date_times };
+                if (!selected) {
+                    // Adding date - initialize if doesn't exist
+                    if (!newDateTimes[date]) {
+                        newDateTimes[date] = { starts_at: '', ends_at: '' };
+                    }
+                } else {
+                    // Removing date - remove from date_times
+                    delete newDateTimes[date];
+                }
 
                 return {
                     ...choice,
-                    dates: selected
-                        ? choice.dates.filter((item) => item !== date)
-                        : [...choice.dates, date].sort(),
+                    dates: newDates,
+                    date_times: newDateTimes,
                 };
             }),
         );
@@ -471,16 +596,57 @@ export default function AdminScheduleForm({
     const setAllDates = (index: number, selected: boolean) => {
         form.setData(
             'subjects',
-            form.data.subjects.map((choice, position) =>
-                position === index
-                    ? {
-                          ...choice,
-                          dates: selected
-                              ? classDates.map((date) => date.date)
-                              : [],
-                      }
-                    : choice,
-            ),
+            form.data.subjects.map((choice, position) => {
+                if (position !== index) {
+                    return choice;
+                }
+
+                const newDates = selected
+                    ? classDates.map((date) => date.date)
+                    : [];
+                
+                // Update date_times
+                const newDateTimes: Record<string, { starts_at: string; ends_at: string }> = {};
+                if (selected) {
+                    classDates.forEach((dateObj) => {
+                        const date = dateObj.date;
+                        // Keep existing times if they exist, otherwise initialize empty
+                        if (choice.date_times?.[date]) {
+                            newDateTimes[date] = choice.date_times[date];
+                        } else {
+                            newDateTimes[date] = { starts_at: '', ends_at: '' };
+                        }
+                    });
+                }
+
+                return {
+                    ...choice,
+                    dates: newDates,
+                    date_times: newDateTimes,
+                };
+            }),
+        );
+    };
+
+    const setDateTime = (index: number, date: string, field: 'starts_at' | 'ends_at', value: string) => {
+        form.setData(
+            'subjects',
+            form.data.subjects.map((choice, position) => {
+                if (position !== index) {
+                    return choice;
+                }
+
+                const newDateTimes = { ...choice.date_times };
+                if (!newDateTimes[date]) {
+                    newDateTimes[date] = { starts_at: '', ends_at: '' };
+                }
+                newDateTimes[date][field] = value;
+
+                return {
+                    ...choice,
+                    date_times: newDateTimes,
+                };
+            }),
         );
     };
 
@@ -508,8 +674,10 @@ export default function AdminScheduleForm({
         usedSubjects.every(
             (choice) =>
                 choice.dates.length > 0 &&
-                choice.starts_at !== '' &&
-                choice.ends_at !== '',
+                choice.dates.every((date) => {
+                    const dateTime = choice.date_times?.[date];
+                    return dateTime && dateTime.starts_at !== '' && dateTime.ends_at !== '';
+                }),
         );
 
     const canSubmit =
@@ -625,21 +793,76 @@ export default function AdminScheduleForm({
                                                 aria-invalid={Boolean(
                                                     form.errors.study_schedule,
                                                 )}
+                                                disabled={
+                                                    selectedCareer === undefined
+                                                }
                                                 className={inputClass}
                                             >
-                                                {scheduleTypes.map((option) => (
-                                                    <option
-                                                        key={option.value}
-                                                        value={option.value}
-                                                    >
-                                                        {option.label}
+                                                {selectedCareer === undefined ? (
+                                                    <option value="">
+                                                        Selecciona una carrera
                                                     </option>
-                                                ))}
+                                                ) : (
+                                                    careerSchedules.map((option) => (
+                                                        <option
+                                                            key={option.value}
+                                                            value={option.value}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))
+                                                )}
                                             </select>
                                             <InputError
                                                 message={
                                                     form.errors.study_schedule
                                                 }
+                                                className="mt-1 text-xs"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                htmlFor="modality"
+                                                className={labelClass}
+                                            >
+                                                Modalidad
+                                            </label>
+                                            <select
+                                                id="modality"
+                                                value={form.data.modality}
+                                                onChange={(event) =>
+                                                    selectModality(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                aria-invalid={Boolean(
+                                                    form.errors.modality,
+                                                )}
+                                                disabled={
+                                                    selectedCareer === undefined || form.data.study_schedule === ''
+                                                }
+                                                className={inputClass}
+                                            >
+                                                {selectedCareer === undefined || form.data.study_schedule === '' ? (
+                                                    <option value="">
+                                                        {selectedCareer === undefined 
+                                                            ? 'Selecciona una carrera' 
+                                                            : 'Selecciona un tipo de horario'}
+                                                    </option>
+                                                ) : (
+                                                    careerModalities.map((option) => (
+                                                        <option
+                                                            key={option.value}
+                                                            value={option.value}
+                                                        >
+                                                            {option.label}
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                            <InputError
+                                                message={form.errors.modality}
                                                 className="mt-1 text-xs"
                                             />
                                         </div>

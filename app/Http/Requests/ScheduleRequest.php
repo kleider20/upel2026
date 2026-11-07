@@ -63,6 +63,7 @@ class ScheduleRequest extends FormRequest
                     ->ignore($schedule?->id),
             ],
             'study_schedule' => ['required', Rule::in(array_keys(AcademicOptions::SCHEDULES))],
+            'modality' => ['nullable', Rule::in(array_keys(AcademicOptions::MODALITIES))],
             'starts_on' => ['required', 'date_format:Y-m-d'],
             'ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
             'subjects' => ['required', 'array', 'min:1', 'max:'.$maxPosition],
@@ -102,6 +103,42 @@ class ScheduleRequest extends FormRequest
             $startsOn = (string) $this->input('starts_on');
             $endsOn = (string) $this->input('ends_on');
             $studySchedule = (string) $this->input('study_schedule');
+
+            if (array_key_exists($studySchedule, AcademicOptions::SCHEDULES)) {
+                $offerings = $career->offerings()->get(['schedule', 'modality', 'is_active']);
+
+                if ($offerings->isNotEmpty()) {
+                    $activeSchedules = $offerings
+                        ->where('is_active', true)
+                        ->pluck('schedule');
+
+                    if (! $activeSchedules->contains($studySchedule)) {
+                        $validator->errors()->add(
+                            'study_schedule',
+                            'El tipo de horario seleccionado no está activo en la oferta de la carrera.',
+                        );
+                    }
+                }
+            }
+
+            $modality = (string) $this->input('modality');
+
+            if (array_key_exists($modality, AcademicOptions::MODALITIES)) {
+                $offerings = $career->offerings()->get(['modality', 'is_active']);
+
+                if ($offerings->isNotEmpty()) {
+                    $activeModalities = $offerings
+                        ->where('is_active', true)
+                        ->pluck('modality');
+
+                    if (! $activeModalities->contains($modality)) {
+                        $validator->errors()->add(
+                            'modality',
+                            'La modalidad seleccionada no está activa en la oferta de la carrera.',
+                        );
+                    }
+                }
+            }
 
             $allowedDates = [];
 
@@ -252,6 +289,7 @@ class ScheduleRequest extends FormRequest
             'cohort.unique' => 'Ya existe un horario para esa carrera, período y cohorte.',
             'study_schedule.required' => 'Selecciona el tipo de horario.',
             'study_schedule.in' => 'El tipo de horario debe ser Sabatino o Lunes a viernes.',
+            'modality.in' => 'La modalidad debe ser Presencial, Online o Semipresencial.',
             'starts_on.required' => 'Indica la fecha de inicio de clases.',
             'starts_on.date_format' => 'La fecha de inicio debe tener el formato AAAA-MM-DD.',
             'ends_on.required' => 'Indica la fecha de finalización de clases.',

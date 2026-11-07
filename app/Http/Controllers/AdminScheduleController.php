@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Permission;
 use App\Http\Requests\ScheduleRequest;
 use App\Models\Career;
+use App\Models\CareerOffering;
 use App\Models\Schedule;
 use App\Models\Subject;
 use App\Models\User;
@@ -58,6 +59,8 @@ class AdminScheduleController extends Controller
                 'period' => $schedule->period,
                 'period_label' => $schedule->periodLabel(),
                 'cohort' => $schedule->cohort,
+                'modality_label' => AcademicOptions::modalityLabel($schedule->modality),
+                'schedule_label' => AcademicOptions::scheduleLabel($schedule->study_schedule),
                 'created_at' => $schedule->created_at?->format('d/m/Y'),
                 'show_url' => route('admin.schedules.show', $schedule),
                 'pdf_url' => route('admin.schedules.pdf', $schedule),
@@ -154,7 +157,9 @@ class AdminScheduleController extends Controller
         $schedule->loadMissing('career');
 
         return Inertia::render('admin/schedules/show', [
-            'schedule' => $schedule->toScheduleArray(),
+            'schedule' => array_merge($schedule->toScheduleArray(), [
+                'modality' => $schedule->modality,
+            ]),
             'meta' => [
                 'id' => $schedule->id,
                 'career' => $schedule->career->name,
@@ -164,6 +169,8 @@ class AdminScheduleController extends Controller
                 'starts_on' => $schedule->starts_on?->format('d/m/Y'),
                 'ends_on' => $schedule->ends_on?->format('d/m/Y'),
                 'schedule_label' => AcademicOptions::scheduleLabel($schedule->study_schedule),
+                'modality_label' => AcademicOptions::modalityLabel($schedule->modality),
+                'modality' => $schedule->modality,
                 'created_at' => $schedule->created_at?->format('d/m/Y H:i'),
             ],
             'pdf_url' => route('admin.schedules.pdf', $schedule),
@@ -246,6 +253,11 @@ class AdminScheduleController extends Controller
         return [
             'careers' => Career::query()
                 ->where('is_active', true)
+                ->with(['offerings' => static fn ($query) => $query
+                    ->where('is_active', true)
+                    ->orderBy('schedule')
+                    ->orderBy('modality')
+                    ->orderBy('shift')])
                 ->orderBy('name')
                 ->get(['id', 'name', 'code', 'duration_semesters'])
                 ->map(static fn (Career $career): array => [
@@ -260,16 +272,29 @@ class AdminScheduleController extends Controller
                         ],
                         range(1, max(1, $career->duration_semesters)),
                     ),
+                    'offerings' => $career->offerings
+                        ->map(static fn (CareerOffering $offering): array => [
+                            'id' => $offering->id,
+                            'modality' => $offering->modality,
+                            'modality_label' => $offering->modalityLabel(),
+                            'schedule' => $offering->schedule,
+                            'schedule_label' => $offering->scheduleLabel(),
+                            'shift' => $offering->shift,
+                            'shift_label' => $offering->shiftLabel(),
+                        ])
+                        ->values()
+                        ->all(),
+                    'schedules' => self::offeringOptions(
+                        $career->offerings->pluck('schedule')->all(),
+                        AcademicOptions::SCHEDULES,
+                    ),
+                    'modalities' => self::offeringOptions(
+                        $career->offerings->pluck('modality')->all(),
+                        AcademicOptions::MODALITIES,
+                    ),
                 ])
                 ->all(),
             'template' => StudentSchedule::template(),
-            'study_schedules' => collect(AcademicOptions::SCHEDULES)
-                ->map(static fn (string $label, string $value): array => [
-                    'value' => $value,
-                    'label' => $label,
-                ])
-                ->values()
-                ->all(),
             'subjects' => Subject::query()
                 ->where('is_active', true)
                 ->with('professors:id,name')
@@ -293,6 +318,27 @@ class AdminScheduleController extends Controller
                 ])
                 ->all(),
         ];
+    }
+
+    /**
+     * Opciones presentes en la oferta activa de una carrera, en el orden oficial.
+     *
+     * @param  array<int, string>  $values
+     * @param  array<string, string>  $labels
+     * @return array<int, array{value: string, label: string}>
+     */
+    private static function offeringOptions(array $values, array $labels): array
+    {
+        $available = array_flip($values);
+
+        return collect($labels)
+            ->filter(static fn (string $label, string $value): bool => isset($available[$value]))
+            ->map(static fn (string $label, string $value): array => [
+                'value' => $value,
+                'label' => $label,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

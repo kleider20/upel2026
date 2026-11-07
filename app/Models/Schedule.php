@@ -20,12 +20,13 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $starts_on
  * @property Carbon|null $ends_on
  * @property string|null $study_schedule
+ * @property string|null $modality
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Career $career
  * @property-read Collection<int, Subject> $subjects
  */
-#[Fillable(['career_id', 'period', 'cohort', 'starts_on', 'ends_on', 'study_schedule'])]
+#[Fillable(['career_id', 'period', 'cohort', 'starts_on', 'ends_on', 'study_schedule', 'modality'])]
 class Schedule extends Model
 {
     /** @use HasFactory<ScheduleFactory> */

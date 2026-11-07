@@ -59,6 +59,7 @@ function schedulePayload(int $careerId, array $subjects, array $overrides = []):
         'period' => 1,
         'cohort' => '2025-II',
         'study_schedule' => 'sabatino',
+        'modality' => 'mixta',
         'starts_on' => '2025-08-02',
         'ends_on' => '2025-11-15',
         'subjects' => $subjects,
@@ -143,6 +144,13 @@ test('academic managers can create a schedule with the official template', funct
         'name' => 'Educación Primaria',
         'code' => 'EDPRI',
         'duration_semesters' => 8,
+        'modality' => 'mixta',
+    ]);
+    $career->offerings()->create([
+        'modality' => 'mixta',
+        'schedule' => 'sabatino',
+        'shift' => 'diurno',
+        'is_active' => true,
     ]);
     $professor = User::factory()->create(['name' => 'Ana Pérez']);
     $subjects = Subject::factory()->count(2)->for($career)->create([

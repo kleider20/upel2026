@@ -102,6 +102,7 @@ export type StudentScheduleData = {
     cohort: string;
     period: string;
     schedule_label: string;
+    modality?: string | null;
     weeks: StudentScheduleWeek[];
     subjects: StudentScheduleSubject[];
     distance_subjects: StudentScheduleSubject[];

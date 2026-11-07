@@ -21,6 +21,8 @@ type ScheduleMeta = {
     starts_on: string | null;
     ends_on: string | null;
     schedule_label: string;
+    modality_label: string;
+    modality: string | null;
     created_at: string | null;
 };
 
@@ -62,7 +64,7 @@ export default function AdminScheduleShow({
                 <PageHeader
                     eyebrow="Gestión académica"
                     title={`Horario ${meta.period_label} · ${meta.cohort}`}
-                    description={`${meta.career} (${meta.career_code}) · ${meta.schedule_label}. Del ${meta.starts_on ?? '—'} al ${meta.ends_on ?? '—'}. Publicado el ${meta.created_at ?? '—'}.`}
+                    description={`${meta.career} (${meta.career_code}) · ${meta.modality_label} · ${meta.schedule_label}. Del ${meta.starts_on ?? '—'} al ${meta.ends_on ?? '—'}. Publicado el ${meta.created_at ?? '—'}.`}
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
                             <a
@@ -92,7 +94,7 @@ export default function AdminScheduleShow({
                     }
                 />
 
-                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                     <div className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
                         <p className="text-[0.66rem] font-bold tracking-[0.14em] text-muted-foreground uppercase">
                             Carrera
@@ -124,6 +126,17 @@ export default function AdminScheduleShow({
                         </p>
                         <p className="mt-1 text-[0.68rem] text-muted-foreground">
                             Año y momento
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
+                        <p className="text-[0.66rem] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+                            Modalidad
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-upel-navy dark:text-foreground">
+                            {meta.modality_label}
+                        </p>
+                        <p className="mt-1 text-[0.68rem] text-muted-foreground">
+                            Tipo de enseñanza
                         </p>
                     </div>
                     <div className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
