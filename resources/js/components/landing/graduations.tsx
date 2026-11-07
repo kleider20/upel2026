@@ -60,8 +60,14 @@ export function Graduations({ graduationDate }: { graduationDate: string }) {
             id="graduaciones"
             className="relative scroll-mt-24 overflow-hidden bg-[linear-gradient(180deg,#f6f8fa_0%,#eaf0f8_100%)] py-20 sm:py-24 lg:py-28"
         >
-            <div className="absolute -top-24 right-0 size-[26rem] rounded-full bg-upel-gold/10 blur-[100px]" aria-hidden="true" />
-            <div className="absolute bottom-0 -left-24 size-[22rem] rounded-full bg-upel-blue/10 blur-[90px]" aria-hidden="true" />
+            <div
+                className="absolute -top-24 right-0 size-[26rem] rounded-full bg-upel-gold/10 blur-[100px]"
+                aria-hidden="true"
+            />
+            <div
+                className="absolute bottom-0 -left-24 size-[22rem] rounded-full bg-upel-blue/10 blur-[90px]"
+                aria-hidden="true"
+            />
 
             <div className="relative mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
                 <Reveal>
@@ -87,26 +93,38 @@ export function Graduations({ graduationDate }: { graduationDate: string }) {
                         <div className="mt-6 rounded-[20px] border border-white/80 bg-white/85 p-6 shadow-[0_18px_44px_-30px_rgba(10,37,64,0.35)] backdrop-blur-sm">
                             <div className="flex items-start gap-4">
                                 <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-upel-gold/15 text-upel-navy">
-                                    <PartyPopper className="size-5" aria-hidden="true" />
+                                    <PartyPopper
+                                        className="size-5"
+                                        aria-hidden="true"
+                                    />
                                 </span>
                                 <div>
                                     <p className="text-[0.62rem] font-extrabold tracking-[0.16em] text-upel-gold uppercase">
                                         Próximo acto de grado
                                     </p>
-                                    <h3 className="font-display mt-1 text-xl font-bold text-upel-navy">
+                                    <h3 className="mt-1 font-display text-xl font-bold text-upel-navy">
                                         Promoción “Maestros que transforman”
                                     </h3>
                                     <ul className="mt-3 space-y-1.5 text-[0.78rem] font-semibold text-upel-slate">
                                         <li className="flex items-center gap-2">
-                                            <CalendarDays className="size-3.5 text-upel-blue" aria-hidden="true" />
+                                            <CalendarDays
+                                                className="size-3.5 text-upel-blue"
+                                                aria-hidden="true"
+                                            />
                                             12 de diciembre de 2026
                                         </li>
                                         <li className="flex items-center gap-2">
-                                            <Clock3 className="size-3.5 text-upel-blue" aria-hidden="true" />
+                                            <Clock3
+                                                className="size-3.5 text-upel-blue"
+                                                aria-hidden="true"
+                                            />
                                             9:00 AM (GMT-4)
                                         </li>
                                         <li className="flex items-center gap-2">
-                                            <MapPin className="size-3.5 text-upel-blue" aria-hidden="true" />
+                                            <MapPin
+                                                className="size-3.5 text-upel-blue"
+                                                aria-hidden="true"
+                                            />
                                             Auditorio del Rectorado, Caracas
                                         </li>
                                     </ul>
@@ -115,7 +133,10 @@ export function Graduations({ graduationDate }: { graduationDate: string }) {
 
                             <div className="mt-5 border-t border-upel-mist pt-4">
                                 <p className="mb-2 flex items-center gap-2 text-[0.62rem] font-extrabold tracking-[0.16em] text-upel-slate uppercase">
-                                    <Clock3 className="size-3.5" aria-hidden="true" />
+                                    <Clock3
+                                        className="size-3.5"
+                                        aria-hidden="true"
+                                    />
                                     Cuenta regresiva
                                 </p>
                                 <div className="grid grid-cols-4 gap-2">
@@ -165,14 +186,20 @@ export function Graduations({ graduationDate }: { graduationDate: string }) {
 
                         <div className="absolute -top-4 -right-3 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-[0_20px_40px_-22px_rgba(10,37,64,0.45)] ring-1 ring-upel-mist">
                             <span className="flex size-11 flex-col items-center justify-center rounded-xl bg-upel-gold text-upel-navy">
-                                <span className="text-[0.5rem] font-extrabold uppercase">Dic</span>
-                                <span className="font-display text-lg leading-none font-bold">12</span>
+                                <span className="text-[0.5rem] font-extrabold uppercase">
+                                    Dic
+                                </span>
+                                <span className="font-display text-lg leading-none font-bold">
+                                    12
+                                </span>
                             </span>
                             <div>
                                 <p className="text-[0.6rem] font-bold tracking-widest text-upel-slate uppercase">
                                     Acto de grado
                                 </p>
-                                <p className="text-sm font-extrabold text-upel-navy">2026</p>
+                                <p className="text-sm font-extrabold text-upel-navy">
+                                    2026
+                                </p>
                             </div>
                         </div>
                     </Reveal>

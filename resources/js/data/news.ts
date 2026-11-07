@@ -2,7 +2,13 @@
  * Noticias institucionales de la landing.
  */
 
-export type NewsIcon = 'laptop' | 'graduation' | 'globe' | 'trophy' | 'handshake' | 'calendar';
+export type NewsIcon =
+    | 'laptop'
+    | 'graduation'
+    | 'globe'
+    | 'trophy'
+    | 'handshake'
+    | 'calendar';
 
 export type NewsItem = {
     id: number;

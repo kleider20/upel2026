@@ -163,10 +163,7 @@ export default function AdminSubjectForm({
      */
     const updateIdentification = (
         changes: Partial<
-            Pick<
-                SubjectFormData,
-                'name' | 'semester' | 'modality' | 'type'
-            >
+            Pick<SubjectFormData, 'name' | 'semester' | 'modality' | 'type'>
         >,
     ) => {
         form.setData((current) => {
@@ -309,9 +306,7 @@ export default function AdminSubjectForm({
                                                 event.target.value,
                                             );
                                         }}
-                                        aria-invalid={Boolean(
-                                            form.errors.code,
-                                        )}
+                                        aria-invalid={Boolean(form.errors.code)}
                                         aria-describedby={
                                             isEditing ? undefined : 'code-help'
                                         }
@@ -548,8 +543,9 @@ export default function AdminSubjectForm({
                                 {form.data.type === 'UNCLE' ? (
                                     <p className="mt-1 text-[0.66rem] text-muted-foreground">
                                         Las unidades de libre elección agregan
-                                        el sufijo <span className="font-bold">UNCLE</span> al
-                                        código y se resaltan en el listado.
+                                        el sufijo{' '}
+                                        <span className="font-bold">UNCLE</span>{' '}
+                                        al código y se resaltan en el listado.
                                     </p>
                                 ) : null}
                             </div>
@@ -718,9 +714,7 @@ export default function AdminSubjectForm({
                                         {form.data.prerequisites !== '' &&
                                         !isCurrentPrerequisiteListed ? (
                                             <option
-                                                value={
-                                                    form.data.prerequisites
-                                                }
+                                                value={form.data.prerequisites}
                                             >
                                                 {form.data.prerequisites}{' '}
                                                 (actual)

@@ -43,14 +43,20 @@ export default function LandingIndex({
                 <meta name="theme-color" content="#0a2540" />
                 <meta property="og:type" content="website" />
                 <meta property="og:site_name" content="UPEL" />
-                <meta property="og:title" content="UPEL | Educación que transforma" />
+                <meta
+                    property="og:title"
+                    content="UPEL | Educación que transforma"
+                />
                 <meta
                     property="og:description"
                     content="Más de 40 años formando a los educadores de Venezuela. Explora carreras, cursos y programas 100% online."
                 />
                 <meta property="og:locale" content="es_VE" />
                 <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content="UPEL | Educación que transforma" />
+                <meta
+                    name="twitter:title"
+                    content="UPEL | Educación que transforma"
+                />
                 <meta
                     name="twitter:description"
                     content="Carreras, cursos y formación online de la Universidad Pedagógica Experimental Libertador."

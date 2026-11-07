@@ -31,7 +31,7 @@ class StudentScheduleController extends Controller
 
         $schedule = StudentSchedule::forStudent(
             $profile?->career?->code,
-            (int) ($profile?->current_semester ?? 1),
+            $profile !== null ? $profile->current_semester : 1,
             $admission?->schedule,
         );
 

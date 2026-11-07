@@ -67,7 +67,10 @@ export function StatsBand() {
     });
 
     return (
-        <section aria-label="Cifras institucionales" className="relative z-20 -mt-8 px-4 sm:px-6 lg:-mt-12 lg:px-8">
+        <section
+            aria-label="Cifras institucionales"
+            className="relative z-20 -mt-8 px-4 sm:px-6 lg:-mt-12 lg:px-8"
+        >
             <div
                 ref={ref}
                 className="relative mx-auto grid max-w-[1280px] overflow-hidden rounded-[24px] border border-upel-mist bg-white shadow-[0_28px_60px_-32px_rgba(10,37,64,0.35)] sm:grid-cols-2 lg:grid-cols-4"

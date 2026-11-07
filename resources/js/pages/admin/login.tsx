@@ -58,8 +58,8 @@ export default function AdminLogin({ status }: Props) {
                         <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
                             Espacio reservado para decanos, coordinadores
                             académicos y personal administrativo. Administra la
-                            información académica y financiera de la
-                            universidad desde un solo lugar.
+                            información académica y financiera de la universidad
+                            desde un solo lugar.
                         </p>
 
                         <div className="mt-8 space-y-3">
@@ -87,12 +87,10 @@ export default function AdminLogin({ status }: Props) {
                         </span>
                         <div>
                             <p className="text-xs font-bold tracking-wide uppercase">
-                                Universidad Pedagógica Experimental
-                                Libertador
+                                Universidad Pedagógica Experimental Libertador
                             </p>
                             <p className="mt-0.5 text-[0.68rem] text-white/50">
-                                Vicerrectorado de Docencia · Unidad de
-                                Currículo
+                                Vicerrectorado de Docencia · Unidad de Currículo
                             </p>
                         </div>
                     </div>
@@ -158,9 +156,7 @@ export default function AdminLogin({ status }: Props) {
                                                 )
                                             }
                                             placeholder="nombre@upel.edu.ve"
-                                            aria-invalid={Boolean(
-                                                errors.email,
-                                            )}
+                                            aria-invalid={Boolean(errors.email)}
                                             className="h-11 w-full rounded-xl border border-border bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-muted-foreground/60 focus:border-upel-blue focus:bg-white focus:outline-none dark:bg-background"
                                         />
                                     </div>

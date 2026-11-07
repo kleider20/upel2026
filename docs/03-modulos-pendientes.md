@@ -57,13 +57,18 @@ período 1 (`App\Support\StudentSchedule`), con sus 16 semanas y las dos cuadrí
 del documento, filtrado por el horario elegido en la preinscripción (sabatino →
 sábados). `GET /estudiante/horario/pdf` genera el PDF oficial
 (`App\Support\StudentSchedulePdf`) para imprimir o descargar.
+La administración ya publica horarios por carrera, período y cohorte desde
+`/admin/schedules` (tablas `schedules` y `schedule_subjects`, vista previa y PDF):
+elige las materias de la carrera y el período, evita repetirlas y toma el código y el
+docente de cada una. El portal del estudiante prioriza el horario publicado sobre el
+catálogo transcrito.
 **Falta:**
 
-- Tablas `schedules`, `classrooms`, `time_slots` y carga del horario para todas las
-  carreras y períodos (hoy el catálogo está transcrito en el código).
-- Asignación de día, hora, aula y docente por materia y período.
+- Asignación manual de día, hora y aula por materia y período desde la administración;
+  hoy la franja la define la posición en la plantilla y el docente se elige entre los
+  asignados a la materia.
 - Validación de choques de horario.
-- Vista de horario para profesores y administración.
+- Vista de horario para profesores.
 - Exportación a calendario.
 
 ## Prioridad media

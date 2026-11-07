@@ -32,7 +32,10 @@ export function Careers() {
             : careers.filter((career) => career.modality === filter);
 
     return (
-        <section id="carreras" className="scroll-mt-24 bg-upel-cloud py-20 sm:py-24 lg:py-28">
+        <section
+            id="carreras"
+            className="scroll-mt-24 bg-upel-cloud py-20 sm:py-24 lg:py-28"
+        >
             <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
                 <Reveal>
                     <SectionHeading
@@ -48,7 +51,10 @@ export function Careers() {
                             const count =
                                 item.value === 'todas'
                                     ? careers.length
-                                    : careers.filter((career) => career.modality === item.value).length;
+                                    : careers.filter(
+                                          (career) =>
+                                              career.modality === item.value,
+                                      ).length;
 
                             return (
                                 <button
@@ -88,7 +94,9 @@ export function Careers() {
                         <article
                             key={career.id}
                             className="group relative flex flex-col overflow-hidden rounded-[20px] border border-upel-mist bg-white p-6 shadow-[0_8px_24px_-18px_rgba(10,37,64,0.25)] transition-all duration-300 hover:-translate-y-1.5 hover:border-upel-gold/30 hover:shadow-[0_28px_50px_-28px_rgba(10,37,64,0.35)]"
-                            style={{ animationDelay: `${Math.min(index * 45, 360)}ms` }}
+                            style={{
+                                animationDelay: `${Math.min(index * 45, 360)}ms`,
+                            }}
                         >
                             <span
                                 className="absolute inset-x-0 top-0 h-[3px] w-0 bg-gradient-to-r from-upel-gold to-upel-gold-light transition-all duration-500 group-hover:w-full"
@@ -97,7 +105,9 @@ export function Careers() {
 
                             <div className="flex items-start justify-between gap-3">
                                 <span className="flex size-12 items-center justify-center rounded-2xl bg-upel-cloud text-2xl ring-1 ring-upel-mist">
-                                    <span aria-hidden="true">{career.icon}</span>
+                                    <span aria-hidden="true">
+                                        {career.icon}
+                                    </span>
                                 </span>
                                 <span
                                     className={cn(
@@ -109,7 +119,7 @@ export function Careers() {
                                 </span>
                             </div>
 
-                            <h3 className="font-display mt-5 text-xl leading-snug font-bold text-upel-navy">
+                            <h3 className="mt-5 font-display text-xl leading-snug font-bold text-upel-navy">
                                 {career.name}
                             </h3>
                             <p className="mt-2 flex-1 text-[0.83rem] leading-relaxed text-upel-slate">
@@ -118,11 +128,17 @@ export function Careers() {
 
                             <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-upel-mist pt-4 text-[0.7rem] font-bold text-upel-slate">
                                 <span className="inline-flex items-center gap-1.5">
-                                    <Clock3 className="size-3.5 text-upel-blue" aria-hidden="true" />
+                                    <Clock3
+                                        className="size-3.5 text-upel-blue"
+                                        aria-hidden="true"
+                                    />
                                     {career.duration}
                                 </span>
                                 <span className="inline-flex items-center gap-1.5">
-                                    <GraduationCap className="size-3.5 text-upel-blue" aria-hidden="true" />
+                                    <GraduationCap
+                                        className="size-3.5 text-upel-blue"
+                                        aria-hidden="true"
+                                    />
                                     {career.degree}
                                 </span>
                             </div>
@@ -132,7 +148,10 @@ export function Careers() {
                                 className="mt-4 inline-flex items-center gap-1.5 text-[0.75rem] font-extrabold text-upel-blue transition-colors hover:text-upel-navy"
                             >
                                 Conocer más
-                                <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+                                <ArrowRight
+                                    className="size-3.5 transition-transform duration-300 group-hover:translate-x-1"
+                                    aria-hidden="true"
+                                />
                             </a>
                         </article>
                     ))}
@@ -141,8 +160,8 @@ export function Careers() {
                 <Reveal delay={120}>
                     <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-[20px] border border-upel-mist bg-white px-6 py-5 sm:flex-row">
                         <p className="text-sm font-semibold text-upel-slate">
-                            ¿Necesitas orientación para elegir tu carrera? Nuestro equipo de
-                            admisión puede ayudarte.
+                            ¿Necesitas orientación para elegir tu carrera?
+                            Nuestro equipo de admisión puede ayudarte.
                         </p>
                         <a
                             href="#contacto"

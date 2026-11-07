@@ -2,7 +2,11 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Inbox } from 'lucide-react';
 import { EmptyState } from '@/components/portal/empty-state';
 import { PageHeader } from '@/components/portal/page-header';
-import { type Tone, ToneBadge, toneClasses } from '@/components/portal/tone-badge';
+import {
+    type Tone,
+    ToneBadge,
+    toneClasses,
+} from '@/components/portal/tone-badge';
 import { cn } from '@/lib/utils';
 import { dashboard as adminDashboard } from '@/routes/admin';
 

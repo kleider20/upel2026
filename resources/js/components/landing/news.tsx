@@ -39,7 +39,10 @@ function formatDate(value: string): string {
  */
 export function News() {
     return (
-        <section id="noticias" className="scroll-mt-24 bg-white py-20 sm:py-24 lg:py-28">
+        <section
+            id="noticias"
+            className="scroll-mt-24 bg-white py-20 sm:py-24 lg:py-28"
+        >
             <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
                 <Reveal>
                     <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
@@ -69,7 +72,9 @@ export function News() {
                                 <article className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-upel-mist bg-white shadow-[0_10px_28px_-24px_rgba(10,37,64,0.3)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_56px_-32px_rgba(10,37,64,0.4)]">
                                     <div
                                         className="relative h-44 overflow-hidden"
-                                        style={{ backgroundImage: item.gradient }}
+                                        style={{
+                                            backgroundImage: item.gradient,
+                                        }}
                                     >
                                         <NewsArt />
                                         <span className="absolute top-4 left-4 rounded-full bg-white/95 px-3 py-1 text-[0.6rem] font-extrabold tracking-wide text-upel-navy uppercase">
@@ -83,10 +88,13 @@ export function News() {
 
                                     <div className="flex flex-1 flex-col p-6">
                                         <p className="flex items-center gap-2 text-[0.68rem] font-bold text-upel-slate">
-                                            <CalendarDays className="size-3.5 text-upel-blue" aria-hidden="true" />
+                                            <CalendarDays
+                                                className="size-3.5 text-upel-blue"
+                                                aria-hidden="true"
+                                            />
                                             {formatDate(item.date)}
                                         </p>
-                                        <h3 className="font-display mt-2 text-lg leading-snug font-bold text-upel-navy">
+                                        <h3 className="mt-2 font-display text-lg leading-snug font-bold text-upel-navy">
                                             {item.title}
                                         </h3>
                                         <p className="mt-2 flex-1 text-[0.8rem] leading-relaxed text-upel-slate">
@@ -98,7 +106,10 @@ export function News() {
                                             className="mt-4 inline-flex items-center gap-1.5 text-[0.75rem] font-extrabold text-upel-blue transition-colors hover:text-upel-navy"
                                         >
                                             Leer más
-                                            <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+                                            <ArrowRight
+                                                className="size-3.5 transition-transform duration-300 group-hover:translate-x-1"
+                                                aria-hidden="true"
+                                            />
                                         </a>
                                     </div>
                                 </article>

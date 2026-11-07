@@ -48,6 +48,12 @@ final class AdminModuleCatalog
                 'permission' => Permission::SubjectsView->value,
                 'icon' => 'book-open',
             ],
+            'schedules' => [
+                'title' => 'Horarios',
+                'description' => 'Publica los horarios oficiales por carrera, período y cohorte.',
+                'permission' => Permission::SchedulesView->value,
+                'icon' => 'calendar-days',
+            ],
             'grades' => [
                 'title' => 'Notas',
                 'description' => 'Supervisa las calificaciones registradas en toda la institución.',

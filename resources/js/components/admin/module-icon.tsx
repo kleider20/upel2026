@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
     Award,
     BookOpen,
+    CalendarDays,
     ClipboardList,
     GraduationCap,
     Inbox,
@@ -19,6 +20,7 @@ const icons: Record<string, LucideIcon> = {
     'graduation-cap': GraduationCap,
     library: Library,
     'book-open': BookOpen,
+    'calendar-days': CalendarDays,
     'plus-circle': PlusCircle,
     'clipboard-list': ClipboardList,
     wallet: Wallet,

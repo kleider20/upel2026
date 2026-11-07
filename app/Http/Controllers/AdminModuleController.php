@@ -87,13 +87,13 @@ class AdminModuleController extends Controller
             'rows' => $profiles->map(static fn (StudentProfile $profile): array => [
                 'id' => $profile->id,
                 'cells' => [
-                    'student' => $profile->user?->name ?? '—',
+                    'student' => $profile->user->name,
                     'code' => $profile->student_code,
-                    'career' => $profile->career?->name ?? '—',
+                    'career' => data_get($profile->career, 'name') ?? '—',
                     'semester' => (string) $profile->current_semester,
                     'status' => $profile->statusLabel(),
-                    'average' => $profile->average_grade !== null
-                        ? number_format((float) $profile->average_grade, 1, ',', '.').' / 10'
+                    'average' => $profile->getAttribute('average_grade') !== null
+                        ? number_format((float) $profile->getAttribute('average_grade'), 1, ',', '.').' / 10'
                         : 'Sin notas',
                 ],
                 'tones' => ['status' => $profile->statusTone()],
@@ -129,7 +129,7 @@ class AdminModuleController extends Controller
             'rows' => $profiles->map(static fn (ProfessorProfile $profile): array => [
                 'id' => $profile->id,
                 'cells' => [
-                    'professor' => $profile->user?->name ?? '—',
+                    'professor' => $profile->user->name,
                     'code' => $profile->employee_code,
                     'department' => $profile->department ?? '—',
                     'title' => $profile->academic_title ?? '—',
@@ -210,7 +210,7 @@ class AdminModuleController extends Controller
                 'cells' => [
                     'subject' => $subject->name,
                     'code' => $subject->code,
-                    'career' => $subject->career?->name ?? '—',
+                    'career' => $subject->career->name,
                     'semester' => (string) $subject->semester,
                     'credits' => (string) $subject->credits,
                     'professors' => (string) $subject->professors_count,
@@ -252,10 +252,10 @@ class AdminModuleController extends Controller
             'rows' => $enrollments->map(static fn (Enrollment $enrollment): array => [
                 'id' => $enrollment->id,
                 'cells' => [
-                    'student' => $enrollment->student?->name ?? '—',
-                    'subject' => $enrollment->subject?->name ?? '—',
-                    'career' => $enrollment->subject?->career?->name ?? '—',
-                    'period' => $enrollment->academicPeriod?->name ?? '—',
+                    'student' => $enrollment->student->name,
+                    'subject' => $enrollment->subject->name,
+                    'career' => $enrollment->subject->career->name,
+                    'period' => $enrollment->academicPeriod->name,
                     'grade' => $enrollment->final_grade !== null
                         ? number_format((float) $enrollment->final_grade, 1, ',', '.').' / 10'
                         : 'Sin nota',
@@ -297,7 +297,7 @@ class AdminModuleController extends Controller
             'rows' => $payments->map(static fn (Payment $payment): array => [
                 'id' => $payment->id,
                 'cells' => [
-                    'student' => $payment->student?->name ?? '—',
+                    'student' => $payment->student->name,
                     'concept' => $payment->concept,
                     'amount' => '$ '.number_format((float) $payment->amount, 2, ',', '.'),
                     'status' => $payment->statusLabel(),

@@ -28,11 +28,6 @@ final class StudentSchedulePdf
     /**
      * @var array<int, int>
      */
-    private const NAVY = [10, 37, 64];
-
-    /**
-     * @var array<int, int>
-     */
     private const BLACK = [0, 0, 0];
 
     /**
@@ -69,7 +64,7 @@ final class StudentSchedulePdf
         $this->drawTable(159.0, $weeks, $subjects, true);
         $this->drawTable(335.0, $weeks, $distanceSubjects, false);
 
-        $this->textAt(52, 499, 'Horario Presencial '.implode('   ', $schedule['time_slots']), 7, true, self::BLACK);
+        $this->textAt(52, 499, 'Horario Presencial '.implode(' ', $schedule['time_slots']), 7, true, self::BLACK);
 
         if ($schedule['distance_schedule'] !== null) {
             $label = (string) $schedule['distance_schedule'].' ';
@@ -207,6 +202,12 @@ final class StudentSchedulePdf
             /** @var array<int, string|null> $hours */
             $hours = $subject['hours'];
 
+            /** @var array<int, string|null>|null $pdfHours */
+            $pdfHours = $subject['pdf_hours'] ?? null;
+            $cellHours = is_array($pdfHours) && $pdfHours !== []
+                ? $pdfHours
+                : $hours;
+
             $this->cell(self::TABLE_LEFT, $rowTop, self::CODE_WIDTH, $rowHeight, self::WHITE);
             $this->centeredInCell(
                 self::TABLE_LEFT,
@@ -255,14 +256,16 @@ final class StudentSchedulePdf
             $x = $firstWeekX;
 
             foreach ($weeks as $weekIndex => $week) {
+                $label = (string) ($cellHours[$weekIndex] ?? '');
+
                 $this->cell($x, $rowTop, $weekWidth, $rowHeight, self::WHITE);
                 $this->centeredInCell(
                     $x,
                     $rowTop,
                     $weekWidth,
                     $rowHeight,
-                    $hours[$weekIndex] ?? '',
-                    7,
+                    $label,
+                    $this->fitSize($label, $weekWidth - 2.5, 7),
                     false,
                     self::BLACK,
                 );
@@ -331,6 +334,9 @@ final class StudentSchedulePdf
         return $groups;
     }
 
+    /**
+     * @param  array{int, int, int}  $color
+     */
     private function textAt(
         float $x,
         float $top,
@@ -352,6 +358,9 @@ final class StudentSchedulePdf
         );
     }
 
+    /**
+     * @param  array{int, int, int}  $color
+     */
     private function centeredAt(
         float $centerX,
         float $top,
@@ -363,6 +372,9 @@ final class StudentSchedulePdf
         $this->textAt($centerX - ($this->textWidth($text, $size, $bold) / 2), $top, $text, $size, $bold, $color);
     }
 
+    /**
+     * @param  array{int, int, int}  $color
+     */
     private function centeredInCell(
         float $x,
         float $top,
@@ -452,6 +464,24 @@ final class StudentSchedulePdf
             self::PAGE_HEIGHT - $top - $height,
             $name,
         );
+    }
+
+    /**
+     * Ajusta el tamaño de la fuente para que el texto quepa en la celda.
+     */
+    private function fitSize(string $text, float $width, float $maxSize): float
+    {
+        if ($text === '' || $width <= 0) {
+            return $maxSize;
+        }
+
+        $textWidth = $this->textWidth($text, $maxSize);
+
+        if ($textWidth <= $width) {
+            return $maxSize;
+        }
+
+        return max(4.2, $maxSize * ($width / $textWidth));
     }
 
     private function textWidth(string $text, float $size, bool $bold = false): float

@@ -113,9 +113,9 @@ corrección.
 - **Causa:** los componentes usaban el helper global `route()` de Ziggy, que no está
   instalado; el proyecto usa Wayfinder.
 - **Corrección:** importar las rutas tipadas generadas:
-  - `logout` desde `@/routes`
-  - `update` desde `@/routes/student/profile`
-  - `store` desde `@/routes/student/tramites`
+    - `logout` desde `@/routes`
+    - `update` desde `@/routes/student/profile`
+    - `store` desde `@/routes/student/tramites`
 - **Archivos:** `resources/js/components/student/Sidebar.tsx`,
   `resources/js/components/student/modules/MiPerfil.tsx`,
   `resources/js/components/student/modules/MisTramites.tsx`
@@ -174,10 +174,10 @@ corrección.
 
 ## Resumen de verificación final
 
-| Comprobación | Resultado |
-| --- | --- |
-| `php artisan test --compact` | 163 pruebas · 163 aprobadas · 887 aserciones |
-| `npm run types:check` | Sin errores |
-| `vendor/bin/pint --dirty --format agent` | Sin cambios pendientes |
-| `npm run build` | Compilación correcta |
-| Navegación manual | Landing → `/login` → `/definir-contrasena` → panel del estudiante · `/preinscripcion` → seguimiento → bandeja administrativa |
+| Comprobación                             | Resultado                                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `php artisan test --compact`             | 163 pruebas · 163 aprobadas · 887 aserciones                                                                                 |
+| `npm run types:check`                    | Sin errores                                                                                                                  |
+| `vendor/bin/pint --dirty --format agent` | Sin cambios pendientes                                                                                                       |
+| `npm run build`                          | Compilación correcta                                                                                                         |
+| Navegación manual                        | Landing → `/login` → `/definir-contrasena` → panel del estudiante · `/preinscripcion` → seguimiento → bandeja administrativa |

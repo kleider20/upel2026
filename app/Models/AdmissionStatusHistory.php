@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
+ * @property-read User|null $changedBy
  * @property int $admission_id
  * @property string|null $from_status
  * @property string $to_status

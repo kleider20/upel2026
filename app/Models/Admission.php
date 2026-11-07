@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\URL;
 
 /**
  * @property int $id
+ * @property-read Career|null $career
+ * @property-read User|null $convertedUser
  * @property string $code
  * @property int $period_year
  * @property string $first_name

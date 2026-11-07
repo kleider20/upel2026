@@ -5,7 +5,10 @@ import { UpelLogo } from '@/components/landing/brand';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
 import { landing } from '@/routes';
-import { create as admissionCreate, lookup as admissionLookup } from '@/routes/admissions';
+import {
+    create as admissionCreate,
+    lookup as admissionLookup,
+} from '@/routes/admissions';
 
 const navigation = [
     {
@@ -68,7 +71,10 @@ export default function AdmissionsLayout({
                                             : 'text-upel-navy/70 hover:bg-upel-navy/5 hover:text-upel-navy',
                                     )}
                                 >
-                                    <Icon className="size-4" aria-hidden="true" />
+                                    <Icon
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
                                     {item.label}
                                 </Link>
                             );
@@ -80,7 +86,9 @@ export default function AdmissionsLayout({
                         className="inline-flex items-center gap-1.5 rounded-xl border border-upel-navy/12 px-3 py-2 text-[0.7rem] font-bold text-upel-navy transition-colors hover:bg-upel-cloud"
                     >
                         <ArrowLeft className="size-3.5" aria-hidden="true" />
-                        <span className="hidden sm:inline">Volver al sitio</span>
+                        <span className="hidden sm:inline">
+                            Volver al sitio
+                        </span>
                         <span className="sm:hidden">Inicio</span>
                     </Link>
                 </div>
@@ -118,7 +126,7 @@ export default function AdmissionsLayout({
             </main>
 
             <footer className="border-t border-upel-navy/10 bg-white">
-                <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left sm:px-6 lg:px-8">
+                <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-center sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:text-left lg:px-8">
                     <p className="text-[0.68rem] font-semibold text-upel-slate">
                         Universidad Pedagógica Experimental Libertador · Proceso
                         de admisión 2027

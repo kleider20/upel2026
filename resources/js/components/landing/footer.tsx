@@ -305,7 +305,9 @@ export function Footer({ onLoginClick }: { onLoginClick: () => void }) {
                         <button
                             type="button"
                             onClick={() => {
-                                const { auth } = usePage<{ auth: { user: any } }>().props;
+                                const { auth } = usePage<{
+                                    auth: { user: any };
+                                }>().props;
                                 const user = auth?.user;
                                 if (user) {
                                     router.visit('/dashboard');
@@ -316,12 +318,17 @@ export function Footer({ onLoginClick }: { onLoginClick: () => void }) {
                             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[13px] border border-white/15 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:border-upel-gold/60 hover:bg-white/8"
                         >
                             {(() => {
-                                const { auth } = usePage<{ auth: { user: any } }>().props;
+                                const { auth } = usePage<{
+                                    auth: { user: any };
+                                }>().props;
                                 const user = auth?.user;
                                 return (
                                     <>
                                         {user ? (
-                                            <LayoutDashboard className="size-4" aria-hidden="true" />
+                                            <LayoutDashboard
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
                                         ) : null}
                                         {user ? 'Dashboard' : 'Iniciar sesión'}
                                     </>

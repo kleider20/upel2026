@@ -22,6 +22,9 @@ enum Permission: string
     case SubjectsView = 'subjects.view';
     case SubjectsManage = 'subjects.manage';
 
+    case SchedulesView = 'schedules.view';
+    case SchedulesManage = 'schedules.manage';
+
     case GradesView = 'grades.view';
     case GradesManage = 'grades.manage';
 
@@ -58,6 +61,8 @@ enum Permission: string
             self::CareersManage => 'Gestionar carreras',
             self::SubjectsView => 'Ver materias',
             self::SubjectsManage => 'Gestionar materias',
+            self::SchedulesView => 'Ver horarios',
+            self::SchedulesManage => 'Gestionar horarios',
             self::GradesView => 'Ver notas',
             self::GradesManage => 'Gestionar notas',
             self::AdmissionsView => 'Ver admisiones',
@@ -90,6 +95,8 @@ enum Permission: string
             self::CareersManage,
             self::SubjectsView,
             self::SubjectsManage,
+            self::SchedulesView,
+            self::SchedulesManage,
             self::GradesView,
             self::GradesManage,
             self::AdmissionsView,

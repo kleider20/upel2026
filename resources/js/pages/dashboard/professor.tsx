@@ -257,8 +257,7 @@ export default function ProfessorDashboard({
                                         <ChevronRight
                                             className={cn(
                                                 'h-4 w-4 shrink-0',
-                                                selectedCareer?.id ===
-                                                    career.id
+                                                selectedCareer?.id === career.id
                                                     ? 'text-white'
                                                     : 'text-muted-foreground',
                                             )}
@@ -289,7 +288,8 @@ export default function ProfessorDashboard({
                             </span>
                         </div>
 
-                        {!selectedCareer || selectedCareer.subjects.length === 0 ? (
+                        {!selectedCareer ||
+                        selectedCareer.subjects.length === 0 ? (
                             <EmptyState
                                 icon={Users}
                                 title="Sin estudiantes asignados"

@@ -12,7 +12,9 @@ type Options = {
  * Observa un elemento y devuelve si está dentro del viewport.
  * Se usa para animaciones de entrada y contadores.
  */
-export function useIntersectionObserver<T extends HTMLElement = HTMLDivElement>({
+export function useIntersectionObserver<
+    T extends HTMLElement = HTMLDivElement,
+>({
     threshold = 0.15,
     rootMargin = '0px 0px -10% 0px',
     once = true,

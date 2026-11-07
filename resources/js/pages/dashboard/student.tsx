@@ -214,7 +214,8 @@ export default function StudentDashboard({
                                                     {enrollment.period ?? '—'}
                                                 </td>
                                                 <td className="px-5 py-4 text-xs font-semibold text-muted-foreground">
-                                                    {enrollment.professor ?? '—'}
+                                                    {enrollment.professor ??
+                                                        '—'}
                                                 </td>
                                                 <td className="px-5 py-4">
                                                     <span className="text-sm font-extrabold text-upel-navy dark:text-foreground">
@@ -229,7 +230,9 @@ export default function StudentDashboard({
                                                             enrollment.status_tone as Tone
                                                         }
                                                     >
-                                                        {enrollment.status_label}
+                                                        {
+                                                            enrollment.status_label
+                                                        }
                                                     </ToneBadge>
                                                 </td>
                                             </tr>

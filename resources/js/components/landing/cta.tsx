@@ -54,7 +54,9 @@ export function CTA({
                             </span>
 
                             <h2 className="mt-5 font-display text-3xl leading-tight font-bold text-balance text-white sm:text-4xl lg:text-[2.9rem]">
-                                {user ? `Bienvenido de nuevo, ${user.name}` : '¿Listo para ser parte de la UPEL?'}
+                                {user
+                                    ? `Bienvenido de nuevo, ${user.name}`
+                                    : '¿Listo para ser parte de la UPEL?'}
                             </h2>
 
                             <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-pretty text-white/72 sm:text-lg">
@@ -118,7 +120,9 @@ export function CTA({
                                             aria-hidden="true"
                                         />
                                     )}
-                                    {user ? 'Ir al Dashboard' : 'Acceder al portal'}
+                                    {user
+                                        ? 'Ir al Dashboard'
+                                        : 'Acceder al portal'}
                                 </button>
                             </div>
 

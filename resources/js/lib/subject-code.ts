@@ -89,7 +89,9 @@ function toRoman(value: number): string {
  * Quita los acentos para que el código use solo caracteres ASCII.
  */
 function toAscii(value: string | null | undefined): string {
-    return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
 }
 
 /**
@@ -109,9 +111,7 @@ export function generateSubjectCode({
 }: SubjectCodeInput): string {
     const base = toAscii(name)
         .split(/[^A-Za-z0-9]+/)
-        .filter(
-            (word) => word !== '' && !CONNECTORS.has(word.toLowerCase()),
-        )
+        .filter((word) => word !== '' && !CONNECTORS.has(word.toLowerCase()))
         .slice(0, MAX_WORDS)
         .map((word) =>
             /^\d+$/.test(word)
@@ -125,19 +125,17 @@ export function generateSubjectCode({
     }
 
     const periodValue =
-        typeof period === 'number'
-            ? period
-            : Number.parseInt(period ?? '', 10);
+        typeof period === 'number' ? period : Number.parseInt(period ?? '', 10);
     const periodSuffix =
         Number.isInteger(periodValue) && periodValue > 0
             ? `-PA${periodValue}`
             : '';
     const modalitySuffix =
-        periodSuffix !== ''
-            ? (MODALITY_SUFFIXES[modality ?? ''] ?? '')
-            : '';
+        periodSuffix !== '' ? (MODALITY_SUFFIXES[modality ?? ''] ?? '') : '';
     const typeSuffix =
-        String(type ?? '').trim().toUpperCase() === ELECTIVE_TYPE
+        String(type ?? '')
+            .trim()
+            .toUpperCase() === ELECTIVE_TYPE
             ? ELECTIVE_TYPE
             : '';
     const suffix = `${periodSuffix}${modalitySuffix}${typeSuffix}`;

@@ -1,6 +1,13 @@
 import { cn } from '@/lib/utils';
 
-export type Tone = 'green' | 'amber' | 'red' | 'blue' | 'navy' | 'gold' | 'slate';
+export type Tone =
+    | 'green'
+    | 'amber'
+    | 'red'
+    | 'blue'
+    | 'navy'
+    | 'gold'
+    | 'slate';
 
 const toneClasses: Record<Tone, string> = {
     green: 'bg-upel-green/10 text-upel-green ring-upel-green/20',

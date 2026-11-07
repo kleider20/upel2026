@@ -65,9 +65,7 @@ type Props = {
 };
 
 function formatGrade(grade: number | null): string {
-    return grade === null
-        ? '—'
-        : `${grade.toFixed(1).replace('.', ',')} / 10`;
+    return grade === null ? '—' : `${grade.toFixed(1).replace('.', ',')} / 10`;
 }
 
 /**
@@ -223,7 +221,9 @@ export default function GraduateDashboard({
                                                             enrollment.status_tone as Tone
                                                         }
                                                     >
-                                                        {enrollment.status_label}
+                                                        {
+                                                            enrollment.status_label
+                                                        }
                                                     </ToneBadge>
                                                 </td>
                                             </tr>

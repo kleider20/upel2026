@@ -116,7 +116,10 @@ export function Navbar({
                         )}
                     >
                         {user ? (
-                            <LayoutDashboard className="size-4" aria-hidden="true" />
+                            <LayoutDashboard
+                                className="size-4"
+                                aria-hidden="true"
+                            />
                         ) : (
                             <LogIn className="size-4" aria-hidden="true" />
                         )}
@@ -150,7 +153,7 @@ export function Navbar({
 
                             <div
                                 role="tooltip"
-                                className="pointer-events-none absolute top-full right-0 z-50 mt-3 w-72 translate-y-1 rounded-xl bg-upel-navy px-4 py-3 text-left text-xs leading-relaxed text-white opacity-0 shadow-2xl transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100"
+                                className="pointer-events-none absolute top-full right-0 z-50 mt-3 w-72 translate-y-1 rounded-xl bg-upel-navy px-4 py-3 text-left text-xs leading-relaxed text-white opacity-0 shadow-2xl transition-all duration-200 group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100"
                             >
                                 <span className="mb-1 flex items-center gap-2 font-extrabold text-upel-gold-light">
                                     {canRegister
@@ -222,7 +225,10 @@ export function Navbar({
                             className="inline-flex items-center justify-center gap-2 rounded-[13px] border border-upel-navy/15 px-4 py-3 text-sm font-bold text-upel-navy transition-colors hover:bg-upel-cloud"
                         >
                             {user ? (
-                                <LayoutDashboard className="size-4" aria-hidden="true" />
+                                <LayoutDashboard
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
                             ) : (
                                 <LogIn className="size-4" aria-hidden="true" />
                             )}

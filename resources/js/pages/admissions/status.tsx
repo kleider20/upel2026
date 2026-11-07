@@ -4,8 +4,6 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowLeft,
-    CalendarDays,
-    CheckCircle2,
     Clock3,
     FileSearch,
     FileText,
@@ -23,7 +21,6 @@ import {
 } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { ToneBadge, type Tone } from '@/components/portal/tone-badge';
-import { cn } from '@/lib/utils';
 import {
     create as admissionCreate,
     lookup as admissionLookup,
@@ -108,7 +105,8 @@ type Props = {
     documentTypes?: DocumentTypeOption[];
 };
 
-const labelClass = 'text-[0.62rem] font-extrabold tracking-wide text-upel-slate uppercase';
+const labelClass =
+    'text-[0.62rem] font-extrabold tracking-wide text-upel-slate uppercase';
 const valueClass = 'mt-0.5 text-sm font-semibold text-upel-navy';
 
 /**
@@ -153,9 +151,15 @@ function LookupForm() {
                         </div>
                     </div>
 
-                    <form onSubmit={submit} className="space-y-5 px-6 py-8 sm:px-10">
+                    <form
+                        onSubmit={submit}
+                        className="space-y-5 px-6 py-8 sm:px-10"
+                    >
                         <div>
-                            <label htmlFor="lookup_email" className={labelClass}>
+                            <label
+                                htmlFor="lookup_email"
+                                className={labelClass}
+                            >
                                 Correo electrónico
                             </label>
                             <div className="relative mt-1.5">
@@ -171,7 +175,7 @@ function LookupForm() {
                                         setData('email', event.target.value)
                                     }
                                     aria-invalid={Boolean(errors.email)}
-                                    className="h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:outline-none focus:ring-2 focus:ring-upel-blue/15"
+                                    className="h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:ring-2 focus:ring-upel-blue/15 focus:outline-none"
                                     placeholder="nombre@correo.com"
                                     autoComplete="email"
                                 />
@@ -183,7 +187,10 @@ function LookupForm() {
                         </div>
 
                         <div>
-                            <label htmlFor="lookup_id_number" className={labelClass}>
+                            <label
+                                htmlFor="lookup_id_number"
+                                className={labelClass}
+                            >
                                 Cédula de identidad
                             </label>
                             <div className="relative mt-1.5">
@@ -206,7 +213,7 @@ function LookupForm() {
                                         )
                                     }
                                     aria-invalid={Boolean(errors.id_number)}
-                                    className="h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:outline-none focus:ring-2 focus:ring-upel-blue/15"
+                                    className="h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:ring-2 focus:ring-upel-blue/15 focus:outline-none"
                                     placeholder="12345678"
                                     autoComplete="off"
                                 />
@@ -237,9 +244,10 @@ function LookupForm() {
                         </button>
 
                         <p className="rounded-xl bg-upel-cloud px-4 py-3 text-[0.7rem] leading-relaxed text-upel-slate">
-                            También puedes abrir el enlace firmado que enviamos a
-                            tu correo al registrar la solicitud. Ese enlace te
-                            permite cargar documentos y ver el historial completo.
+                            También puedes abrir el enlace firmado que enviamos
+                            a tu correo al registrar la solicitud. Ese enlace te
+                            permite cargar documentos y ver el historial
+                            completo.
                         </p>
 
                         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-upel-navy/10 pt-5 text-[0.7rem] font-bold">
@@ -422,7 +430,9 @@ function AdmissionDetailView({
                                 </dd>
                             </div>
                             <div>
-                                <dt className={labelClass}>Contraseña inicial</dt>
+                                <dt className={labelClass}>
+                                    Contraseña inicial
+                                </dt>
                                 <dd className={valueClass}>
                                     {admission.student.initial_password ?? (
                                         <span className="text-emerald-700">
@@ -750,8 +760,8 @@ function AdmissionDetailView({
                                             onChange={(event) =>
                                                 uploadForm.setData(
                                                     'document',
-                                                    event.target
-                                                        .files?.[0] ?? null,
+                                                    event.target.files?.[0] ??
+                                                        null,
                                                 )
                                             }
                                             className="mt-1.5 block w-full cursor-pointer rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 py-2.5 text-xs font-semibold text-upel-slate file:mr-3 file:rounded-lg file:border-0 file:bg-upel-navy file:px-3 file:py-1.5 file:text-[0.68rem] file:font-bold file:text-white"

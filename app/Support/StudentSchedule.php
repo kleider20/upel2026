@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Schedule;
+
 /**
  * Horarios de actividades presenciales por carrera y período académico.
  *
@@ -18,9 +20,9 @@ final class StudentSchedule
      * @var array<int, string>
      */
     private const TIME_SLOTS = [
-        1 => '1.- 8:00 am a 11:00 am',
+        1 => '1.- 8:00 am a 11:00am',
         2 => '2.- 11:30 am a 2:30 pm',
-        3 => '3.- 3:00 pm a 6:00 pm',
+        3 => '3.- 3:00pm a 6:00 pm',
     ];
 
     /**
@@ -131,18 +133,303 @@ final class StudentSchedule
     ];
 
     /**
+     * Números romanos de los períodos académicos.
+     *
+     * @var array<int, string>
+     */
+    private const ROMAN = [
+        1 => 'I',
+        2 => 'II',
+        3 => 'III',
+        4 => 'IV',
+        5 => 'V',
+        6 => 'VI',
+        7 => 'VII',
+        8 => 'VIII',
+        9 => 'IX',
+        10 => 'X',
+        11 => 'XI',
+        12 => 'XII',
+    ];
+
+    /**
+     * Etiqueta romana de un período académico.
+     */
+    public static function roman(int $period): string
+    {
+        return self::ROMAN[$period] ?? (string) $period;
+    }
+
+    /**
+     * Contenido base del horario oficial, sin datos de la carrera.
+     *
+     * @return array<string, mixed>
+     */
+    public static function template(): array
+    {
+        $definition = self::CATALOG['EDPRI'][1];
+
+        return [
+            'weeks' => $definition['weeks'],
+            'subjects' => $definition['subjects'],
+            'time_slots' => array_values(self::TIME_SLOTS),
+            'distance_schedule' => $definition['distance_schedule'],
+            'distance_time' => $definition['distance_time'],
+        ];
+    }
+
+    /**
+     * Construye el horario de una carrera, período y cohorte concretos.
+     *
+     * Si se envían fechas de inicio y fin, las columnas se generan a partir del
+     * calendario (sábados o semanas de lunes a viernes). Si no, se conserva la
+     * plantilla oficial de 16 sábados.
+     *
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, starts_at?: string|null, ends_at?: string|null}>|null  $subjects
+     * @return array<string, mixed>
+     */
+    public static function build(
+        string $career,
+        int $period,
+        string $cohort,
+        ?string $schedule = null,
+        ?array $subjects = null,
+        ?string $startsOn = null,
+        ?string $endsOn = null,
+    ): array {
+        if ($startsOn !== null && $endsOn !== null && $schedule !== null) {
+            return self::presentRange(
+                $career,
+                self::roman($period),
+                $cohort,
+                $schedule,
+                $startsOn,
+                $endsOn,
+                $subjects ?? [],
+            );
+        }
+
+        return self::present(
+            self::template(),
+            $schedule,
+            $career,
+            self::roman($period),
+            $cohort,
+            $subjects === [] ? null : $subjects,
+        ) ?? [];
+    }
+
+    /**
      * Construye el horario que corresponde al estudiante.
+     *
+     * Prioriza los horarios publicados desde la administración y, si no hay
+     * ninguno para su carrera y período, usa el catálogo transcrito.
      *
      * @return array<string, mixed>|null
      */
     public static function forStudent(?string $careerCode, int $semester, ?string $schedule): ?array
     {
+        $record = Schedule::query()
+            ->with('career:id,name,code')
+            ->whereHas('career', static fn ($query) => $query->where('code', $careerCode ?? ''))
+            ->where('period', $semester)
+            ->orderByDesc('cohort')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($record !== null && $record->career !== null) {
+            return $record->toScheduleArray($schedule);
+        }
+
         $definition = self::CATALOG[$careerCode ?? ''][$semester] ?? null;
 
         if ($definition === null) {
             return null;
         }
 
+        return self::present(
+            $definition,
+            $schedule,
+            (string) $definition['career'],
+            (string) $definition['period'],
+            (string) $definition['cohort'],
+        );
+    }
+
+    /**
+     * Sustituye los datos de la plantilla por las materias seleccionadas.
+     *
+     * Cada materia ocupa una franja de la plantilla y hereda su patrón de horas.
+     * Si la materia no tiene docente asignado se conserva el de la plantilla.
+     * Las materias de modalidad online se muestran siempre como virtuales.
+     *
+     * @param  array<int, array<string, mixed>>  $templateSubjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null}>  $selectedSubjects
+     * @return array<int, array<string, mixed>>
+     */
+    private static function applySubjects(array $templateSubjects, array $selectedSubjects): array
+    {
+        $slots = [];
+
+        foreach (array_values($templateSubjects) as $index => $subject) {
+            $slots[$index + 1] = $subject;
+        }
+
+        $subjects = [];
+
+        foreach ($selectedSubjects as $selected) {
+            $position = (int) ($selected['position'] ?? 0);
+            $slot = $slots[$position] ?? null;
+
+            if ($slot === null) {
+                continue;
+            }
+
+            $teacher = trim((string) ($selected['teacher'] ?? ''));
+            $isOnline = ($selected['modality'] ?? null) === 'online';
+            $hours = $isOnline
+                ? $slot['hours']
+                : array_map(
+                    static fn (?string $hour): ?string => $hour === 'Virtual' ? null : $hour,
+                    $slot['hours'],
+                );
+
+            $subjects[$position] = [
+                'code' => (string) $selected['code'],
+                'name' => (string) $selected['name'],
+                'teacher' => $teacher !== '' ? $teacher : (string) $slot['teacher'],
+                'hours' => $hours,
+                'virtual' => $isOnline,
+            ];
+        }
+
+        ksort($subjects);
+
+        return array_values($subjects);
+    }
+
+    /**
+     * Arma el horario a partir del rango de fechas elegido por la administración.
+     *
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, starts_at?: string|null, ends_at?: string|null}>  $selectedSubjects
+     * @return array<string, mixed>
+     */
+    private static function presentRange(
+        string $career,
+        string $period,
+        string $cohort,
+        string $schedule,
+        string $startsOn,
+        string $endsOn,
+        array $selectedSubjects,
+    ): array {
+        $weeks = ScheduleCalendar::weeks($startsOn, $endsOn, $schedule);
+
+        $templateSubjects = array_values(self::template()['subjects']);
+        $subjects = [];
+        $timeSlots = [];
+        $isSaturday = $schedule === 'sabatino';
+
+        foreach ($selectedSubjects as $selected) {
+            $selectedDates = array_flip($selected['dates'] ?? []);
+            $isOnline = ($selected['modality'] ?? null) === 'online';
+            $startsAt = $selected['starts_at'] ?? null;
+            $endsAt = $selected['ends_at'] ?? null;
+            $hours = [];
+            $pdfHours = [];
+
+            foreach ($weeks as $week) {
+                $weekDates = array_values(array_filter(
+                    $week['dates'],
+                    static fn (string $date): bool => isset($selectedDates[$date]),
+                ));
+
+                if ($weekDates === []) {
+                    $hours[] = null;
+                    $pdfHours[] = null;
+
+                    continue;
+                }
+
+                if ($isOnline) {
+                    $hours[] = 'Virtual';
+                    $pdfHours[] = 'Virtual';
+
+                    continue;
+                }
+
+                $timeLabel = ScheduleCalendar::timeLabel($startsAt, $endsAt);
+                $hours[] = $isSaturday
+                    ? $timeLabel
+                    : ScheduleCalendar::daysLabel($weekDates).' · '.$timeLabel;
+                $pdfHours[] = $isSaturday
+                    ? ScheduleCalendar::compactTimeLabel($startsAt, $endsAt)
+                    : ScheduleCalendar::compactDays($weekDates).' '.ScheduleCalendar::compactTimeLabel($startsAt, $endsAt);
+
+                if ($timeLabel !== '') {
+                    $timeSlots[$timeLabel] = [
+                        'starts_at' => (string) $startsAt,
+                        'ends_at' => (string) $endsAt,
+                    ];
+                }
+            }
+
+            $subjects[] = [
+                'code' => (string) $selected['code'],
+                'name' => (string) $selected['name'],
+                'teacher' => trim((string) ($selected['teacher'] ?? '')) !== ''
+                    ? (string) $selected['teacher']
+                    : (string) ($templateSubjects[((int) $selected['position']) - 1]['teacher'] ?? ''),
+                'hours' => $hours,
+                'pdf_hours' => $pdfHours,
+            ];
+        }
+
+        $distanceSubjects = array_map(
+            static fn (array $subject): array => [
+                ...$subject,
+                'hours' => array_map(
+                    static fn (?string $hour): ?string => $hour === 'Virtual' ? 'Virtual' : null,
+                    $subject['hours'],
+                ),
+                'pdf_hours' => array_map(
+                    static fn (?string $hour): ?string => $hour === 'Virtual' ? 'Virtual' : null,
+                    $subject['pdf_hours'],
+                ),
+            ],
+            $subjects,
+        );
+
+        return [
+            'title' => 'HORARIOS DE ACTIVIDADES PRESENCIALES DEL PERÍODO ACADÉMICO '.$cohort,
+            'career' => $career,
+            'cohort' => $cohort,
+            'period' => $period,
+            'schedule_label' => AcademicOptions::scheduleLabel($schedule),
+            'weeks' => $weeks,
+            'subjects' => $subjects,
+            'distance_subjects' => $distanceSubjects,
+            'time_slots' => ScheduleCalendar::timeSlots(array_values($timeSlots)),
+            'distance_schedule' => 'Horario a distancia entre semana',
+            'distance_time' => '7:00 pm a 9:00 pm',
+        ];
+    }
+
+    /**
+     * Arma las cuadrículas y la leyenda del horario.
+     *
+     * @param  array<string, mixed>  $definition
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null}>|null  $selectedSubjects
+     * @return array<string, mixed>|null
+     */
+    private static function present(
+        array $definition,
+        ?string $schedule,
+        string $career,
+        string $period,
+        string $cohort,
+        ?array $selectedSubjects = null,
+    ): ?array {
         $days = self::SCHEDULE_DAYS[$schedule ?? ''] ?? null;
 
         $weeks = array_values(array_filter(
@@ -156,12 +443,20 @@ final class StudentSchedule
 
         $weekNumbers = array_column($weeks, 'week');
 
+        $templateSubjects = $selectedSubjects === null
+            ? $definition['subjects']
+            : self::applySubjects($definition['subjects'], $selectedSubjects);
+
         $subjects = array_map(
             static function (array $subject) use ($weekNumbers): array {
+                $isVirtual = (bool) ($subject['virtual'] ?? false);
+
                 $hours = array_map(
-                    static fn (int $week): ?string => isset($subject['hours'][$week])
-                        ? (string) $subject['hours'][$week]
-                        : null,
+                    static fn (int $week): ?string => $isVirtual
+                        ? 'Virtual'
+                        : (isset($subject['hours'][$week])
+                            ? (string) $subject['hours'][$week]
+                            : null),
                     $weekNumbers,
                 );
 
@@ -172,7 +467,7 @@ final class StudentSchedule
                     'hours' => $hours,
                 ];
             },
-            $definition['subjects'],
+            $templateSubjects,
         );
 
         // La segunda cuadrícula del horario oficial solo registra las
@@ -189,10 +484,10 @@ final class StudentSchedule
         );
 
         return [
-            'title' => $definition['title'],
-            'career' => $definition['career'],
-            'cohort' => $definition['cohort'],
-            'period' => $definition['period'],
+            'title' => 'HORARIOS DE ACTIVIDADES PRESENCIALES DEL PERÍODO ACADÉMICO '.$cohort,
+            'career' => $career,
+            'cohort' => $cohort,
+            'period' => $period,
             'schedule_label' => $schedule !== null
                 ? AcademicOptions::scheduleLabel($schedule)
                 : 'Todos los días',
@@ -200,8 +495,8 @@ final class StudentSchedule
             'subjects' => $subjects,
             'distance_subjects' => $distanceSubjects,
             'time_slots' => array_values(self::TIME_SLOTS),
-            'distance_schedule' => $definition['distance_schedule'] ?? null,
-            'distance_time' => $definition['distance_time'] ?? null,
+            'distance_schedule' => $definition['distance_schedule'],
+            'distance_time' => $definition['distance_time'],
         ];
     }
 }

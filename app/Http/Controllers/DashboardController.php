@@ -7,6 +7,7 @@ use App\Models\Enrollment;
 use App\Models\Program;
 use App\Models\Subject;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -67,42 +68,34 @@ class DashboardController extends Controller
 
         $careers = $subjects
             ->groupBy('career_id')
-            ->map(static function ($careerSubjects): array {
-                $career = $careerSubjects->first()->career;
-                $students = $careerSubjects
-                    ->flatMap(static fn (Subject $subject) => $subject->enrollments->pluck('student'))
-                    ->filter()
-                    ->unique('id');
+            ->map(
+                /** @param Collection<int, Subject> $careerSubjects */
+                static function (Collection $careerSubjects): array {
+                    $career = $careerSubjects->first()->career;
+                    $students = $careerSubjects
+                        ->flatMap(static fn (Subject $subject) => $subject->enrollments->pluck('student'))
+                        ->filter()
+                        ->unique('id');
 
-                return [
-                    'id' => $career?->id,
-                    'name' => $career?->name,
-                    'code' => $career?->code,
-                    'students_count' => $students->count(),
-                    'subjects' => $careerSubjects->map(
-                        static fn (Subject $subject): array => [
-                            'id' => $subject->id,
-                            'name' => $subject->name,
-                            'code' => $subject->code,
-                            'semester' => $subject->semester,
-                            'students' => $subject->enrollments->map(
-                                static fn (Enrollment $enrollment): array => [
-                                    'enrollment_id' => $enrollment->id,
-                                    'student_name' => $enrollment->student?->name,
-                                    'student_code' => $enrollment->student?->studentProfile?->student_code,
-                                    'period' => $enrollment->academicPeriod?->name,
-                                    'grade' => $enrollment->final_grade !== null
-                                        ? (float) $enrollment->final_grade
-                                        : null,
-                                    'status' => $enrollment->status,
-                                    'status_label' => $enrollment->statusLabel(),
-                                    'status_tone' => $enrollment->statusTone(),
-                                ],
-                            )->values(),
-                        ],
-                    )->values(),
-                ];
-            })
+                    return [
+                        'id' => $career->id,
+                        'name' => $career->name,
+                        'code' => $career->code,
+                        'students_count' => $students->count(),
+                        'subjects' => $careerSubjects->map(
+                            static fn (Subject $subject): array => [
+                                'id' => $subject->id,
+                                'name' => $subject->name,
+                                'code' => $subject->code,
+                                'semester' => $subject->semester,
+                                'students' => $subject->enrollments
+                                    ->map(self::professorEnrollmentData(...))
+                                    ->values(),
+                            ],
+                        )->values(),
+                    ];
+                },
+            )
             ->values();
 
         $allEnrollments = $subjects->flatMap(
@@ -131,6 +124,34 @@ class DashboardController extends Controller
     }
 
     /**
+     * @return array{
+     *     enrollment_id: int,
+     *     student_name: string,
+     *     student_code: string|null,
+     *     period: string,
+     *     grade: float|null,
+     *     status: string,
+     *     status_label: string,
+     *     status_tone: string
+     * }
+     */
+    private static function professorEnrollmentData(Enrollment $enrollment): array
+    {
+        return [
+            'enrollment_id' => $enrollment->id,
+            'student_name' => $enrollment->student->name,
+            'student_code' => $enrollment->student->studentProfile?->student_code,
+            'period' => $enrollment->academicPeriod->name,
+            'grade' => $enrollment->final_grade !== null
+                ? (float) $enrollment->final_grade
+                : null,
+            'status' => $enrollment->status,
+            'status_label' => $enrollment->statusLabel(),
+            'status_tone' => $enrollment->statusTone(),
+        ];
+    }
+
+    /**
      * Panel del graduado: récord académico, promedio y programas disponibles.
      */
     private function graduateDashboard(User $user): Response
@@ -147,7 +168,7 @@ class DashboardController extends Controller
 
         $average = $enrollments->avg('final_grade');
         $totalCredits = $enrollments->sum(
-            static fn (Enrollment $enrollment): int => $enrollment->subject?->credits ?? 0,
+            static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
 
         $programs = Program::query()

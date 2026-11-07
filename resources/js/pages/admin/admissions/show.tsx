@@ -147,7 +147,10 @@ function DocumentReview({
                 Revisar documento
             </summary>
 
-            <form onSubmit={submit} className="mt-3 space-y-3 rounded-xl bg-upel-cloud/60 p-4 dark:bg-muted/40">
+            <form
+                onSubmit={submit}
+                className="mt-3 space-y-3 rounded-xl bg-upel-cloud/60 p-4 dark:bg-muted/40"
+            >
                 <div>
                     <label
                         htmlFor={`review-status-${document.id}`}
@@ -213,10 +216,7 @@ function DocumentReview({
                             aria-hidden="true"
                         />
                     ) : (
-                        <ShieldCheck
-                            className="size-3.5"
-                            aria-hidden="true"
-                        />
+                        <ShieldCheck className="size-3.5" aria-hidden="true" />
                     )}
                     Guardar revisión
                 </button>
@@ -339,8 +339,8 @@ export default function AdminAdmissionsShow({
                                         Fecha de nacimiento
                                     </dt>
                                     <dd className={valueClass}>
-                                        {admission.birth_date} ·{' '}
-                                        {admission.age} años
+                                        {admission.birth_date} · {admission.age}{' '}
+                                        años
                                     </dd>
                                 </div>
                                 <div>
@@ -496,7 +496,9 @@ export default function AdminAdmissionsShow({
 
                                                 {document.is_previewable ? (
                                                     <a
-                                                        href={document.preview_url}
+                                                        href={
+                                                            document.preview_url
+                                                        }
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.65rem] font-bold text-upel-blue transition-colors hover:bg-upel-cloud dark:hover:bg-muted"
@@ -619,7 +621,10 @@ export default function AdminAdmissionsShow({
                                             className="mb-1.5 block text-[0.65rem] font-bold text-foreground"
                                         >
                                             Nota{' '}
-                                            {['observada', 'rechazada'].includes(
+                                            {[
+                                                'observada',
+                                                'rechazada',
+                                            ].includes(
                                                 statusForm.data.status,
                                             ) ? (
                                                 <span className="text-red-600">
@@ -644,9 +649,7 @@ export default function AdminAdmissionsShow({
                                             required={[
                                                 'observada',
                                                 'rechazada',
-                                            ].includes(
-                                                statusForm.data.status,
-                                            )}
+                                            ].includes(statusForm.data.status)}
                                             className="w-full rounded-xl border border-border bg-upel-cloud/50 px-3 py-2.5 text-xs font-medium text-foreground focus:border-upel-blue focus:bg-white focus:outline-none dark:bg-muted/40 dark:focus:bg-card"
                                             placeholder="Explica el motivo del cambio. El aspirante recibirá esta nota por correo."
                                         />

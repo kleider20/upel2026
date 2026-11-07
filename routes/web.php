@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminEntryController;
 use App\Http\Controllers\AdminLoginController;
 use App\Http\Controllers\AdminModuleController;
+use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AdminSubjectController;
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\AdmissionLookupController;
@@ -93,6 +94,19 @@ Route::middleware(['auth', EnsureAdminPortal::class])
             ->name('subjects.update');
         Route::delete('subjects/{subject}', [AdminSubjectController::class, 'destroy'])
             ->name('subjects.destroy');
+
+        Route::get('schedules', [AdminScheduleController::class, 'index'])
+            ->name('schedules.index');
+        Route::get('schedules/create', [AdminScheduleController::class, 'create'])
+            ->name('schedules.create');
+        Route::post('schedules', [AdminScheduleController::class, 'store'])
+            ->name('schedules.store');
+        Route::get('schedules/{schedule}', [AdminScheduleController::class, 'show'])
+            ->name('schedules.show');
+        Route::get('schedules/{schedule}/pdf', [AdminScheduleController::class, 'pdf'])
+            ->name('schedules.pdf');
+        Route::delete('schedules/{schedule}', [AdminScheduleController::class, 'destroy'])
+            ->name('schedules.destroy');
 
         Route::get('careers', [AdminCareerController::class, 'index'])
             ->name('careers.index');

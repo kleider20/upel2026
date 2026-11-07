@@ -90,21 +90,25 @@ export default function Login({ status, canResetPassword }: Props) {
     return (
         <div className="relative flex min-h-screen w-full items-center justify-center bg-[linear-gradient(135deg,#0a2540_0%,#113a63_50%,#1e5fa8_100%)] p-4 sm:p-6 lg:p-8">
             <div
-                className="upel-grid absolute inset-0 opacity-40 pointer-events-none"
+                className="upel-grid pointer-events-none absolute inset-0 opacity-40"
                 aria-hidden="true"
             />
 
             <div className="relative w-full max-w-md overflow-hidden rounded-[24px] border border-white/15 bg-white shadow-[0_40px_100px_-30px_rgba(10,37,64,0.65)]">
                 <div className="relative bg-[linear-gradient(125deg,#0a2540_0%,#113a63_60%,#1e5fa8_100%)] px-6 pt-6 pb-7 text-white">
                     <div className="relative">
-                        <Link href="/" className="inline-block transition-opacity hover:opacity-85">
+                        <Link
+                            href="/"
+                            className="inline-block transition-opacity hover:opacity-85"
+                        >
                             <UpelLogo variant="light" className="h-10" />
                         </Link>
                         <h1 className="mt-4 font-display text-2xl font-bold text-white">
                             Bienvenido de nuevo
                         </h1>
                         <p className="mt-1 text-sm text-white/70">
-                            Ingresa con tu correo institucional o personal para continuar.
+                            Ingresa con tu correo institucional o personal para
+                            continuar.
                         </p>
                     </div>
                 </div>
@@ -188,7 +192,10 @@ export default function Login({ status, canResetPassword }: Props) {
                                         className="h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:outline-none"
                                     />
                                 </div>
-                                <InputError message={errors.email} className="mt-1" />
+                                <InputError
+                                    message={errors.email}
+                                    className="mt-1"
+                                />
                             </div>
 
                             <div>
@@ -231,13 +238,16 @@ export default function Login({ status, canResetPassword }: Props) {
                                         className="h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 pr-3 pl-9 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:outline-none"
                                     />
                                 </div>
-                                <InputError message={errors.password} className="mt-1" />
+                                <InputError
+                                    message={errors.password}
+                                    className="mt-1"
+                                />
                             </div>
 
                             <p className="rounded-xl bg-upel-cloud px-3 py-2 text-[0.68rem] leading-relaxed font-semibold text-upel-slate">
                                 ¿Recién admitido? Tu contraseña inicial es tu
-                                cédula de identidad sin la letra V ni puntos.
-                                Al entrar te pediremos definir una propia.
+                                cédula de identidad sin la letra V ni puntos. Al
+                                entrar te pediremos definir una propia.
                             </p>
 
                             <label className="flex cursor-pointer items-center gap-2 text-[0.72rem] font-semibold text-upel-slate">

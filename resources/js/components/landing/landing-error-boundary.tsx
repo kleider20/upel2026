@@ -31,12 +31,12 @@ export class LandingErrorBoundary extends Component<Props, State> {
                     <span className="flex size-14 items-center justify-center rounded-2xl bg-upel-gold/15 text-upel-navy">
                         <AlertTriangle className="size-6" aria-hidden="true" />
                     </span>
-                    <h2 className="font-display mt-5 text-2xl font-bold text-upel-navy">
+                    <h2 className="mt-5 font-display text-2xl font-bold text-upel-navy">
                         No pudimos cargar esta sección
                     </h2>
                     <p className="mt-2 text-sm leading-relaxed text-upel-slate">
-                        Ocurrió un error inesperado. Recarga la página para volver a
-                        intentarlo.
+                        Ocurrió un error inesperado. Recarga la página para
+                        volver a intentarlo.
                     </p>
                     <button
                         type="button"

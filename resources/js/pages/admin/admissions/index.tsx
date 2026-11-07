@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    Eye,
-    Filter,
-    Inbox,
-    Search,
-    X,
-} from 'lucide-react';
+import { ArrowLeft, Eye, Filter, Inbox, Search, X } from 'lucide-react';
 import { EmptyState } from '@/components/portal/empty-state';
 import { PageHeader } from '@/components/portal/page-header';
-import { ToneBadge, type Tone, toneClasses } from '@/components/portal/tone-badge';
+import {
+    ToneBadge,
+    type Tone,
+    toneClasses,
+} from '@/components/portal/tone-badge';
 import { cn } from '@/lib/utils';
 import { dashboard as adminDashboard } from '@/routes/admin';
 import { index as admissionsIndex } from '@/routes/admin/admissions';

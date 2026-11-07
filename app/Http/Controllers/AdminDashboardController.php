@@ -34,6 +34,7 @@ class AdminDashboardController extends Controller
                 ...$module,
                 'href' => match ($key) {
                     'subjects' => route('admin.subjects.index'),
+                    'schedules' => route('admin.schedules.index'),
                     'careers' => route('admin.careers.index'),
                     default => route('admin.module', ['module' => $key]),
                 },

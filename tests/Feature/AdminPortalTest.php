@@ -57,10 +57,10 @@ test('admin dashboard modules are scoped by role', function (string $role, int $
             ->has('summary', $summary)
         );
 })->with([
-    'coordinador académico' => [Role::CoordinadorAcademico->value, 7, 4],
+    'coordinador académico' => [Role::CoordinadorAcademico->value, 8, 4],
     'personal administrativo' => [Role::PersonalAdministrativo->value, 1, 1],
-    'decano' => [Role::Decano->value, 8, 5],
-    'administrador' => [Role::Admin->value, 10, 6],
+    'decano' => [Role::Decano->value, 9, 5],
+    'administrador' => [Role::Admin->value, 11, 6],
 ]);
 
 test('academic coordinators can access academic modules but not finance', function () {

@@ -257,9 +257,7 @@ export default function AdmissionApply({
                   .filter((name) =>
                       normalizeSearch(name).includes(highSchoolQuery),
                   )
-                  .filter(
-                      (name) => normalizeSearch(name) !== highSchoolQuery,
-                  )
+                  .filter((name) => normalizeSearch(name) !== highSchoolQuery)
                   .slice(0, 6);
     const showHighSchoolSuggestions =
         highSchoolOpen && highSchoolSuggestions.length > 0;
@@ -268,9 +266,7 @@ export default function AdmissionApply({
      * Cambia la carrera y ajusta modalidad, horario y turno a su primera oferta.
      */
     const handleCareerChange = (value: string) => {
-        const career = careers.find(
-            (option) => String(option.id) === value,
-        );
+        const career = careers.find((option) => String(option.id) === value);
         const offering = career?.offerings[0];
 
         setData((current) => ({
@@ -304,8 +300,7 @@ export default function AdmissionApply({
     const handleScheduleChange = (value: string) => {
         const offering = selectedOfferings.find(
             (option) =>
-                option.modality === data.modality &&
-                option.schedule === value,
+                option.modality === data.modality && option.schedule === value,
         );
 
         setData((current) => ({
@@ -345,8 +340,7 @@ export default function AdmissionApply({
                 nextErrors.birth_date = 'Indica tu fecha de nacimiento.';
             } else {
                 const birthDate = new Date(`${data.birth_date}T00:00:00`);
-                const age =
-                    (Date.now() - birthDate.getTime()) / 31_557_600_000;
+                const age = (Date.now() - birthDate.getTime()) / 31_557_600_000;
 
                 if (Number.isNaN(birthDate.getTime())) {
                     nextErrors.birth_date =
@@ -406,11 +400,7 @@ export default function AdmissionApply({
             const year = Number(data.high_school_year);
             const currentYear = new Date().getFullYear();
 
-            if (
-                !Number.isInteger(year) ||
-                year < 1980 ||
-                year > currentYear
-            ) {
+            if (!Number.isInteger(year) || year < 1980 || year > currentYear) {
                 nextErrors.high_school_year =
                     'Indica un año de graduación válido.';
             }
@@ -483,7 +473,11 @@ export default function AdmissionApply({
             onError: (serverErrors) => {
                 const keys = Object.keys(serverErrors);
 
-                if (keys.some((key) => stepOneFields.includes(key as keyof AdmissionFormData))) {
+                if (
+                    keys.some((key) =>
+                        stepOneFields.includes(key as keyof AdmissionFormData),
+                    )
+                ) {
                     setStep(1);
                 } else if (
                     keys.some((key) =>
@@ -523,7 +517,10 @@ export default function AdmissionApply({
                             href={admissionLookup()}
                             className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-upel-navy/12 px-4 py-2.5 text-xs font-bold text-upel-navy transition-colors hover:bg-upel-cloud"
                         >
-                            <LockKeyhole className="size-3.5" aria-hidden="true" />
+                            <LockKeyhole
+                                className="size-3.5"
+                                aria-hidden="true"
+                            />
                             Ya tengo una solicitud
                         </Link>
                     </div>
@@ -863,7 +860,7 @@ export default function AdmissionApply({
                                                     event.target.value,
                                                 )
                                             }
-                                            className="w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 py-2.5 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:outline-none focus:ring-2 focus:ring-upel-blue/15"
+                                            className="w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 py-2.5 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:ring-2 focus:ring-upel-blue/15 focus:outline-none"
                                             placeholder="Estado, municipio, parroquia y referencia"
                                         />
                                         <InputError
@@ -1284,7 +1281,8 @@ export default function AdmissionApply({
                                         ],
                                         [
                                             'Turno',
-                                            selectedOffering?.shift_label ?? '—',
+                                            selectedOffering?.shift_label ??
+                                                '—',
                                         ],
                                         [
                                             'Plantel de bachillerato',
@@ -1294,10 +1292,7 @@ export default function AdmissionApply({
                                             'Año de graduación',
                                             data.high_school_year,
                                         ],
-                                        [
-                                            'Promedio',
-                                            data.high_school_average,
-                                        ],
+                                        ['Promedio', data.high_school_average],
                                     ].map(([label, value]) => (
                                         <div key={label}>
                                             <dt className="text-[0.62rem] font-extrabold tracking-wide text-upel-slate uppercase">
@@ -1358,10 +1353,11 @@ export default function AdmissionApply({
                                             className="mt-0.5 size-4 shrink-0 rounded border-upel-mist accent-upel-navy"
                                         />
                                         <span>
-                                            Declaro que la información suministrada
-                                            es veraz y acepto las condiciones del
-                                            proceso de admisión de la UPEL, incluida
-                                            la verificación de mis documentos.
+                                            Declaro que la información
+                                            suministrada es veraz y acepto las
+                                            condiciones del proceso de admisión
+                                            de la UPEL, incluida la verificación
+                                            de mis documentos.
                                         </span>
                                     </label>
                                     <InputError

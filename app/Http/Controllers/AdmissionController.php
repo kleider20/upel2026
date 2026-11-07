@@ -266,7 +266,7 @@ class AdmissionController extends Controller
                     'to' => $history->toLabel(),
                     'tone' => $history->toTone(),
                     'note' => $history->note,
-                    'changed_by' => $history->changedBy?->name ?? 'Sistema',
+                    'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
                     'date' => $history->created_at?->format('d/m/Y h:i A'),
                 ],
             )->values(),

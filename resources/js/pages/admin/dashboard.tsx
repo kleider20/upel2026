@@ -206,9 +206,9 @@ export default function AdminDashboard({
                             </dl>
 
                             <p className="mt-4 rounded-xl bg-upel-cloud px-3 py-2.5 text-[0.68rem] leading-relaxed font-semibold text-muted-foreground dark:bg-muted">
-                                Solo ves los módulos autorizados para tu rol.
-                                Si necesitas otro acceso, contacta al
-                                administrador del sistema.
+                                Solo ves los módulos autorizados para tu rol. Si
+                                necesitas otro acceso, contacta al administrador
+                                del sistema.
                             </p>
                         </div>
 
@@ -221,8 +221,8 @@ export default function AdminDashboard({
                             </div>
                             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                                 Este portal utiliza autenticación con roles y
-                                permisos. Cada acción queda asociada a tu
-                                cuenta institucional.
+                                permisos. Cada acción queda asociada a tu cuenta
+                                institucional.
                             </p>
                         </div>
 

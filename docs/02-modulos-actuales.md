@@ -10,20 +10,20 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
 
 ### Secciones implementadas
 
-| Sección | Componente | Funcionalidad |
-| --- | --- | --- |
-| Barra de navegación | `navbar.tsx` | Sticky, enlaces ancla a secciones, menú móvil, botón de acceso que navega a `/login`. |
-| Hero | `hero-slider.tsx` | 5 diapositivas (institucional, noticia, congreso, preinscripción, portal), autoplay de 7 s con pausa al pasar el cursor o al ocultar la pestaña, flechas, puntos y navegación por teclado. |
-| Cifras | `stats-band.tsx` | Contadores animados con `IntersectionObserver`. |
-| Nosotros | `about.tsx` | Historia institucional y sellos oficiales UPEL / IMPM en SVG. |
-| Carreras | `careers.tsx` | 12 carreras con filtros por modalidad (todas, presencial, mixta, online). |
-| Modalidad online | `online-mode.tsx` | Bloque oscuro con 4 tarjetas de vidrio. |
-| Cursos | `courses.tsx` | 6 cursos y talleres con precio, duración y modalidad. |
-| Profesores | `teachers.tsx` | Carrusel de 12 docentes con especialidad y avatar. |
-| Noticias | `news.tsx` | 6 noticias con arte generado. |
-| Graduaciones | `graduations.tsx` | Cuenta regresiva a la meta de graduación. |
-| Llamado final | `cta.tsx` | CTA con estado dinámico según las fechas de inscripción. |
-| Pie de página | `footer.tsx` | Enlaces, contacto, sellos y acceso a login. |
+| Sección             | Componente        | Funcionalidad                                                                                                                                                                              |
+| ------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Barra de navegación | `navbar.tsx`      | Sticky, enlaces ancla a secciones, menú móvil, botón de acceso que navega a `/login`.                                                                                                      |
+| Hero                | `hero-slider.tsx` | 5 diapositivas (institucional, noticia, congreso, preinscripción, portal), autoplay de 7 s con pausa al pasar el cursor o al ocultar la pestaña, flechas, puntos y navegación por teclado. |
+| Cifras              | `stats-band.tsx`  | Contadores animados con `IntersectionObserver`.                                                                                                                                            |
+| Nosotros            | `about.tsx`       | Historia institucional y sellos oficiales UPEL / IMPM en SVG.                                                                                                                              |
+| Carreras            | `careers.tsx`     | 12 carreras con filtros por modalidad (todas, presencial, mixta, online).                                                                                                                  |
+| Modalidad online    | `online-mode.tsx` | Bloque oscuro con 4 tarjetas de vidrio.                                                                                                                                                    |
+| Cursos              | `courses.tsx`     | 6 cursos y talleres con precio, duración y modalidad.                                                                                                                                      |
+| Profesores          | `teachers.tsx`    | Carrusel de 12 docentes con especialidad y avatar.                                                                                                                                         |
+| Noticias            | `news.tsx`        | 6 noticias con arte generado.                                                                                                                                                              |
+| Graduaciones        | `graduations.tsx` | Cuenta regresiva a la meta de graduación.                                                                                                                                                  |
+| Llamado final       | `cta.tsx`         | CTA con estado dinámico según las fechas de inscripción.                                                                                                                                   |
+| Pie de página       | `footer.tsx`      | Enlaces, contacto, sellos y acceso a login.                                                                                                                                                |
 
 ### Comportamiento por fechas
 
@@ -170,12 +170,12 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
 `FortifyServiceProvider::configureAuthentication()` valida que el usuario tenga el rol
 del portal elegido:
 
-| `portal` enviado | Roles aceptados |
-| --- | --- |
-| `estudiante` | `estudiante` |
-| `profesor` | `profesor` |
-| `graduado` | `graduado` |
-| `admin` | `admin`, `decano`, `coordinador_academico`, `personal_administrativo` |
+| `portal` enviado | Roles aceptados                                                       |
+| ---------------- | --------------------------------------------------------------------- |
+| `estudiante`     | `estudiante`                                                          |
+| `profesor`       | `profesor`                                                            |
+| `graduado`       | `graduado`                                                            |
+| `admin`          | `admin`, `decano`, `coordinador_academico`, `personal_administrativo` |
 
 Si el correo existe pero pertenece a otro portal, se devuelve un mensaje específico
 (“No existe ninguna cuenta de estudiante registrada con este correo.”, etc.).
@@ -204,24 +204,25 @@ Si el correo existe pero pertenece a otro portal, se devuelve un mensaje especí
 
 Portal de una sola página con barra lateral y 9 módulos conmutables por pestaña:
 
-| Pestaña | Componente | Funcionalidad |
-| --- | --- | --- |
-| Inicio | `modules/Inicio.tsx` | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos. |
-| Mi solicitud | `modules/MiSolicitud.tsx` | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones. |
-| Mis materias | `modules/MisMaterias.tsx` | Inscripciones con período, profesor, créditos y estado. |
-| Mis calificaciones | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia. |
-| Mis profesores | `modules/MisProfesores.tsx` | Docentes de las materias inscritas con departamento y materias. |
-| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx` | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE). |
-| Mi horario | `modules/MiHorario.tsx` | Horario oficial de actividades presenciales (16 sábados) filtrado por el horario de preinscripción, con las dos cuadrículas del documento y descarga/impresión en PDF (`GET /estudiante/horario/pdf`). |
-| Mi perfil | `modules/MiPerfil.tsx` | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`). |
-| Mis trámites | `modules/MisTramites.tsx` | Solicitud de constancias y solvencias (`POST /estudiante/tramites`). |
+| Pestaña             | Componente                      | Funcionalidad                                                                                                                                                                                          |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Inicio              | `modules/Inicio.tsx`            | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos.                                                                                         |
+| Mi solicitud        | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                         |
+| Mis materias        | `modules/MisMaterias.tsx`       | Inscripciones con período, profesor, créditos y estado.                                                                                                                                                |
+| Mis calificaciones  | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia.                                                                                                                                                      |
+| Mis profesores      | `modules/MisProfesores.tsx`     | Docentes de las materias inscritas con departamento y materias.                                                                                                                                        |
+| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE).                                                                                                  |
+| Mi horario          | `modules/MiHorario.tsx`         | Horario oficial de actividades presenciales (16 sábados) filtrado por el horario de preinscripción, con las dos cuadrículas del documento y descarga/impresión en PDF (`GET /estudiante/horario/pdf`). |
+| Mi perfil           | `modules/MiPerfil.tsx`          | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`).                                                                              |
+| Mis trámites        | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                   |
 
 - `Student\DashboardController` envía `admission` con la solicitud que originó la cuenta
   (datos, documentos e historial) y completa el perfil con esos datos cuando el
   `student_profile` no los tiene; ya no inventa valores personales.
 
 - `App\Support\StudentSchedule` transcribe el horario oficial de Educación Primaria
-  período 1 y lo filtra por el horario de estudio del estudiante; `MiHorario` lo
+  período 1 y lo filtra por el horario de estudio del estudiante; si la administración
+  publicó un horario para su carrera y período, ese tiene prioridad. `MiHorario` lo
   muestra completo y `App\Support\StudentSchedulePdf` genera el PDF oficial para
   imprimir o descargar (sin dependencias externas).
 
@@ -269,46 +270,89 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 ### Módulos disponibles
 
-| Módulo | Permiso | Contenido |
-| --- | --- | --- |
+| Módulo       | Permiso           | Contenido                                                                           |
+| ------------ | ----------------- | ----------------------------------------------------------------------------------- |
 | `admissions` | `admissions.view` | Bandeja de preinscripciones, expediente, documentos y conversión (páginas propias). |
-| `students` | `students.view` | Expedientes, carrera, semestre, estado y promedio. |
-| `professors` | `professors.view` | Plantilla docente, departamento, título y materias. |
-| `careers` | `careers.view` | Oferta académica, modalidad, duración, materias y estudiantes. |
-| `subjects` | `subjects.view` | Unidades curriculares, créditos, docentes e inscritos. |
-| `grades` | `grades.view` | Calificaciones globales, promedio, aprobadas y sin nota. |
-| `finance` | `finance.view` | Recaudado, por cobrar, vencidos y detalle de pagos. |
-| `programs` | `programs.view` | Postgrados, cursos y talleres. |
-| `users` | `users.view` | Cuentas, roles, verificación y fecha de registro. |
-| `roles` | `roles.manage` | Roles, permisos, usuarios y alcance. |
+| `students`   | `students.view`   | Expedientes, carrera, semestre, estado y promedio.                                  |
+| `professors` | `professors.view` | Plantilla docente, departamento, título y materias.                                 |
+| `careers`    | `careers.view`    | Oferta académica, modalidad, duración, materias y estudiantes.                      |
+| `subjects`   | `subjects.view`   | Unidades curriculares, créditos, docentes e inscritos.                              |
+| `schedules`  | `schedules.view`  | Horarios oficiales por carrera, período y cohorte, con vista previa y PDF.          |
+| `grades`     | `grades.view`     | Calificaciones globales, promedio, aprobadas y sin nota.                            |
+| `finance`    | `finance.view`    | Recaudado, por cobrar, vencidos y detalle de pagos.                                 |
+| `programs`   | `programs.view`   | Postgrados, cursos y talleres.                                                      |
+| `users`      | `users.view`      | Cuentas, roles, verificación y fecha de registro.                                   |
+| `roles`      | `roles.manage`    | Roles, permisos, usuarios y alcance.                                                |
 
 ### Visibilidad por rol
 
-| Rol | Módulos visibles |
-| --- | --- |
-| Administrador | Todos |
-| Decano | Académicos + finanzas |
-| Coordinador académico | Académicos |
-| Personal administrativo | Finanzas |
+| Rol                     | Módulos visibles      |
+| ----------------------- | --------------------- |
+| Administrador           | Todos                 |
+| Decano                  | Académicos + finanzas |
+| Coordinador académico   | Académicos            |
+| Personal administrativo | Finanzas              |
 
 - `AdminDashboardController` construye las tarjetas a partir del catálogo y de los
   permisos del usuario.
 - `AdminAdmissionController` implementa el flujo de admisiones con escritura (estados,
-  revisión de documentos y conversión); carreras y materias tienen sus propios
+  revisión de documentos y conversión); carreras, materias y horarios tienen sus propios
   controladores CRUD. El resto de módulos del catálogo sigue en solo lectura.
 - `AdminModuleController` valida permiso antes de responder y devuelve `403` si falta.
 - La tabla se renderiza con `resources/js/pages/admin/resource.tsx` (columnas, filas,
   tonos y estadísticas).
 
+### Horarios publicados
+
+**Rutas:** `/admin/schedules` (`admin.schedules.index`), `/create`, `/{schedule}`,
+`/{schedule}/pdf` y `DELETE /{schedule}`
+**Controlador:** `App\Http\Controllers\AdminScheduleController`
+**Páginas:** `resources/js/pages/admin/schedules/index.tsx`, `form.tsx`, `show.tsx`
+
+- Tabla `schedules`: `career_id`, `period` (1–12) y `cohort` (`2025-II`), con índice
+  único por carrera + período + cohorte.
+- Tabla `schedule_subjects`: `schedule_id`, `subject_id`, `professor_id` opcional,
+  `teacher_name` opcional y `position` (1–7), con unicidad por horario + posición y
+  horario + materia. La posición define qué patrón de horas de la plantilla usa la materia.
+- El formulario elige la carrera con un `select` de las carreras activas, muestra los
+  períodos según su `duration_semesters` (I, II, III…) y pide la cohorte manualmente con
+  el formato `AAAA-I` o `AAAA-II`.
+- Cada fila de **Unidad / Eje Curricular** es un `select` con las materias activas de la
+  carrera y el período elegidos. Una materia ya seleccionada desaparece de las demás filas
+  y el código (`EDPRI-002`, `EDPRI-007`, …) se completa automáticamente. La vista previa se
+  actualiza en vivo con el nombre, código y docente de la materia.
+- La vista previa arranca vacía y solo muestra las materias seleccionadas; no reutiliza
+  los datos de la plantilla oficial como contenido de ejemplo.
+- Junto a cada materia hay un `select` de docente con los profesores asignados a esa
+  materia (`professor_subjects`) y con los docentes de la plantilla oficial. El profesor
+  del sistema se guarda en `professor_id`; el docente de plantilla, en `teacher_name`.
+  Si no se elige ninguno, se usa el primero asignado o el docente de la franja oficial.
+- Las materias con modalidad `online` se publican como **Virtual** en ambas cuadrículas,
+  sin importar la franja de la plantilla que ocupen. Las materias presenciales o mixtas
+  nunca heredan el texto `Virtual` de la franja de TIC I: esas celdas quedan vacías.
+- La vista previa y el horario publicado reutilizan la plantilla oficial de Educación
+  Primaria (16 sábados, dos cuadrículas y leyenda). El encabezado cambia a la carrera,
+  período y cohorte seleccionados; el PDF se genera con `StudentSchedulePdf`.
+- `ScheduleRequest` valida el formato de la cohorte, la unicidad, que el período exista
+  dentro de la duración de la carrera, que haya al menos una materia, que no se repitan
+  materias ni posiciones, que cada materia pertenezca a la carrera y al período, que el
+  profesor del sistema esté asignado a esa materia y que el docente de plantilla
+  pertenezca a la plantilla oficial del horario.
+- Los horarios publicados antes de existir `schedule_subjects` siguen mostrando las 7
+  materias de la plantilla como respaldo.
+- `App\Support\StudentSchedule::forStudent()` prioriza el horario publicado por la
+  administración para la carrera y el período del estudiante; si no existe, usa el
+  catálogo transcrito como respaldo.
+
 ## 8. Configuración de cuenta
 
 **Rutas:** `routes/settings.php`
 
-| Página | Ruta | Funcionalidad |
-| --- | --- | --- |
-| Perfil | `/settings/profile` | Nombre, correo, verificación y eliminación de cuenta. |
-| Seguridad | `/settings/security` | Contraseña, autenticación de dos factores y passkeys. |
-| Apariencia | `/settings/appearance` | Tema claro/oscuro/sistema. |
+| Página     | Ruta                   | Funcionalidad                                         |
+| ---------- | ---------------------- | ----------------------------------------------------- |
+| Perfil     | `/settings/profile`    | Nombre, correo, verificación y eliminación de cuenta. |
+| Seguridad  | `/settings/security`   | Contraseña, autenticación de dos factores y passkeys. |
+| Apariencia | `/settings/appearance` | Tema claro/oscuro/sistema.                            |
 
 ## 9. Modelo académico y datos
 
@@ -321,6 +365,7 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   (`ApreMateI-PA1PRE`). En creación se recalcula en vivo; la edición manual se respeta y
   puede regenerarse con el botón **Regenerar**.
 - `DemoUserSeeder` crea 13 usuarios, perfiles, inscripciones, notas y pagos de ejemplo.
+- `ScheduleFactory` genera horarios de prueba por carrera, período y cohorte.
 - `AdmissionSeeder` agrega solicitudes de admisión de muestra con distintos estados y
   documentos para probar la bandeja administrativa.
 - `RolePermissionSeeder` crea los 7 roles y todos los permisos, y limpia la caché de
@@ -328,21 +373,22 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 ## 10. Pruebas automatizadas
 
-| Archivo | Cobertura |
-| --- | --- |
-| `tests/Feature/LandingPageTest.php` | Landing, fechas y metadatos. |
-| `tests/Feature/NewsletterSubscriptionTest.php` | Alta, duplicados y validación. |
-| `tests/Feature/Auth/AuthenticationTest.php` | Login por portal, admin, 2FA, logout y throttling. |
-| `tests/Feature/AdminPortalTest.php` | Acceso y visibilidad de módulos por rol. |
-| `tests/Feature/AdminCareerTest.php` | CRUD de carreras: permisos, validación, alta, edición y baja. |
-| `tests/Feature/AdminSubjectTest.php` | CRUD de materias: permisos, validación, búsqueda y baja. |
-| `tests/Feature/AcademicSeederTest.php` | Solo las 4 carreras oficiales y renombrado de códigos históricos. |
-| `tests/Feature/AdmissionApplicationTest.php` | Ventana, registro, validaciones, consulta, enlaces firmados y documentos. |
-| `tests/Feature/AdminAdmissionTest.php` | Permisos, bandeja, transiciones, aprobación, documentos y conversión con credenciales iniciales. |
-| `tests/Feature/PasswordDefinitionTest.php` | Login con cédula, bloqueo del portal, definición de contraseña y validación. |
-| `tests/Feature/StudentPortalTest.php` | Expediente de admisión en el dashboard, ausencia de datos ficticios y actualización de perfil. |
-| `tests/Feature/ProfessorGradeTest.php` | Carga de notas, validación y redondeo. |
-| `tests/Feature/DashboardTest.php` | Redirecciones por rol. |
-| `tests/Feature/Settings/*` | Perfil, contraseña y seguridad. |
+| Archivo                                        | Cobertura                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `tests/Feature/LandingPageTest.php`            | Landing, fechas y metadatos.                                                                     |
+| `tests/Feature/NewsletterSubscriptionTest.php` | Alta, duplicados y validación.                                                                   |
+| `tests/Feature/Auth/AuthenticationTest.php`    | Login por portal, admin, 2FA, logout y throttling.                                               |
+| `tests/Feature/AdminPortalTest.php`            | Acceso y visibilidad de módulos por rol.                                                         |
+| `tests/Feature/AdminCareerTest.php`            | CRUD de carreras: permisos, validación, alta, edición y baja.                                    |
+| `tests/Feature/AdminSubjectTest.php`           | CRUD de materias: permisos, validación, búsqueda y baja.                                         |
+| `tests/Feature/AdminScheduleTest.php`          | Horarios: permisos, filtros, alta con materias, validación, PDF, baja y prioridad en el portal.  |
+| `tests/Feature/AcademicSeederTest.php`         | Solo las 4 carreras oficiales y renombrado de códigos históricos.                                |
+| `tests/Feature/AdmissionApplicationTest.php`   | Ventana, registro, validaciones, consulta, enlaces firmados y documentos.                        |
+| `tests/Feature/AdminAdmissionTest.php`         | Permisos, bandeja, transiciones, aprobación, documentos y conversión con credenciales iniciales. |
+| `tests/Feature/PasswordDefinitionTest.php`     | Login con cédula, bloqueo del portal, definición de contraseña y validación.                     |
+| `tests/Feature/StudentPortalTest.php`          | Expediente de admisión en el dashboard, ausencia de datos ficticios y actualización de perfil.   |
+| `tests/Feature/ProfessorGradeTest.php`         | Carga de notas, validación y redondeo.                                                           |
+| `tests/Feature/DashboardTest.php`              | Redirecciones por rol.                                                                           |
+| `tests/Feature/Settings/*`                     | Perfil, contraseña y seguridad.                                                                  |
 
 **Resultado actual:** 163 pruebas aprobadas, 887 aserciones.

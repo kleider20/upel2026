@@ -32,7 +32,8 @@ export function Teachers() {
     const [itemsPerView, setItemsPerView] = useState(5);
 
     useEffect(() => {
-        const update = () => setItemsPerView(getItemsPerView(window.innerWidth));
+        const update = () =>
+            setItemsPerView(getItemsPerView(window.innerWidth));
 
         update();
         window.addEventListener('resize', update);
@@ -55,7 +56,10 @@ export function Teachers() {
     }, [pageCount]);
 
     return (
-        <section id="profesores" className="scroll-mt-24 bg-upel-cloud py-20 sm:py-24 lg:py-28">
+        <section
+            id="profesores"
+            className="scroll-mt-24 bg-upel-cloud py-20 sm:py-24 lg:py-28"
+        >
             <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
                 <Reveal>
                     <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
@@ -74,7 +78,10 @@ export function Teachers() {
                                 aria-label="Profesores anteriores"
                                 className="inline-flex size-11 items-center justify-center rounded-full border border-upel-mist bg-white text-upel-navy transition-colors hover:border-upel-navy/25 hover:bg-upel-cloud"
                             >
-                                <ArrowLeft className="size-4" aria-hidden="true" />
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
                             </button>
                             <button
                                 type="button"
@@ -82,7 +89,10 @@ export function Teachers() {
                                 aria-label="Siguientes profesores"
                                 className="inline-flex size-11 items-center justify-center rounded-full border border-upel-mist bg-white text-upel-navy transition-colors hover:border-upel-navy/25 hover:bg-upel-cloud"
                             >
-                                <ArrowRight className="size-4" aria-hidden="true" />
+                                <ArrowRight
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
                             </button>
                         </div>
                     </div>
@@ -121,7 +131,10 @@ export function Teachers() {
                                                 teacher={teacher}
                                                 className="size-24 rounded-full ring-4 ring-upel-cloud transition-transform duration-300 group-hover:scale-105"
                                             />
-                                            <span className="absolute right-1 bottom-1 size-3.5 rounded-full border-2 border-white bg-upel-green" aria-label="Disponible" />
+                                            <span
+                                                className="absolute right-1 bottom-1 size-3.5 rounded-full border-2 border-white bg-upel-green"
+                                                aria-label="Disponible"
+                                            />
                                         </div>
 
                                         <h3 className="mt-4 text-[0.92rem] leading-tight font-extrabold text-upel-navy">
@@ -140,14 +153,20 @@ export function Teachers() {
                                                 aria-label={`Enviar correo a ${teacher.name}`}
                                                 className="inline-flex size-8 items-center justify-center rounded-full bg-upel-cloud text-upel-slate transition-colors hover:bg-upel-navy hover:text-white"
                                             >
-                                                <Mail className="size-3.5" aria-hidden="true" />
+                                                <Mail
+                                                    className="size-3.5"
+                                                    aria-hidden="true"
+                                                />
                                             </a>
                                             <a
                                                 href="#profesores"
                                                 aria-label={`Ver perfil de ${teacher.name}`}
                                                 className="inline-flex size-8 items-center justify-center rounded-full bg-upel-cloud text-upel-slate transition-colors hover:bg-upel-navy hover:text-white"
                                             >
-                                                <UserRound className="size-3.5" aria-hidden="true" />
+                                                <UserRound
+                                                    className="size-3.5"
+                                                    aria-hidden="true"
+                                                />
                                             </a>
                                         </div>
                                     </article>

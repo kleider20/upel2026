@@ -1,11 +1,5 @@
 import { Form, Head, router } from '@inertiajs/react';
-import {
-    KeyRound,
-    Loader2,
-    LogOut,
-    Mail,
-    ShieldCheck,
-} from 'lucide-react';
+import { KeyRound, Loader2, LogOut, Mail, ShieldCheck } from 'lucide-react';
 import { UpelLogo } from '@/components/landing/brand';
 import InputError from '@/components/input-error';
 import PasswordField from '@/components/password-field';
@@ -145,7 +139,10 @@ export default function DefinePassword({ email, passwordRules }: Props) {
                         </Form>
 
                         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[0.62rem] font-semibold text-upel-slate/70">
-                            <ShieldCheck className="size-3" aria-hidden="true" />
+                            <ShieldCheck
+                                className="size-3"
+                                aria-hidden="true"
+                            />
                             Conexión segura · Datos protegidos
                         </p>
 

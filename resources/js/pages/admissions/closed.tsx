@@ -1,5 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, CalendarClock, FileSearch, GraduationCap } from 'lucide-react';
+import {
+    ArrowLeft,
+    CalendarClock,
+    FileSearch,
+    GraduationCap,
+} from 'lucide-react';
 import { lookup as admissionLookup } from '@/routes/admissions';
 
 type Props = {
@@ -91,8 +96,8 @@ export default function AdmissionClosed({
                                     firmadas y selladas.
                                 </li>
                                 <li>
-                                    • Cédula de identidad vigente (ambas caras en
-                                    un solo archivo).
+                                    • Cédula de identidad vigente (ambas caras
+                                    en un solo archivo).
                                 </li>
                                 <li>
                                     • Fotografía reciente tipo carnet, fondo
@@ -106,7 +111,10 @@ export default function AdmissionClosed({
                                 href="/"
                                 className="inline-flex items-center justify-center gap-2 rounded-[13px] border border-upel-navy/15 px-5 py-3 text-sm font-bold text-upel-navy transition-colors hover:bg-upel-cloud"
                             >
-                                <ArrowLeft className="size-4" aria-hidden="true" />
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
                                 Volver al sitio
                             </Link>
                             <Link

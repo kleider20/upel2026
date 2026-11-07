@@ -28,7 +28,10 @@ const courseIcons: Record<CourseIcon, LucideIcon> = {
  */
 export function Courses() {
     return (
-        <section id="cursos" className="scroll-mt-24 bg-white py-20 sm:py-24 lg:py-28">
+        <section
+            id="cursos"
+            className="scroll-mt-24 bg-white py-20 sm:py-24 lg:py-28"
+        >
             <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
                 <Reveal>
                     <SectionHeading
@@ -47,7 +50,9 @@ export function Courses() {
                                 <article className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-upel-mist bg-white shadow-[0_10px_28px_-22px_rgba(10,37,64,0.3)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_56px_-30px_rgba(10,37,64,0.4)]">
                                     <div
                                         className="relative flex h-36 items-center justify-between overflow-hidden px-6"
-                                        style={{ backgroundImage: course.gradient }}
+                                        style={{
+                                            backgroundImage: course.gradient,
+                                        }}
                                     >
                                         <div
                                             className="absolute -top-10 -right-8 size-36 rounded-full bg-white/10"
@@ -64,7 +69,10 @@ export function Courses() {
                                             {String(index + 1).padStart(2, '0')}
                                         </span>
                                         <span className="absolute right-5 bottom-4 flex size-12 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-                                            <Icon className="size-6" aria-hidden="true" />
+                                            <Icon
+                                                className="size-6"
+                                                aria-hidden="true"
+                                            />
                                         </span>
                                     </div>
 
@@ -82,7 +90,10 @@ export function Courses() {
                                                     Duración
                                                 </p>
                                                 <p className="mt-0.5 flex items-center gap-1 text-[0.72rem] font-bold text-upel-navy">
-                                                    <Clock3 className="size-3 text-upel-blue" aria-hidden="true" />
+                                                    <Clock3
+                                                        className="size-3 text-upel-blue"
+                                                        aria-hidden="true"
+                                                    />
                                                     {course.duration}
                                                 </p>
                                             </div>
@@ -91,7 +102,10 @@ export function Courses() {
                                                     Carga
                                                 </p>
                                                 <p className="mt-0.5 flex items-center gap-1 text-[0.72rem] font-bold text-upel-navy">
-                                                    <Timer className="size-3 text-upel-blue" aria-hidden="true" />
+                                                    <Timer
+                                                        className="size-3 text-upel-blue"
+                                                        aria-hidden="true"
+                                                    />
                                                     {course.hours} h
                                                 </p>
                                             </div>
@@ -102,7 +116,8 @@ export function Courses() {
                                                 <p
                                                     className={cn(
                                                         'mt-0.5 text-[0.72rem] font-extrabold',
-                                                        course.price === 'Certificado'
+                                                        course.price ===
+                                                            'Certificado'
                                                             ? 'text-upel-green'
                                                             : 'text-upel-navy',
                                                     )}
@@ -121,7 +136,10 @@ export function Courses() {
                 <Reveal delay={160}>
                     <p className="mt-10 text-center text-sm text-upel-slate">
                         ¿Tu institución necesita una formación a medida?{' '}
-                        <a href="#contacto" className="font-extrabold text-upel-blue hover:text-upel-navy">
+                        <a
+                            href="#contacto"
+                            className="font-extrabold text-upel-blue hover:text-upel-navy"
+                        >
                             Solicita un programa corporativo
                         </a>
                         .

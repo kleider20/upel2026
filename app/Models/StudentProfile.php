@@ -8,9 +8,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property-read Career|null $career
+ * @property-read User $user
  * @property int $user_id
  * @property int|null $career_id
  * @property string $student_code
@@ -19,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $phone
  * @property string|null $personal_email
  * @property string|null $address
- * @property string|null $birth_date
+ * @property Carbon|null $birth_date
  * @property string|null $birth_place
  * @property string|null $emergency_contact
  * @property string|null $shift

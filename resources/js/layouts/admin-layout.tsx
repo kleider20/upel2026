@@ -15,6 +15,10 @@ import {
     index as careersIndex,
 } from '@/routes/admin/careers';
 import {
+    create as schedulesCreate,
+    index as schedulesIndex,
+} from '@/routes/admin/schedules';
+import {
     create as subjectsCreate,
     index as subjectsIndex,
 } from '@/routes/admin/subjects';
@@ -111,6 +115,23 @@ const navigation: AdminNavGroup[] = [
                 title: 'Agregar materia',
                 href: subjectsCreate(),
                 permission: 'subjects.manage',
+                iconName: 'plus-circle',
+            },
+        ],
+    },
+    {
+        label: 'Horarios',
+        items: [
+            {
+                title: 'Listar horarios',
+                href: schedulesIndex(),
+                permission: 'schedules.view',
+                iconName: 'calendar-days',
+            },
+            {
+                title: 'Publicar horario',
+                href: schedulesCreate(),
+                permission: 'schedules.manage',
                 iconName: 'plus-circle',
             },
         ],

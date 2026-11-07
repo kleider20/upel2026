@@ -33,9 +33,9 @@ el esfuerzo de resolución.
 - **Estado:** parcial. Los datos personales ya salen del expediente de admisión (cédula,
   nacimiento, turno, período, carrera y solicitud) y `MiPerfil` ya no precarga valores
   inventados. Sigue pendiente:
-  - Los cortes N1/N2/N3 se inventan con `rand()`, así que cambian en cada recarga y no
-    reflejan evaluaciones reales.
-  - `tramites` de ejemplo se mezclan con los de sesión.
+    - Los cortes N1/N2/N3 se inventan con `rand()`, así que cambian en cada recarga y no
+      reflejan evaluaciones reales.
+    - `tramites` de ejemplo se mezclan con los de sesión.
 - **Solución:** agregar una tabla `evaluations` (o `grade_items`) para los cortes y
   persistir los trámites; eliminar `rand()` y los trámites de ejemplo.
 
@@ -87,7 +87,7 @@ el esfuerzo de resolución.
 
 ### P-10 · Sin pruebas para el portal estudiantil nuevo
 
-- **Archivos:** `tests/Feature/` 
+- **Archivos:** `tests/Feature/`
 - **Estado:** parcial. `StudentPortalTest` cubre el acceso, el expediente de admisión y la
   actualización de perfil; `PasswordDefinitionTest` cubre el primer acceso. Falta cobertura
   de `student.tramites.store`.
@@ -156,22 +156,22 @@ el esfuerzo de resolución.
 
 ## Seguimiento sugerido
 
-| ID | Severidad | Estado |
-| --- | --- | --- |
-| P-01 | Alta | Abierto |
-| P-02 | Alta | Abierto |
-| P-03 | Alta | Parcial |
-| P-04 | Media | Abierto |
-| P-05 | Media | Abierto |
-| P-06 | Media | Abierto |
-| P-07 | Media | Abierto |
-| P-09 | Media | Abierto |
-| P-10 | Media | Parcial |
-| P-11 | Baja | Abierto |
-| P-12 | Baja | Abierto |
-| P-13 | Baja | Abierto |
-| P-14 | Baja | Abierto |
-| P-15 | Baja | Abierto |
-| P-16 | Baja | Abierto |
-| P-17 | Baja | Abierto |
-| P-18 | Baja | Abierto |
+| ID   | Severidad | Estado  |
+| ---- | --------- | ------- |
+| P-01 | Alta      | Abierto |
+| P-02 | Alta      | Abierto |
+| P-03 | Alta      | Parcial |
+| P-04 | Media     | Abierto |
+| P-05 | Media     | Abierto |
+| P-06 | Media     | Abierto |
+| P-07 | Media     | Abierto |
+| P-09 | Media     | Abierto |
+| P-10 | Media     | Parcial |
+| P-11 | Baja      | Abierto |
+| P-12 | Baja      | Abierto |
+| P-13 | Baja      | Abierto |
+| P-14 | Baja      | Abierto |
+| P-15 | Baja      | Abierto |
+| P-16 | Baja      | Abierto |
+| P-17 | Baja      | Abierto |
+| P-18 | Baja      | Abierto |

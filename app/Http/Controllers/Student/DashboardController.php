@@ -53,11 +53,11 @@ class DashboardController extends Controller
         $average = $graded->avg('final_grade');
 
         $totalCredits = $enrollments->sum(
-            static fn (Enrollment $enrollment): int => $enrollment->subject?->credits ?? 0,
+            static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
 
         $approvedCredits = $approved->sum(
-            static fn (Enrollment $enrollment): int => $enrollment->subject?->credits ?? 0,
+            static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
 
         // Profesores de las materias del estudiante
@@ -77,8 +77,8 @@ class DashboardController extends Controller
                     'id' => $professor->id,
                     'name' => $professor->name,
                     'email' => $professor->email,
-                    'department' => $profProfile?->department ?? 'Academia UPEL',
-                    'academic_title' => $profProfile?->academic_title ?? 'Profesor',
+                    'department' => data_get($profProfile, 'department') ?? 'Academia UPEL',
+                    'academic_title' => data_get($profProfile, 'academic_title') ?? 'Profesor',
                     'subjects' => $professorSubjects,
                 ];
             })->values();
@@ -128,7 +128,7 @@ class DashboardController extends Controller
         // Horario de actividades presenciales según el horario elegido
         $schedule = StudentSchedule::forStudent(
             $profile?->career?->code,
-            (int) ($profile?->current_semester ?? 1),
+            $profile !== null ? $profile->current_semester : 1,
             $admission?->schedule,
         );
 
@@ -169,7 +169,7 @@ class DashboardController extends Controller
                 'admission_year' => $profile->admission_year,
                 'graduation_year' => $profile->graduation_year,
                 'phone' => $profile->phone ?? $admission?->phone,
-                'personal_email' => $profile->personal_email ?? $admission?->email ?? $user->email,
+                'personal_email' => $profile->personal_email ?? ($admission !== null ? $admission->email : $user->email),
                 'address' => $profile->address ?? $admission?->address,
                 'birth_date' => ($profile->birth_date ?? $admission?->birth_date)?->format('d/m/Y'),
                 'birth_place' => $profile->birth_place,
@@ -178,7 +178,7 @@ class DashboardController extends Controller
                 'advisor' => $profile->advisor,
                 'id_number' => $admission?->formattedIdNumber(),
                 'nationality' => $admission?->nationality,
-                'period_year' => $admission?->period_year ?? $profile->admission_year,
+                'period_year' => $admission !== null ? $admission->period_year : $profile->admission_year,
                 'admission_code' => $admission?->code,
             ] : null,
             'admission' => $admission !== null ? $this->admissionData($admission) : null,
@@ -291,7 +291,7 @@ class DashboardController extends Controller
                     'to' => $history->toLabel(),
                     'tone' => $history->toTone(),
                     'note' => $history->note,
-                    'changed_by' => $history->changedBy?->name ?? 'Sistema',
+                    'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
                     'date' => $history->created_at?->format('d/m/Y h:i A'),
                 ],
             )->values(),

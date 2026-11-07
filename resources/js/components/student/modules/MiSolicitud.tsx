@@ -22,7 +22,7 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                 <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-upel-cloud text-upel-blue">
                     <FileSearch className="h-6 w-6" aria-hidden="true" />
                 </span>
-                <h3 className="font-display mt-4 text-lg font-bold text-upel-navy">
+                <h3 className="mt-4 font-display text-lg font-bold text-upel-navy">
                     Sin solicitud vinculada
                 </h3>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
@@ -44,10 +44,13 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                 <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
                     <div>
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-[0.68rem] font-bold tracking-widest text-upel-gold-light uppercase backdrop-blur-md">
-                            <FileSearch className="h-3.5 w-3.5" aria-hidden="true" />
+                            <FileSearch
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                            />
                             Expediente de admisión
                         </span>
-                        <h2 className="font-display mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                        <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">
                             Solicitud {admission.code}
                         </h2>
                         <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-white/75">
@@ -59,14 +62,20 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
 
                     <div className="flex flex-col items-start gap-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-upel-gold px-4 py-1.5 text-xs font-extrabold tracking-widest text-upel-navy uppercase shadow-[0_10px_24px_-12px_rgba(201,162,39,0.9)] ring-2 ring-white/40">
-                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            <CheckCircle2
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                            />
                             {admission.status_label}
                         </span>
                         <a
                             href={admission.tracking_url}
                             className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md transition-colors hover:bg-white/20"
                         >
-                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                            <ExternalLink
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                            />
                             Ver comprobante
                         </a>
                     </div>
@@ -79,7 +88,7 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                     <p className="text-[0.62rem] font-extrabold tracking-[0.14em] text-muted-foreground uppercase">
                         Enviada
                     </p>
-                    <p className="font-display mt-1 text-sm font-bold text-upel-navy">
+                    <p className="mt-1 font-display text-sm font-bold text-upel-navy">
                         {admission.submitted_at ?? '—'}
                     </p>
                 </div>
@@ -87,7 +96,7 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                     <p className="text-[0.62rem] font-extrabold tracking-[0.14em] text-muted-foreground uppercase">
                         Revisada
                     </p>
-                    <p className="font-display mt-1 text-sm font-bold text-upel-navy">
+                    <p className="mt-1 font-display text-sm font-bold text-upel-navy">
                         {admission.reviewed_at ?? '—'}
                     </p>
                 </div>
@@ -95,7 +104,7 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                     <p className="text-[0.62rem] font-extrabold tracking-[0.14em] text-muted-foreground uppercase">
                         Estudiante desde
                     </p>
-                    <p className="font-display mt-1 text-sm font-bold text-upel-navy">
+                    <p className="mt-1 font-display text-sm font-bold text-upel-navy">
                         {admission.converted_at ?? '—'}
                     </p>
                 </div>
@@ -103,7 +112,7 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                     <p className="text-[0.62rem] font-extrabold tracking-[0.14em] text-muted-foreground uppercase">
                         Código de estudiante
                     </p>
-                    <p className="font-display mt-1 text-sm font-bold text-upel-navy">
+                    <p className="mt-1 font-display text-sm font-bold text-upel-navy">
                         {profile?.student_code ?? '—'}
                     </p>
                 </div>
@@ -112,12 +121,18 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
             <div className="grid gap-6 lg:grid-cols-2">
                 {/* Datos personales */}
                 <div className="rounded-2xl border border-border/80 bg-white p-6 shadow-sm">
-                    <h3 className="font-display flex items-center gap-2 border-b border-border pb-4 text-base font-bold text-upel-navy">
-                        <UserRound className="h-4 w-4 text-upel-blue" aria-hidden="true" />
+                    <h3 className="flex items-center gap-2 border-b border-border pb-4 font-display text-base font-bold text-upel-navy">
+                        <UserRound
+                            className="h-4 w-4 text-upel-blue"
+                            aria-hidden="true"
+                        />
                         Datos personales
                     </h3>
                     <dl className="mt-4 space-y-3 text-xs">
-                        <Row label="Nombre completo" value={admission.full_name} />
+                        <Row
+                            label="Nombre completo"
+                            value={admission.full_name}
+                        />
                         <Row
                             label="Cédula de identidad"
                             value={admission.formatted_id_number}
@@ -127,7 +142,10 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                             value={`${admission.birth_date} · ${admission.age} años`}
                         />
                         <Row label="Género" value={admission.gender} />
-                        <Row label="Nacionalidad" value={admission.nationality} />
+                        <Row
+                            label="Nacionalidad"
+                            value={admission.nationality}
+                        />
                         <Row label="Correo" value={admission.email} />
                         <Row label="Teléfono" value={admission.phone} />
                         <Row label="Dirección" value={admission.address} last />
@@ -137,27 +155,43 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                 {/* Datos académicos */}
                 <div className="space-y-6">
                     <div className="rounded-2xl border border-border/80 bg-white p-6 shadow-sm">
-                        <h3 className="font-display flex items-center gap-2 border-b border-border pb-4 text-base font-bold text-upel-navy">
-                            <GraduationCap className="h-4 w-4 text-upel-blue" aria-hidden="true" />
+                        <h3 className="flex items-center gap-2 border-b border-border pb-4 font-display text-base font-bold text-upel-navy">
+                            <GraduationCap
+                                className="h-4 w-4 text-upel-blue"
+                                aria-hidden="true"
+                            />
                             Datos académicos
                         </h3>
                         <dl className="mt-4 space-y-3 text-xs">
                             <Row label="Carrera" value={admission.career} />
-                            <Row label="Código de carrera" value={admission.career_code} />
+                            <Row
+                                label="Código de carrera"
+                                value={admission.career_code}
+                            />
                             <Row label="Modalidad" value={admission.modality} />
                             <Row label="Horario" value={admission.schedule} />
                             <Row label="Turno" value={admission.shift} />
-                            <Row label="Período de ingreso" value={String(admission.period_year)} last />
+                            <Row
+                                label="Período de ingreso"
+                                value={String(admission.period_year)}
+                                last
+                            />
                         </dl>
                     </div>
 
                     <div className="rounded-2xl border border-border/80 bg-white p-6 shadow-sm">
-                        <h3 className="font-display flex items-center gap-2 border-b border-border pb-4 text-base font-bold text-upel-navy">
-                            <School className="h-4 w-4 text-upel-blue" aria-hidden="true" />
+                        <h3 className="flex items-center gap-2 border-b border-border pb-4 font-display text-base font-bold text-upel-navy">
+                            <School
+                                className="h-4 w-4 text-upel-blue"
+                                aria-hidden="true"
+                            />
                             Récord de bachillerato
                         </h3>
                         <dl className="mt-4 space-y-3 text-xs">
-                            <Row label="Plantel" value={admission.high_school} />
+                            <Row
+                                label="Plantel"
+                                value={admission.high_school}
+                            />
                             <Row
                                 label="Año de graduación"
                                 value={
@@ -179,8 +213,11 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
             {/* Documentos */}
             <div className="overflow-hidden rounded-2xl border border-border/80 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-border px-6 py-4">
-                    <h3 className="font-display flex items-center gap-2 text-base font-bold text-upel-navy">
-                        <FileText className="h-4 w-4 text-upel-blue" aria-hidden="true" />
+                    <h3 className="flex items-center gap-2 font-display text-base font-bold text-upel-navy">
+                        <FileText
+                            className="h-4 w-4 text-upel-blue"
+                            aria-hidden="true"
+                        />
                         Documentos del expediente
                     </h3>
                     <span className="text-[0.68rem] font-bold text-muted-foreground">
@@ -202,15 +239,19 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-upel-cloud text-upel-blue">
-                                        <FileText className="h-4 w-4" aria-hidden="true" />
+                                        <FileText
+                                            className="h-4 w-4"
+                                            aria-hidden="true"
+                                        />
                                     </span>
                                     <div>
                                         <p className="text-xs font-bold text-upel-navy">
                                             {document.type_label}
                                         </p>
                                         <p className="mt-0.5 text-[0.68rem] text-muted-foreground">
-                                            {document.original_name ?? 'Archivo'} ·{' '}
-                                            {document.size}
+                                            {document.original_name ??
+                                                'Archivo'}{' '}
+                                            · {document.size}
                                             {document.uploaded_at
                                                 ? ` · ${document.uploaded_at}`
                                                 : ''}
@@ -228,8 +269,11 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
 
             {/* Historial */}
             <div className="rounded-2xl border border-border/80 bg-white p-6 shadow-sm">
-                <h3 className="font-display flex items-center gap-2 border-b border-border pb-4 text-base font-bold text-upel-navy">
-                    <History className="h-4 w-4 text-upel-blue" aria-hidden="true" />
+                <h3 className="flex items-center gap-2 border-b border-border pb-4 font-display text-base font-bold text-upel-navy">
+                    <History
+                        className="h-4 w-4 text-upel-blue"
+                        aria-hidden="true"
+                    />
                     Historial de la solicitud
                 </h3>
 

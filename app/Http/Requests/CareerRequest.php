@@ -26,7 +26,8 @@ class CareerRequest extends FormRequest
     {
         $description = trim((string) $this->input('description'));
 
-        $offerings = collect($this->input('offerings', []))
+        $offeringsInput = $this->input('offerings', []);
+        $offerings = collect(is_array($offeringsInput) ? $offeringsInput : [])
             ->filter(static fn (mixed $offering): bool => is_array($offering))
             ->map(static fn (array $offering): array => [
                 'modality' => trim((string) ($offering['modality'] ?? '')),
