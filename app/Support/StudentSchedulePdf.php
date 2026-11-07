@@ -64,7 +64,7 @@ final class StudentSchedulePdf
         $this->drawTable(159.0, $weeks, $subjects, true);
         $this->drawTable(335.0, $weeks, $distanceSubjects, false);
 
-        $this->textAt(52, 499, 'Horario Presencial '.implode(' ', $schedule['time_slots']), 7, true, self::BLACK);
+        $this->textAt(52, 499, 'Horario Presencial '.implode('   ', $schedule['time_slots']), 7, true, self::BLACK);
 
         if ($schedule['distance_schedule'] !== null) {
             $label = (string) $schedule['distance_schedule'].' ';

@@ -204,17 +204,17 @@ Si el correo existe pero pertenece a otro portal, se devuelve un mensaje especí
 
 Portal de una sola página con barra lateral y 9 módulos conmutables por pestaña:
 
-| Pestaña             | Componente                      | Funcionalidad                                                                                                                                                                                          |
-| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Inicio              | `modules/Inicio.tsx`            | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos.                                                                                         |
-| Mi solicitud        | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                         |
-| Mis materias        | `modules/MisMaterias.tsx`       | Inscripciones con período, profesor, créditos y estado.                                                                                                                                                |
-| Mis calificaciones  | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia.                                                                                                                                                      |
-| Mis profesores      | `modules/MisProfesores.tsx`     | Docentes de las materias inscritas con departamento y materias.                                                                                                                                        |
-| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE).                                                                                                  |
-| Mi horario          | `modules/MiHorario.tsx`         | Horario oficial de actividades presenciales (16 sábados) filtrado por el horario de preinscripción, con las dos cuadrículas del documento y descarga/impresión en PDF (`GET /estudiante/horario/pdf`). |
-| Mi perfil           | `modules/MiPerfil.tsx`          | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`).                                                                              |
-| Mis trámites        | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                   |
+| Pestaña             | Componente                      | Funcionalidad                                                                                                                                                                                                                                  |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inicio              | `modules/Inicio.tsx`            | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos.                                                                                                                                 |
+| Mi solicitud        | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                                                                 |
+| Mis materias        | `modules/MisMaterias.tsx`       | Inscripciones con período, profesor, créditos y estado.                                                                                                                                                                                        |
+| Mis calificaciones  | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia.                                                                                                                                                                                              |
+| Mis profesores      | `modules/MisProfesores.tsx`     | Docentes de las materias inscritas con departamento y materias.                                                                                                                                                                                |
+| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE).                                                                                                                                          |
+| Mi horario          | `modules/MiHorario.tsx`         | Horario oficial de actividades presenciales (plantilla de 16 sábados o rango dinámico publicado) filtrado por el horario de preinscripción, con las dos cuadrículas del documento y descarga/impresión en PDF (`GET /estudiante/horario/pdf`). |
+| Mi perfil           | `modules/MiPerfil.tsx`          | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`).                                                                                                                      |
+| Mis trámites        | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                                                           |
 
 - `Student\DashboardController` envía `admission` con la solicitud que originó la cuenta
   (datos, documentos e historial) y completa el perfil con esos datos cuando el
@@ -222,9 +222,11 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 - `App\Support\StudentSchedule` transcribe el horario oficial de Educación Primaria
   período 1 y lo filtra por el horario de estudio del estudiante; si la administración
-  publicó un horario para su carrera y período, ese tiene prioridad. `MiHorario` lo
-  muestra completo y `App\Support\StudentSchedulePdf` genera el PDF oficial para
-  imprimir o descargar (sin dependencias externas).
+  publicó un horario para su carrera y período, ese tiene prioridad. Los horarios con
+  rango de fechas se generan con `ScheduleCalendar` (columnas por sábado o por semana) y
+  conservan las fechas y horas exactas de cada materia. `MiHorario` lo muestra completo y
+  `App\Support\StudentSchedulePdf` genera el PDF oficial para imprimir o descargar (sin
+  dependencias externas).
 
 - La barra lateral (`components/student/Sidebar.tsx`) agrupa “Mi vida académica” y
   “Cuenta y Servicios”, e incluye cierre de sesión.
@@ -309,37 +311,47 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 **Controlador:** `App\Http\Controllers\AdminScheduleController`
 **Páginas:** `resources/js/pages/admin/schedules/index.tsx`, `form.tsx`, `show.tsx`
 
-- Tabla `schedules`: `career_id`, `period` (1–12) y `cohort` (`2025-II`), con índice
-  único por carrera + período + cohorte.
+- Tabla `schedules`: `career_id`, `period` (1–12), `cohort` (`2025-II`), `study_schedule`
+  (`sabatino` o `lunes_viernes`), `starts_on` y `ends_on`, con índice único por carrera +
+  período + cohorte.
 - Tabla `schedule_subjects`: `schedule_id`, `subject_id`, `professor_id` opcional,
-  `teacher_name` opcional y `position` (1–7), con unicidad por horario + posición y
-  horario + materia. La posición define qué patrón de horas de la plantilla usa la materia.
+  `teacher_name` opcional, `position` (1–7), `dates` (JSON con los días exactos de clase),
+  `starts_at` y `ends_at`, con unicidad por horario + posición y horario + materia.
 - El formulario elige la carrera con un `select` de las carreras activas, muestra los
-  períodos según su `duration_semesters` (I, II, III…) y pide la cohorte manualmente con
-  el formato `AAAA-I` o `AAAA-II`.
+  períodos según su `duration_semesters` (I, II, III…), pide la cohorte manualmente con
+  el formato `AAAA-I` o `AAAA-II` y deja elegir el tipo de horario.
+- El rango de clases se define con fecha de inicio y fecha de finalización. A partir de
+  esas fechas, `App\Support\ScheduleCalendar` genera:
+    - **Sabatino:** una columna por cada sábado del rango.
+    - **Lunes a viernes:** una columna por semana ISO; dentro de cada celda se muestran los
+      días seleccionados de esa semana y la hora de la materia.
+    - Los meses intermedios y la cantidad de fechas/semanas se resumen junto a los campos.
 - Cada fila de **Unidad / Eje Curricular** es un `select` con las materias activas de la
   carrera y el período elegidos. Una materia ya seleccionada desaparece de las demás filas
-  y el código (`EDPRI-002`, `EDPRI-007`, …) se completa automáticamente. La vista previa se
-  actualiza en vivo con el nombre, código y docente de la materia.
+  y el código (`EDPRI-002`, `EDPRI-007`, …) se completa automáticamente.
+- Cada materia elegida define su hora de inicio y fin libre (se muestran en formato de 12
+  horas, por ejemplo `8 am - 12 pm`) y marca sus fechas exactas en un calendario de chips
+  agrupado por mes, con acciones para seleccionar todas o limpiar. Cambiar el rango o el
+  tipo de horario limpia las fechas marcadas para evitar valores fuera de rango.
 - La vista previa arranca vacía y solo muestra las materias seleccionadas; no reutiliza
   los datos de la plantilla oficial como contenido de ejemplo.
 - Junto a cada materia hay un `select` de docente con los profesores asignados a esa
   materia (`professor_subjects`) y con los docentes de la plantilla oficial. El profesor
   del sistema se guarda en `professor_id`; el docente de plantilla, en `teacher_name`.
   Si no se elige ninguno, se usa el primero asignado o el docente de la franja oficial.
-- Las materias con modalidad `online` se publican como **Virtual** en ambas cuadrículas,
-  sin importar la franja de la plantilla que ocupen. Las materias presenciales o mixtas
-  nunca heredan el texto `Virtual` de la franja de TIC I: esas celdas quedan vacías.
-- La vista previa y el horario publicado reutilizan la plantilla oficial de Educación
-  Primaria (16 sábados, dos cuadrículas y leyenda). El encabezado cambia a la carrera,
-  período y cohorte seleccionados; el PDF se genera con `StudentSchedulePdf`.
-- `ScheduleRequest` valida el formato de la cohorte, la unicidad, que el período exista
-  dentro de la duración de la carrera, que haya al menos una materia, que no se repitan
-  materias ni posiciones, que cada materia pertenezca a la carrera y al período, que el
-  profesor del sistema esté asignado a esa materia y que el docente de plantilla
-  pertenezca a la plantilla oficial del horario.
-- Los horarios publicados antes de existir `schedule_subjects` siguen mostrando las 7
-  materias de la plantilla como respaldo.
+- Las materias con modalidad `online` se publican como **Virtual** únicamente en sus
+  fechas seleccionadas, en ambas cuadrículas. Las materias presenciales o mixtas muestran
+  su hora solo en las fechas marcadas y nunca heredan el texto `Virtual`.
+- La vista previa y el horario publicado conservan el formato oficial (meses, números de
+  semana, fechas, dos cuadrículas y leyenda de franjas). `pdf_hours` genera etiquetas
+  compactas (`8-12`, `LM 8-12`, `L-V 8-12`) para que las celdas del PDF no se desborden;
+  `StudentSchedulePdf` reduce el tamaño de fuente cuando la etiqueta no cabe.
+- `ScheduleRequest` valida el tipo de horario, el rango de fechas, que el fin sea posterior
+  al inicio, que cada fecha pertenezca al rango y al tipo de horario, que las horas tengan
+  formato `HH:MM` y que el fin sea posterior al inicio; además conserva las validaciones
+  de cohorte, período, materias, posiciones y docentes.
+- Los horarios publicados antes de este módulo (sin `starts_on`, `ends_on` ni fechas por
+  materia) siguen mostrando las 16 semanas de la plantilla oficial como respaldo.
 - `App\Support\StudentSchedule::forStudent()` prioriza el horario publicado por la
   administración para la carrera y el período del estudiante; si no existe, usa el
   catálogo transcrito como respaldo.

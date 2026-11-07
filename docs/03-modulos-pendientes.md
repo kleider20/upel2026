@@ -62,12 +62,13 @@ La administración ya publica horarios por carrera, período y cohorte desde
 elige las materias de la carrera y el período, evita repetirlas y toma el código y el
 docente de cada una. El portal del estudiante prioriza el horario publicado sobre el
 catálogo transcrito.
+La administración también define el rango de clases (fecha de inicio y fin), el tipo de
+horario (sabatino o lunes a viernes), la hora libre de cada materia y sus fechas exactas
+con `App\Support\ScheduleCalendar`; la cuadrícula y el PDF se generan desde ese rango.
 **Falta:**
 
-- Asignación manual de día, hora y aula por materia y período desde la administración;
-  hoy la franja la define la posición en la plantilla y el docente se elige entre los
-  asignados a la materia.
-- Validación de choques de horario.
+- Asignación de aula por materia y período desde la administración.
+- Validación de choques de horario (materias, docentes o aulas solapadas).
 - Vista de horario para profesores.
 - Exportación a calendario.
 

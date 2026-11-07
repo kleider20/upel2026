@@ -187,27 +187,27 @@ fechas. En desarrollo se puede forzar la apertura con `ADMISSIONS_FORCE_OPEN=tru
 
 ## 8. Modelo de datos
 
-| Tabla                                     | Propósito                                                                          |
-| ----------------------------------------- | ---------------------------------------------------------------------------------- |
-| `users`                                   | Cuentas de todos los portales (`must_change_password` marca la contraseña inicial) |
-| `careers`                                 | Oferta de pregrado (14 registros sembrados)                                        |
-| `academic_periods`                        | Períodos lectivos (`2025-II`, `2026-I`, `2026-II`, …)                              |
-| `subjects`                                | Unidades curriculares por carrera y semestre (155 registros)                       |
-| `schedules`                               | Horarios oficiales por carrera, período y cohorte                                  |
-| `schedule_subjects`                       | Materias y docente elegidos para cada franja de un horario (`position`)            |
-| `student_profiles`                        | Datos académicos del estudiante/graduado                                           |
-| `professor_profiles`                      | Código, departamento y título del docente                                          |
-| `professor_subjects`                      | Asignación docente ↔ materia                                                       |
-| `enrollments`                             | Inscripción, nota final y estado (`cursando`, `aprobado`, `reprobado`)             |
-| `programs`                                | Especializaciones, maestrías, doctorados, cursos y talleres (9 registros)          |
-| `payments`                                | Pagos y mensualidades (8 registros)                                                |
-| `admissions`                              | Solicitudes de preinscripción, estado, revisión y conversión                       |
-| `career_offerings`                        | Modalidad, horario y turno ofrecidos por cada carrera                              |
-| `high_schools`                            | Catálogo de planteles de bachillerato (15 registros sembrados)                     |
-| `admission_documents`                     | Expediente de documentos por aspirante y su revisión                               |
-| `admission_status_histories`              | Historial de cambios de estado de cada solicitud                                   |
-| `newsletter_subscribers`                  | Suscripciones del sitio público                                                    |
-| `roles`, `permissions`, `model_has_roles` | Spatie                                                                             |
+| Tabla                                     | Propósito                                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| `users`                                   | Cuentas de todos los portales (`must_change_password` marca la contraseña inicial)   |
+| `careers`                                 | Oferta de pregrado (14 registros sembrados)                                          |
+| `academic_periods`                        | Períodos lectivos (`2025-II`, `2026-I`, `2026-II`, …)                                |
+| `subjects`                                | Unidades curriculares por carrera y semestre (155 registros)                         |
+| `schedules`                               | Horarios por carrera, período, cohorte, tipo y rango de clases                       |
+| `schedule_subjects`                       | Materia, docente, fechas y hora elegidos para cada franja de un horario (`position`) |
+| `student_profiles`                        | Datos académicos del estudiante/graduado                                             |
+| `professor_profiles`                      | Código, departamento y título del docente                                            |
+| `professor_subjects`                      | Asignación docente ↔ materia                                                         |
+| `enrollments`                             | Inscripción, nota final y estado (`cursando`, `aprobado`, `reprobado`)               |
+| `programs`                                | Especializaciones, maestrías, doctorados, cursos y talleres (9 registros)            |
+| `payments`                                | Pagos y mensualidades (8 registros)                                                  |
+| `admissions`                              | Solicitudes de preinscripción, estado, revisión y conversión                         |
+| `career_offerings`                        | Modalidad, horario y turno ofrecidos por cada carrera                                |
+| `high_schools`                            | Catálogo de planteles de bachillerato (15 registros sembrados)                       |
+| `admission_documents`                     | Expediente de documentos por aspirante y su revisión                                 |
+| `admission_status_histories`              | Historial de cambios de estado de cada solicitud                                     |
+| `newsletter_subscribers`                  | Suscripciones del sitio público                                                      |
+| `roles`, `permissions`, `model_has_roles` | Spatie                                                                               |
 
 ### Regla de calificación
 

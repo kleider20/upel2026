@@ -127,7 +127,11 @@ export default function AdminScheduleForm({
         career_id: '',
         period: '1',
         cohort: '',
-        study_schedule: scheduleTypes[0]?.value ?? 'sabatino',
+        study_schedule: scheduleTypes.some(
+            (option) => option.value === 'sabatino',
+        )
+            ? 'sabatino'
+            : (scheduleTypes[0]?.value ?? 'sabatino'),
         starts_on: '',
         ends_on: '',
         subjects: template.subjects.map((_subject, index) => ({
@@ -288,10 +292,16 @@ export default function AdminScheduleForm({
 
         const slots = timeSlotLabels(
             form.data.subjects
-                .filter(
-                    (choice) =>
-                        choice.subject_id !== '' && choice.dates.length > 0,
-                )
+                .filter((choice) => {
+                    if (choice.subject_id === '' || choice.dates.length === 0) {
+                        return false;
+                    }
+
+                    return (
+                        subjectById.get(Number(choice.subject_id))?.modality !==
+                        'online'
+                    );
+                })
                 .map((choice) => ({
                     starts_at: choice.starts_at,
                     ends_at: choice.ends_at,
@@ -318,6 +328,7 @@ export default function AdminScheduleForm({
         previewSubjects,
         scheduleTypeLabel,
         selectedCareer,
+        subjectById,
         template,
         weeks,
     ]);
@@ -1054,6 +1065,14 @@ export default function AdminScheduleForm({
                                                                         inputClass
                                                                     }
                                                                 >
+                                                                    {teacherValue ===
+                                                                    '' ? (
+                                                                        <option value="">
+                                                                            Selecciona
+                                                                            una
+                                                                            materia
+                                                                        </option>
+                                                                    ) : null}
                                                                     {professors.length >
                                                                     0 ? (
                                                                         <optgroup label="Docentes asignados a la materia">

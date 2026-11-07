@@ -495,8 +495,8 @@ final class StudentSchedule
             'subjects' => $subjects,
             'distance_subjects' => $distanceSubjects,
             'time_slots' => array_values(self::TIME_SLOTS),
-            'distance_schedule' => $definition['distance_schedule'],
-            'distance_time' => $definition['distance_time'],
+            'distance_schedule' => $definition['distance_schedule'] ?? null,
+            'distance_time' => $definition['distance_time'] ?? null,
         ];
     }
 }

@@ -147,6 +147,7 @@ test('academic managers can create a schedule with the official template', funct
     $professor = User::factory()->create(['name' => 'Ana Pérez']);
     $subjects = Subject::factory()->count(2)->for($career)->create([
         'semester' => 1,
+        'modality' => 'presencial',
     ]);
     $subjects->first()->professors()->attach($professor);
 
