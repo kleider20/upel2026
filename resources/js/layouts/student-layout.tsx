@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePoll } from '@inertiajs/react';
 import { Sidebar, type StudentTab } from '@/components/student/Sidebar';
 import { Topbar } from '@/components/student/Topbar';
 import { FlashMessages } from '@/components/flash-messages';
@@ -15,6 +16,8 @@ export default function StudentLayout({
     children,
 }: StudentLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    usePoll(30_000, { only: ['studentNotifications'] });
 
     return (
         <div className="min-h-screen bg-upel-cloud dark:bg-background print:bg-white">

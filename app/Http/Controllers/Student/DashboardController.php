@@ -130,6 +130,7 @@ class DashboardController extends Controller
             $profile?->career?->code,
             $profile !== null ? $profile->current_semester : 1,
             $admission?->schedule,
+            $admission?->modality,
         );
 
         // Trámites de ejemplo del estudiante

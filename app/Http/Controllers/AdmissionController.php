@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Enums\AdmissionDocumentType;
 use App\Enums\AdmissionStatus;
+use App\Http\Requests\CheckAdmissionIdentityRequest;
 use App\Http\Requests\StoreAdmissionDocumentRequest;
 use App\Http\Requests\StoreAdmissionRequest;
 use App\Mail\AdmissionReceived;
 use App\Models\Admission;
 use App\Models\AdmissionDocument;
+use App\Models\AdmissionStatusHistory;
 use App\Models\Career;
 use App\Models\CareerOffering;
 use App\Models\HighSchool;
 use App\Support\AdmissionWindow;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 
 class AdmissionController extends Controller
 {
@@ -81,6 +85,20 @@ class AdmissionController extends Controller
     }
 
     /**
+     * Comprueba que la cédula y el correo estén disponibles antes de avanzar el formulario.
+     */
+    public function checkIdentity(CheckAdmissionIdentityRequest $request): JsonResponse
+    {
+        abort_unless(
+            $this->window->isOpen(),
+            403,
+            'La preinscripción todavía no está abierta.',
+        );
+
+        return response()->json([], 200);
+    }
+
+    /**
      * Registra la solicitud y envía el correo de confirmación.
      */
     public function store(StoreAdmissionRequest $request): RedirectResponse
@@ -106,6 +124,12 @@ class AdmissionController extends Controller
                 'status' => AdmissionStatus::Recibida->value,
                 'submitted_at' => now(),
             ]);
+
+            $disk = Storage::disk((string) config('admissions.documents.disk'));
+
+            if (! $disk->makeDirectory($admission->documentsDirectoryPath())) {
+                throw new RuntimeException('No se pudo crear la carpeta privada del expediente de admisión.');
+            }
 
             $admission->statusHistories()->create([
                 'from_status' => null,
@@ -158,15 +182,15 @@ class AdmissionController extends Controller
         abort_if($file === null, 422, 'No se recibió ningún archivo.');
 
         $path = $file->store(
-            config('admissions.documents.path').'/'.$admission->code,
+            $admission->documentsDirectoryPath().'/'.$type->value,
             $disk,
         );
 
-        $existing = $admission->documents()->where('type', $type->value)->first();
-
-        if ($existing !== null) {
-            Storage::disk($disk)->delete($existing->path);
+        if (! is_string($path)) {
+            throw new RuntimeException('No se pudo guardar el documento en el almacenamiento privado.');
         }
+
+        $existing = $admission->documents()->where('type', $type->value)->first();
 
         $admission->documents()->updateOrCreate(
             ['type' => $type->value],
@@ -181,6 +205,10 @@ class AdmissionController extends Controller
                 'reviewed_at' => null,
             ],
         );
+
+        if ($existing !== null && $existing->path !== $path) {
+            Storage::disk($disk)->delete($existing->path);
+        }
 
         return back()->with('success', 'Documento cargado correctamente. Queda pendiente de revisión.');
     }
@@ -251,7 +279,7 @@ class AdmissionController extends Controller
                     'original_name' => $document->original_name,
                     'size' => $document->humanSize(),
                     'notes' => $document->notes,
-                    'uploaded_at' => $document->created_at?->format('d/m/Y'),
+                    'uploaded_at' => $document->updated_at?->format('d/m/Y'),
                     'delete_url' => URL::temporarySignedRoute(
                         'admissions.documents.destroy',
                         now()->addDays($trackingDays),
@@ -260,15 +288,21 @@ class AdmissionController extends Controller
                 ],
             )->values(),
             'history' => $admission->statusHistories->map(
-                static fn ($history): array => [
-                    'id' => $history->id,
-                    'from' => $history->fromLabel(),
-                    'to' => $history->toLabel(),
-                    'tone' => $history->toTone(),
-                    'note' => $history->note,
-                    'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
-                    'date' => $history->created_at?->format('d/m/Y h:i A'),
-                ],
+                static function (AdmissionStatusHistory $history): array {
+                    $isDocumentReview = $history->from_status === $history->to_status
+                        && $history->note !== null;
+
+                    return [
+                        'id' => $history->id,
+                        'from' => $history->fromLabel(),
+                        'to' => $history->toLabel(),
+                        'title' => $isDocumentReview ? $history->note : $history->toLabel(),
+                        'tone' => $history->toTone(),
+                        'note' => $isDocumentReview ? null : $history->note,
+                        'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
+                        'date' => $history->created_at?->format('d/m/Y h:i A'),
+                    ];
+                },
             )->values(),
             'upload_url' => URL::temporarySignedRoute(
                 'admissions.documents.store',

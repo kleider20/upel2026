@@ -13,18 +13,21 @@ parcial. Se ordenan por prioridad sugerida.
 
 **Estado:** parcial. **Carreras** y **materias** ya tienen CRUD completo con validación
 (`CareerRequest`, `SubjectRequest`), búsqueda, paginación y pruebas
-(`AdminCareerTest`, `AdminSubjectTest`). Los demás módulos de `AdminModuleController`
-siguen en solo lectura.
+(`AdminCareerTest`, `AdminSubjectTest`). **Profesores** ya permite crear y editar cuentas
+y perfiles, asignar varias materias y ofrecer esos docentes en los horarios. **Estudiantes**
+ya tiene perfil, edición y eliminación permanente exclusivos del administrador; falta el
+alta desde el panel. Programas y usuarios siguen en solo lectura.
 **Falta:**
 
-- Formularios de alta, edición y baja para estudiantes, profesores, programas y usuarios.
+- Alta de estudiantes y baja de profesores.
+- Formularios de alta, edición y baja para programas y usuarios.
 - Validaciones con `FormRequest`.
 - Eliminación lógica o restricción por integridad referencial.
 - Historial de cambios y confirmación de acciones destructivas.
 - Extender paginación, búsqueda y filtros del lado del servidor al resto de módulos.
 
-Los permisos `*.manage` ya existen; los consume el CRUD de carreras, materias y el flujo
-de **admisiones** (`AdminAdmissionController`).
+Los permisos `*.manage` ya existen; los consumen los flujos de carreras, materias, profesores
+y **admisiones** (`AdminAdmissionController`).
 
 ### 3. Gestión financiera operativa
 
@@ -57,11 +60,12 @@ período 1 (`App\Support\StudentSchedule`), con sus 16 semanas y las dos cuadrí
 del documento, filtrado por el horario elegido en la preinscripción (sabatino →
 sábados). `GET /estudiante/horario/pdf` genera el PDF oficial
 (`App\Support\StudentSchedulePdf`) para imprimir o descargar.
-La administración ya publica horarios por carrera, período y cohorte desde
-`/admin/schedules` (tablas `schedules` y `schedule_subjects`, vista previa y PDF):
-elige las materias de la carrera y el período, evita repetirlas y toma el código y el
-docente de cada una. El portal del estudiante prioriza el horario publicado sobre el
-catálogo transcrito.
+La administración publica horarios por carrera, período, cohorte, modalidad y tipo de
+horario desde `/admin/schedules` (tablas `schedules` y `schedule_subjects`, vista previa
+y PDF): elige las materias de la carrera y el período, evita repetirlas y toma el código
+y el docente de cada una. El portal muestra al estudiante solo la combinación
+correspondiente a su perfil y genera una notificación en la campana al publicar o
+actualizar ese horario.
 La administración también define el rango de clases (fecha de inicio y fin), el tipo de
 horario (sabatino o lunes a viernes), la hora libre de cada materia y sus fechas exactas
 con `App\Support\ScheduleCalendar`; la cuadrícula y el PDF se generan desde ese rango.
@@ -99,12 +103,14 @@ con `App\Support\ScheduleCalendar`; la cuadrícula y el PDF se generan desde ese
 ### 8. Notificaciones y correo transaccional
 
 **Estado:** parcial. Las admisiones ya envían `AdmissionReceived`, `AdmissionStatusChanged`
-(que cubre la preinscripción aprobada) y `AdmissionConverted`, todos en cola.
+(que cubre la preinscripción aprobada) y `AdmissionConverted`, todos en cola. El portal
+estudiantil ya tiene una campana para el evento de horarios descrito en el módulo
+pendiente n.º 5.
 **Falta:**
 
 - Plantillas institucionales para el resto de eventos (bienvenida, notas publicadas, pago
   recibido, trámite listo).
-- Notificaciones dentro de la aplicación (campana y centro de avisos).
+- Ampliar el centro de avisos a otros eventos.
 - Preferencias de notificación por usuario.
 - Cola de trabajos dedicada para envíos masivos.
 

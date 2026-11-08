@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Eye, Filter, Inbox, Search, X } from 'lucide-react';
+import {
+    ArrowLeft,
+    Eye,
+    Filter,
+    Inbox,
+    Pencil,
+    Search,
+    Trash2,
+    X,
+} from 'lucide-react';
 import { EmptyState } from '@/components/portal/empty-state';
 import { PageHeader } from '@/components/portal/page-header';
 import {
@@ -27,6 +36,10 @@ type AdmissionRow = {
     status_tone: string;
     submitted_at: string | null;
     url: string;
+    edit_url: string;
+    delete_url: string;
+    can_edit: boolean;
+    can_delete: boolean;
 };
 
 type Stat = {
@@ -100,6 +113,18 @@ export default function AdminAdmissionsIndex({
         setSearch('');
         setStatus('');
         applyFilters('', '');
+    };
+
+    const deleteAdmission = (row: AdmissionRow) => {
+        if (
+            !window.confirm(
+                `¿Eliminar la solicitud ${row.code} de ${row.applicant}? También se borrarán sus documentos privados.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(row.delete_url, { preserveScroll: true });
     };
 
     const hasFilters = search.trim() !== '' || status !== '';
@@ -335,16 +360,47 @@ export default function AdminAdmissionsIndex({
                                                 {row.submitted_at ?? '—'}
                                             </td>
                                             <td className="px-5 py-3.5 align-middle">
-                                                <Link
-                                                    href={row.url}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.65rem] font-bold text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
-                                                >
-                                                    <Eye
-                                                        className="size-3.5"
-                                                        aria-hidden="true"
-                                                    />
-                                                    Ver
-                                                </Link>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Link
+                                                        href={row.url}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.65rem] font-bold text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                                    >
+                                                        <Eye
+                                                            className="size-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                        Ver
+                                                    </Link>
+                                                    {row.can_edit ? (
+                                                        <Link
+                                                            href={row.edit_url}
+                                                            aria-label={`Editar solicitud ${row.code}`}
+                                                            className="inline-flex items-center justify-center rounded-lg border border-border p-2 text-upel-blue transition-colors hover:bg-upel-cloud dark:hover:bg-muted"
+                                                        >
+                                                            <Pencil
+                                                                className="size-3.5"
+                                                                aria-hidden="true"
+                                                            />
+                                                        </Link>
+                                                    ) : null}
+                                                    {row.can_delete ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                deleteAdmission(
+                                                                    row,
+                                                                )
+                                                            }
+                                                            aria-label={`Eliminar solicitud ${row.code}`}
+                                                            className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-700 transition-colors hover:bg-red-50"
+                                                        >
+                                                            <Trash2
+                                                                className="size-3.5"
+                                                                aria-hidden="true"
+                                                            />
+                                                        </button>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}

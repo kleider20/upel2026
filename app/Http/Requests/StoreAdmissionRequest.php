@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Career;
 use App\Models\CareerOffering;
 use App\Support\AcademicOptions;
+use App\Support\AdmissionIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -62,7 +63,14 @@ class StoreAdmissionRequest extends FormRequest
                 'before_or_equal:'.now()->subYears(15)->toDateString(),
             ],
             'gender' => ['nullable', Rule::in(['masculino', 'femenino', 'otro', 'prefiero_no_decir'])],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email'),
+                Rule::unique('admissions', 'email')
+                    ->where(fn ($query) => $query->where('period_year', $periodYear)),
+            ],
             'phone' => ['required', 'string', 'regex:/^[0-9+()\-\s]{7,30}$/'],
             'address' => ['nullable', 'string', 'max:500'],
 
@@ -85,6 +93,19 @@ class StoreAdmissionRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $idNumber = (string) $this->input('id_number');
+                $email = (string) $this->input('email');
+
+                $duplicateErrors = AdmissionIdentity::duplicateErrors(
+                    $validator->errors()->has('id_number') ? null : $idNumber,
+                    $validator->errors()->has('email') ? null : $email,
+                );
+
+                foreach ($duplicateErrors as $field => $message) {
+                    $validator->errors()->add($field, $message);
+                }
+            },
             function (Validator $validator): void {
                 if ($validator->errors()->has('career_id')) {
                     return;
@@ -167,12 +188,12 @@ class StoreAdmissionRequest extends FormRequest
             'nationality.required' => 'Selecciona la nacionalidad de tu cédula.',
             'id_number.required' => 'Indica tu número de cédula.',
             'id_number.regex' => 'La cédula debe contener entre 5 y 9 dígitos.',
-            'id_number.unique' => 'Ya existe una solicitud con esta cédula para esta convocatoria.',
+            'id_number.unique' => 'Ya existe una solicitud o un estudiante registrado con esta cédula.',
             'birth_date.required' => 'Indica tu fecha de nacimiento.',
             'birth_date.before_or_equal' => 'Debes tener al menos 15 años para preinscribirte.',
             'email.required' => 'Indica un correo electrónico.',
             'email.email' => 'El correo electrónico no es válido.',
-            'email.unique' => 'Ya existe una cuenta asociada a este correo. Inicia sesión o usa otro correo.',
+            'email.unique' => 'Ya existe una cuenta o solicitud asociada a este correo.',
             'phone.required' => 'Indica un teléfono de contacto.',
             'phone.regex' => 'El teléfono solo puede contener números, espacios, guiones y paréntesis.',
             'career_id.required' => 'Selecciona la carrera de tu interés.',

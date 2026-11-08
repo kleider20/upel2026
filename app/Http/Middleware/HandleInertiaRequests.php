@@ -60,6 +60,22 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn (): ?string => $request->session()->get('success'),
                 'error' => fn (): ?string => $request->session()->get('error'),
             ],
+            'studentNotifications' => fn (): array => $user?->isStudent()
+                ? [
+                    'unread_count' => $user->unreadNotifications()->count(),
+                    'items' => $user->notifications()
+                        ->latest()
+                        ->limit(8)
+                        ->get()
+                        ->map(static fn ($notification): array => [
+                            'id' => $notification->id,
+                            'title' => data_get($notification->data, 'title', 'Notificación'),
+                            'message' => data_get($notification->data, 'message', ''),
+                            'is_read' => $notification->read_at !== null,
+                        ])
+                        ->all(),
+                ]
+                : ['unread_count' => 0, 'items' => []],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -87,6 +88,16 @@ class StudentProfile extends Model
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class, 'student_id', 'user_id');
+    }
+
+    /**
+     * Solicitud de admisión que originó este perfil y su expediente documental.
+     *
+     * @return HasOne<Admission, $this>
+     */
+    public function admission(): HasOne
+    {
+        return $this->hasOne(Admission::class, 'converted_user_id', 'user_id');
     }
 
     /**

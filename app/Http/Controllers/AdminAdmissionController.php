@@ -8,13 +8,17 @@ use App\Enums\AdmissionStatus;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Http\Requests\ReviewAdmissionDocumentRequest;
+use App\Http\Requests\UpdateAdmissionRequest;
 use App\Http\Requests\UpdateAdmissionStatusRequest;
 use App\Mail\AdmissionConverted;
 use App\Mail\AdmissionStatusChanged;
 use App\Models\Admission;
 use App\Models\AdmissionDocument;
+use App\Models\Career;
+use App\Models\CareerOffering;
 use App\Models\StudentProfile;
 use App\Models\User;
+use App\Support\AcademicOptions;
 use App\Support\StudentCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +27,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminAdmissionController extends Controller
@@ -41,6 +46,7 @@ class AdminAdmissionController extends Controller
         $search = trim($search) !== '' ? $search : null;
 
         $admissions = Admission::query()
+            ->notConverted()
             ->with('career')
             ->ofStatus($status)
             ->search($search)
@@ -48,7 +54,7 @@ class AdminAdmissionController extends Controller
             ->orderByDesc('id')
             ->paginate(12)
             ->withQueryString()
-            ->through(static fn (Admission $admission): array => [
+            ->through(fn (Admission $admission): array => [
                 'id' => $admission->id,
                 'code' => $admission->code,
                 'applicant' => $admission->fullName(),
@@ -62,6 +68,12 @@ class AdminAdmissionController extends Controller
                 'status_tone' => $admission->statusTone(),
                 'submitted_at' => $admission->created_at?->format('d/m/Y'),
                 'url' => route('admin.admissions.show', ['admission' => $admission->code]),
+                'edit_url' => route('admin.admissions.edit', ['admission' => $admission->code]),
+                'delete_url' => route('admin.admissions.destroy', ['admission' => $admission->code]),
+                'can_edit' => $admission->converted_user_id === null
+                    && ($request->user()?->can(Permission::AdmissionsEdit->value) ?? false),
+                'can_delete' => $admission->converted_user_id === null
+                    && ($request->user()?->can(Permission::AdmissionsDelete->value) ?? false),
             ]);
 
         return Inertia::render('admin/admissions/index', [
@@ -75,13 +87,21 @@ class AdminAdmissionController extends Controller
                     'value' => $status->value,
                     'label' => $status->label(),
                 ],
-                AdmissionStatus::cases(),
+                array_values(array_filter(
+                    AdmissionStatus::cases(),
+                    static fn (AdmissionStatus $status): bool => $status !== AdmissionStatus::Convertida,
+                )),
             ),
             'stats' => [
-                ['label' => 'Solicitudes', 'value' => (string) Admission::query()->count(), 'tone' => 'blue'],
+                [
+                    'label' => 'Solicitudes',
+                    'value' => (string) Admission::query()->notConverted()->count(),
+                    'tone' => 'blue',
+                ],
                 [
                     'label' => 'Por revisar',
                     'value' => (string) Admission::query()
+                        ->notConverted()
                         ->whereIn('status', [
                             AdmissionStatus::Recibida->value,
                             AdmissionStatus::EnRevision->value,
@@ -92,16 +112,15 @@ class AdminAdmissionController extends Controller
                 [
                     'label' => 'Aprobadas',
                     'value' => (string) Admission::query()
-                        ->whereIn('status', [
-                            AdmissionStatus::Aprobada->value,
-                            AdmissionStatus::Convertida->value,
-                        ])
+                        ->notConverted()
+                        ->where('status', AdmissionStatus::Aprobada->value)
                         ->count(),
                     'tone' => 'green',
                 ],
                 [
                     'label' => 'Observadas',
                     'value' => (string) Admission::query()
+                        ->notConverted()
                         ->where('status', AdmissionStatus::Observada->value)
                         ->count(),
                     'tone' => 'gold',
@@ -113,7 +132,7 @@ class AdminAdmissionController extends Controller
     /**
      * Expediente completo de una solicitud.
      */
-    public function show(Request $request, Admission $admission): Response
+    public function show(Request $request, Admission $admission): Response|RedirectResponse
     {
         $this->authorizeView($request);
 
@@ -126,8 +145,23 @@ class AdminAdmissionController extends Controller
             'convertedUser',
         ]);
 
+        if ($admission->statusEnum() === AdmissionStatus::Convertida) {
+            abort_unless(
+                $request->user()?->hasRole(Role::Admin->value),
+                403,
+                'Solo el administrador puede consultar el perfil del estudiante.',
+            );
+
+            $studentCode = $admission->convertedUser?->studentProfile?->student_code;
+            abort_unless($studentCode !== null, 404);
+
+            return redirect()->route('admin.students.show', ['student' => $studentCode]);
+        }
+
         return Inertia::render('admin/admissions/show', [
             'admission' => $this->present($admission),
+            'can_edit' => $request->user()?->can(Permission::AdmissionsEdit->value) ?? false,
+            'can_delete' => $request->user()?->can(Permission::AdmissionsDelete->value) ?? false,
             'transitions' => array_map(
                 static fn (AdmissionStatus $status): array => [
                     'value' => $status->value,
@@ -143,6 +177,107 @@ class AdminAdmissionController extends Controller
                 ['value' => AdmissionDocumentStatus::Rechazado->value, 'label' => AdmissionDocumentStatus::Rechazado->label()],
             ],
         ]);
+    }
+
+    /**
+     * Muestra el formulario para corregir datos de una solicitud no convertida.
+     */
+    public function edit(Request $request, Admission $admission): Response
+    {
+        abort_unless($request->user()?->can(Permission::AdmissionsEdit->value), 403);
+        abort_if($admission->converted_user_id !== null, 403, 'No se puede editar una solicitud convertida.');
+
+        return Inertia::render('admin/admissions/edit', [
+            'update_url' => route('admin.admissions.update', ['admission' => $admission->code]),
+            'show_url' => route('admin.admissions.show', ['admission' => $admission->code]),
+            'admission' => [
+                'code' => $admission->code,
+                'first_name' => $admission->first_name,
+                'last_name' => $admission->last_name,
+                'nationality' => $admission->nationality,
+                'id_number' => $admission->id_number,
+                'birth_date' => $admission->birth_date->format('Y-m-d'),
+                'gender' => $admission->gender ?? '',
+                'email' => $admission->email,
+                'phone' => $admission->phone,
+                'address' => $admission->address ?? '',
+                'career_id' => (int) $admission->career_id,
+                'modality' => $admission->modality,
+                'schedule' => $admission->schedule ?? 'lunes_viernes',
+                'shift' => $admission->shift ?? 'diurno',
+                'high_school' => $admission->high_school,
+                'high_school_year' => $admission->high_school_year,
+                'high_school_average' => (float) $admission->high_school_average,
+                'has_documents' => $admission->documents()->exists(),
+            ],
+            'careers' => Career::query()
+                ->with('offerings')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Career $career): array => [
+                    'id' => $career->id,
+                    'name' => $career->name,
+                    'offerings' => $career->offerings
+                        ->filter(fn (CareerOffering $offering): bool => $offering->is_active
+                            || ($career->id === $admission->career_id
+                                && $offering->modality === $admission->modality
+                                && $offering->schedule === $admission->schedule
+                                && $offering->shift === $admission->shift))
+                        ->unique(static fn (CareerOffering $offering): string => $offering->modality.'|'.$offering->schedule.'|'.$offering->shift)
+                        ->map(static fn (CareerOffering $offering): array => [
+                            'modality' => $offering->modality,
+                            'schedule' => $offering->schedule,
+                            'shift' => $offering->shift,
+                        ])
+                        ->values(),
+                ])
+                ->values(),
+            'modalities' => AcademicOptions::modalityOptions(),
+            'schedules' => AcademicOptions::scheduleOptions(),
+            'shifts' => AcademicOptions::shiftOptions(),
+            'genders' => [
+                ['value' => 'masculino', 'label' => 'Masculino'],
+                ['value' => 'femenino', 'label' => 'Femenino'],
+                ['value' => 'otro', 'label' => 'Otro'],
+                ['value' => 'prefiero_no_decir', 'label' => 'Prefiero no decir'],
+            ],
+        ]);
+    }
+
+    /**
+     * Actualiza los datos de una solicitud sin modificar su estado ni documentos.
+     */
+    public function update(UpdateAdmissionRequest $request, Admission $admission): RedirectResponse
+    {
+        $validated = $request->validated();
+        $admission->update($validated);
+
+        return redirect()
+            ->route('admin.admissions.show', ['admission' => $admission->code])
+            ->with('success', 'Los datos de la solicitud fueron actualizados correctamente.');
+    }
+
+    /**
+     * Elimina una solicitud no convertida y sus documentos privados.
+     */
+    public function destroy(Request $request, Admission $admission): RedirectResponse
+    {
+        abort_unless($request->user()?->can(Permission::AdmissionsDelete->value), 403);
+        abort_if($admission->converted_user_id !== null, 403, 'No se puede eliminar una solicitud convertida.');
+
+        $disk = Storage::disk((string) config('admissions.documents.disk'));
+
+        foreach ($admission->documents as $document) {
+            if ($disk->exists($document->path) && ! $disk->delete($document->path)) {
+                throw new RuntimeException('No se pudo eliminar el documento privado '.$document->original_name.'.');
+            }
+        }
+
+        $admission->delete();
+
+        return redirect()
+            ->route('admin.admissions.index')
+            ->with('success', 'La solicitud y sus documentos fueron eliminados correctamente.');
     }
 
     /**
@@ -203,10 +338,17 @@ class AdminAdmissionController extends Controller
         }
 
         $user = DB::transaction(function () use ($admission, $codes): User {
+            $disk = Storage::disk((string) config('admissions.documents.disk'));
+
+            if (! $disk->makeDirectory($admission->documentsDirectoryPath())) {
+                throw new RuntimeException('No se pudo crear la carpeta privada del expediente estudiantil.');
+            }
+
             $user = User::query()->create([
                 'name' => $admission->fullName(),
                 'email' => $admission->email,
-                'password' => $admission->id_number,                'must_change_password' => true,
+                'password' => $admission->id_number,
+                'must_change_password' => true,
             ]);
 
             $user->markEmailAsVerified();
@@ -305,12 +447,25 @@ class AdminAdmissionController extends Controller
         $status = AdmissionDocumentStatus::from($request->string('status')->toString());
         $notes = $request->string('notes')->trim()->toString();
 
-        $document->update([
-            'status' => $status->value,
-            'notes' => $notes !== '' ? $notes : null,
-            'reviewed_by' => $request->user()?->id,
-            'reviewed_at' => now(),
-        ]);
+        DB::transaction(function () use ($admission, $document, $request, $status, $notes): void {
+            $document->update([
+                'status' => $status->value,
+                'notes' => $notes !== '' ? $notes : null,
+                'reviewed_by' => $request->user()?->id,
+                'reviewed_at' => now(),
+            ]);
+
+            $documentReviewNote = $status === AdmissionDocumentStatus::Validado
+                ? 'Se ha validado tu '.$document->typeLabel().'.'
+                : 'Se ha rechazado tu '.$document->typeLabel().'. Debes cargarlo nuevamente. Motivo: '.$notes;
+
+            $admission->statusHistories()->create([
+                'from_status' => $admission->status,
+                'to_status' => $admission->status,
+                'note' => $documentReviewNote,
+                'changed_by' => $request->user()?->id,
+            ]);
+        });
 
         return back()->with(
             'success',
@@ -377,6 +532,8 @@ class AdminAdmissionController extends Controller
             'can_convert' => $admission->canBeConverted(),
             'converted_user' => $admission->convertedUser?->name,
             'converted_at' => $admission->converted_at?->format('d/m/Y h:i A'),
+            'edit_url' => route('admin.admissions.edit', ['admission' => $admission->code]),
+            'delete_url' => route('admin.admissions.destroy', ['admission' => $admission->code]),
             'documents' => $admission->documents->map(
                 static fn (AdmissionDocument $document): array => [
                     'id' => $document->id,

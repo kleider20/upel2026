@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Role;
+use App\Models\StudentProfile;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -57,27 +58,32 @@ test('admin dashboard modules are scoped by role', function (string $role, int $
             ->has('summary', $summary)
         );
 })->with([
-    'coordinador académico' => [Role::CoordinadorAcademico->value, 8, 4],
+    'coordinador académico' => [Role::CoordinadorAcademico->value, 6, 3],
     'personal administrativo' => [Role::PersonalAdministrativo->value, 1, 1],
-    'decano' => [Role::Decano->value, 9, 5],
+    'decano' => [Role::Decano->value, 10, 5],
     'administrador' => [Role::Admin->value, 11, 6],
 ]);
 
-test('academic coordinators can access academic modules but not finance', function () {
+test('academic coordinators can access modules granted by permissions', function () {
     $user = User::factory()->create();
     $user->assignRole(Role::CoordinadorAcademico->value);
 
     $this->actingAs($user)
-        ->get(route('admin.module', ['module' => 'students']))
+        ->get(route('admin.module', ['module' => 'careers']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('admin/resource')
-            ->where('module', 'students')
+            ->component('admin/careers/index')
         );
 
     $this->actingAs($user)
         ->get(route('admin.module', ['module' => 'finance']))
         ->assertForbidden();
+
+    $user->givePermissionTo('students.view');
+
+    $this->actingAs($user)
+        ->get(route('admin.module', ['module' => 'students']))
+        ->assertOk();
 });
 
 test('administrative staff can access finance but not academic modules', function () {
@@ -93,17 +99,58 @@ test('administrative staff can access finance but not academic modules', functio
         ->assertForbidden();
 });
 
-test('deans can access academic and finance modules', function () {
+test('dashboard exposes student and admission modules granted through direct permissions', function () {
     $user = User::factory()->create();
-    $user->assignRole(Role::Decano->value);
+    $user->assignRole(Role::CoordinadorAcademico->value);
+    $user->givePermissionTo(['students.view', 'admissions.view']);
+
+    $this->actingAs($user)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('modules', 8)
+            ->has('summary', 4)
+        );
 
     $this->actingAs($user)
         ->get(route('admin.module', ['module' => 'students']))
         ->assertOk();
 
     $this->actingAs($user)
+        ->get(route('admin.admissions.index'))
+        ->assertOk();
+});
+
+test('deans can access academic finance and student modules', function () {
+    $user = User::factory()->create();
+    $user->assignRole(Role::Decano->value);
+
+    $this->actingAs($user)
         ->get(route('admin.module', ['module' => 'finance']))
         ->assertOk();
+
+    $this->actingAs($user)
+        ->get(route('admin.module', ['module' => 'students']))
+        ->assertOk();
+});
+
+test('administrators can access student lists and profiles', function () {
+    $user = User::factory()->create();
+    $user->assignRole(Role::Admin->value);
+    $student = User::factory()->create();
+    $profile = StudentProfile::factory()->for($student)->create();
+
+    $this->actingAs($user)
+        ->get(route('admin.module', ['module' => 'students']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('module', 'students'));
+
+    $this->get(route('admin.students.show', ['student' => $profile->student_code]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/students/show')
+            ->where('student.name', $student->name)
+        );
 });
 
 test('administrators can access system modules', function () {

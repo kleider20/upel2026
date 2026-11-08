@@ -110,11 +110,27 @@ class Admission extends Model
     }
 
     /**
+     * Directorio privado del expediente, identificado por la cédula.
+     */
+    public function documentsDirectoryPath(): string
+    {
+        $idNumber = preg_replace('/\D+/', '', $this->id_number) ?? '';
+
+        if ($idNumber === '') {
+            throw new \LogicException('La solicitud no tiene una cédula válida para crear su carpeta documental.');
+        }
+
+        return trim((string) config('admissions.documents.path'), '/').'/'.$idNumber;
+    }
+
+    /**
      * @return HasMany<AdmissionStatusHistory, $this>
      */
     public function statusHistories(): HasMany
     {
-        return $this->hasMany(AdmissionStatusHistory::class)->latest();
+        return $this->hasMany(AdmissionStatusHistory::class)
+            ->latest()
+            ->orderByDesc('id');
     }
 
     /**
@@ -278,6 +294,19 @@ class Admission extends Model
         return $status !== null && $status !== ''
             ? $query->where('status', $status)
             : $query;
+    }
+
+    /**
+     * Excluye del flujo de admisiones las solicitudes convertidas en estudiantes.
+     *
+     * @param  Builder<Admission>  $query
+     * @return Builder<Admission>
+     */
+    public function scopeNotConverted(Builder $query): Builder
+    {
+        return $query
+            ->where('status', '!=', AdmissionStatus::Convertida->value)
+            ->whereNull('converted_user_id');
     }
 
     /**

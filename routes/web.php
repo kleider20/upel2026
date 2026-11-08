@@ -6,7 +6,10 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminEntryController;
 use App\Http\Controllers\AdminLoginController;
 use App\Http\Controllers\AdminModuleController;
+use App\Http\Controllers\AdminProfessorController;
+use App\Http\Controllers\AdminRoleController;
 use App\Http\Controllers\AdminScheduleController;
+use App\Http\Controllers\AdminStudentProfileController;
 use App\Http\Controllers\AdminSubjectController;
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\AdmissionLookupController;
@@ -16,6 +19,7 @@ use App\Http\Controllers\LandingController;
 use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\ProfessorGradeController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\Student\StudentNotificationController;
 use App\Http\Controllers\Student\StudentScheduleController;
 use App\Http\Controllers\Student\TramiteController as StudentTramiteController;
 use App\Http\Middleware\EnsureAdminPortal;
@@ -34,6 +38,9 @@ Route::prefix('preinscripcion')
         Route::post('/', [AdmissionController::class, 'store'])
             ->middleware('throttle:10,1')
             ->name('store');
+        Route::post('validar-identidad', [AdmissionController::class, 'checkIdentity'])
+            ->middleware('throttle:20,1')
+            ->name('identity');
         Route::get('estado', [AdmissionLookupController::class, 'index'])->name('lookup');
         Route::post('estado', [AdmissionLookupController::class, 'lookup'])
             ->middleware('throttle:8,1')
@@ -69,6 +76,12 @@ Route::middleware(['auth', EnsureAdminPortal::class])
 
         Route::get('admissions', [AdminAdmissionController::class, 'index'])
             ->name('admissions.index');
+        Route::get('admissions/{admission:code}/edit', [AdminAdmissionController::class, 'edit'])
+            ->name('admissions.edit');
+        Route::put('admissions/{admission:code}', [AdminAdmissionController::class, 'update'])
+            ->name('admissions.update');
+        Route::delete('admissions/{admission:code}', [AdminAdmissionController::class, 'destroy'])
+            ->name('admissions.destroy');
         Route::get('admissions/{admission:code}', [AdminAdmissionController::class, 'show'])
             ->name('admissions.show');
         Route::patch('admissions/{admission:code}/status', [AdminAdmissionController::class, 'updateStatus'])
@@ -81,6 +94,30 @@ Route::middleware(['auth', EnsureAdminPortal::class])
             ->name('admissions.documents.preview');
         Route::patch('admissions/{admission:code}/documents/{document}', [AdminAdmissionController::class, 'reviewDocument'])
             ->name('admissions.documents.review');
+
+        Route::get('students/{student:student_code}/edit', [AdminStudentProfileController::class, 'edit'])
+            ->name('students.edit');
+        Route::put('students/{student:student_code}', [AdminStudentProfileController::class, 'update'])
+            ->name('students.update');
+        Route::delete('students/{student:student_code}', [AdminStudentProfileController::class, 'destroy'])
+            ->name('students.destroy');
+        Route::get('students/{student:student_code}', [AdminStudentProfileController::class, 'show'])
+            ->name('students.show');
+
+        Route::get('professors', [AdminProfessorController::class, 'index'])
+            ->name('professors.index');
+        Route::get('professors/create', [AdminProfessorController::class, 'create'])
+            ->name('professors.create');
+        Route::post('professors', [AdminProfessorController::class, 'store'])
+            ->name('professors.store');
+        Route::get('professors/{professor}/edit', [AdminProfessorController::class, 'edit'])
+            ->name('professors.edit');
+        Route::put('professors/{professor}', [AdminProfessorController::class, 'update'])
+            ->name('professors.update');
+        Route::delete('professors/{professor}', [AdminProfessorController::class, 'destroy'])
+            ->name('professors.destroy');
+        Route::get('professors/{professor}', [AdminProfessorController::class, 'show'])
+            ->name('professors.show');
 
         Route::get('subjects', [AdminSubjectController::class, 'index'])
             ->name('subjects.index');
@@ -125,6 +162,23 @@ Route::middleware(['auth', EnsureAdminPortal::class])
         Route::delete('careers/{career}', [AdminCareerController::class, 'destroy'])
             ->name('careers.destroy');
 
+        Route::get('roles', [AdminRoleController::class, 'index'])
+            ->name('roles.index');
+        Route::post('roles', [AdminRoleController::class, 'store'])
+            ->name('roles.store');
+        Route::put('roles/{role}', [AdminRoleController::class, 'update'])
+            ->name('roles.update');
+        Route::delete('roles/{role}', [AdminRoleController::class, 'destroy'])
+            ->name('roles.destroy');
+        Route::post('permissions', [AdminRoleController::class, 'storePermission'])
+            ->name('permissions.store');
+        Route::put('permissions/{permission}', [AdminRoleController::class, 'updatePermission'])
+            ->name('permissions.update');
+        Route::delete('permissions/{permission}', [AdminRoleController::class, 'destroyPermission'])
+            ->name('permissions.destroy');
+        Route::put('users/{user}/access', [AdminRoleController::class, 'updateUser'])
+            ->name('roles.users.update');
+
         Route::get('{module}', [AdminModuleController::class, 'index'])->name('module');
     });
 
@@ -141,6 +195,8 @@ Route::middleware(['auth', 'verified', 'role:estudiante', 'password.defined'])
     ->name('student.')
     ->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::patch('/notificaciones/{notification}/leer', StudentNotificationController::class)
+            ->name('notifications.read');
         Route::get('/horario/pdf', [StudentScheduleController::class, 'download'])->name('schedule.pdf');
         Route::put('/perfil', [StudentDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::post('/tramites', [StudentTramiteController::class, 'store'])->name('tramites.store');

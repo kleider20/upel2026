@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, useHttp } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRight,
@@ -15,6 +15,7 @@ import InputError from '@/components/input-error';
 import { cn } from '@/lib/utils';
 import {
     lookup as admissionLookup,
+    identity as admissionIdentityCheck,
     store as admissionStore,
 } from '@/routes/admissions';
 
@@ -63,6 +64,11 @@ type AdmissionFormData = {
     high_school_year: string;
     high_school_average: string;
     terms: boolean;
+};
+
+type IdentityCheckData = {
+    id_number: string;
+    email: string;
 };
 
 type Props = {
@@ -126,6 +132,31 @@ function latestBirthDate(): string {
     return date.toISOString().slice(0, 10);
 }
 
+function isPersonalInformationValid(data: AdmissionFormData): boolean {
+    const birthDateIsValid =
+        /^\d{4}-\d{2}-\d{2}$/.test(data.birth_date) &&
+        data.birth_date >= '1940-01-01' &&
+        data.birth_date <= latestBirthDate();
+
+    return (
+        data.first_name.trim().length >= 2 &&
+        data.first_name.trim().length <= 80 &&
+        data.last_name.trim().length >= 2 &&
+        data.last_name.trim().length <= 80 &&
+        ['V', 'E'].includes(data.nationality) &&
+        /^\d{5,9}$/.test(data.id_number.trim()) &&
+        birthDateIsValid &&
+        (data.gender === '' ||
+            ['masculino', 'femenino', 'otro', 'prefiero_no_decir'].includes(
+                data.gender,
+            )) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()) &&
+        data.email.trim().length <= 255 &&
+        /^[0-9+()\-\s]{7,30}$/.test(data.phone.trim()) &&
+        data.address.length <= 500
+    );
+}
+
 /**
  * Da formato venezolano al teléfono de contacto: 0412-9354992.
  *
@@ -177,7 +208,7 @@ export default function AdmissionApply({
         Partial<Record<keyof AdmissionFormData, string>>
     >({});
 
-    const { data, setData, post, processing, errors } =
+    const { data, setData, post, processing, errors, clearErrors } =
         useForm<AdmissionFormData>({
             first_name: '',
             last_name: '',
@@ -197,9 +228,22 @@ export default function AdmissionApply({
             high_school_average: '',
             terms: false,
         });
+    const identityCheck = useHttp<IdentityCheckData>({
+        id_number: '',
+        email: '',
+    });
+    const [identityCheckError, setIdentityCheckError] = useState<string | null>(
+        null,
+    );
+    const [validatedIdentity, setValidatedIdentity] = useState<string | null>(
+        null,
+    );
 
     const fieldError = (field: keyof AdmissionFormData): string | undefined =>
         clientErrors[field] ??
+        (field === 'id_number' || field === 'email'
+            ? identityCheck.errors[field]
+            : undefined) ??
         (errors as Record<string, string | undefined>)[field];
 
     const selectedCareer = careers.find(
@@ -212,6 +256,69 @@ export default function AdmissionApply({
             offering.schedule === data.schedule &&
             offering.shift === data.shift,
     );
+    const identityKey = `${data.id_number.trim()}|${data.email.trim().toLowerCase()}`;
+    const canContinueFromFirstStep =
+        isPersonalInformationValid(data) &&
+        validatedIdentity === identityKey &&
+        !identityCheck.processing &&
+        identityCheckError === null;
+
+    const updateIdentityField = (
+        field: 'id_number' | 'email',
+        value: string,
+    ) => {
+        identityCheck.clearErrors(field);
+        clearErrors(field);
+        setIdentityCheckError(null);
+        setValidatedIdentity(null);
+        setClientErrors((current) => {
+            const next = { ...current };
+            delete next[field];
+
+            return next;
+        });
+        setData(field, value);
+    };
+
+    const checkIdentity = async (
+        field?: 'id_number' | 'email',
+    ): Promise<boolean> => {
+        identityCheck.clearErrors();
+        setIdentityCheckError(null);
+        setValidatedIdentity(null);
+        identityCheck.setData({
+            id_number: field === 'email' ? '' : data.id_number,
+            email: field === 'id_number' ? '' : data.email,
+        });
+
+        let hasValidationErrors = false;
+
+        try {
+            await identityCheck.post(admissionIdentityCheck.url(), {
+                onError: () => {
+                    hasValidationErrors = true;
+                    setStep(1);
+                },
+                onSuccess: () => {
+                    if (
+                        field === undefined &&
+                        /^\d{5,9}$/.test(data.id_number.trim()) &&
+                        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())
+                    ) {
+                        setValidatedIdentity(identityKey);
+                    }
+                },
+            });
+        } catch {
+            setIdentityCheckError(
+                'No se pudo validar la cédula y el correo. Comprueba tu conexión e inténtalo de nuevo.',
+            );
+
+            return false;
+        }
+
+        return !hasValidationErrors;
+    };
 
     const modalityOptions = Array.from(
         new Map(
@@ -319,12 +426,20 @@ export default function AdmissionApply({
         const nextErrors: Partial<Record<keyof AdmissionFormData, string>> = {};
 
         if (target === 1) {
-            if (data.first_name.trim().length < 2) {
-                nextErrors.first_name = 'Indica tus nombres.';
+            if (
+                data.first_name.trim().length < 2 ||
+                data.first_name.trim().length > 80
+            ) {
+                nextErrors.first_name =
+                    'Indica tus nombres (2 a 80 caracteres).';
             }
 
-            if (data.last_name.trim().length < 2) {
-                nextErrors.last_name = 'Indica tus apellidos.';
+            if (
+                data.last_name.trim().length < 2 ||
+                data.last_name.trim().length > 80
+            ) {
+                nextErrors.last_name =
+                    'Indica tus apellidos (2 a 80 caracteres).';
             }
 
             if (!['V', 'E'].includes(data.nationality)) {
@@ -345,19 +460,31 @@ export default function AdmissionApply({
                 if (Number.isNaN(birthDate.getTime())) {
                     nextErrors.birth_date =
                         'La fecha de nacimiento no es válida.';
+                } else if (data.birth_date < '1940-01-01') {
+                    nextErrors.birth_date =
+                        'La fecha de nacimiento debe ser posterior al 1 de enero de 1940.';
                 } else if (age < 15) {
                     nextErrors.birth_date =
                         'Debes tener al menos 15 años para preinscribirte.';
                 }
             }
 
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
-                nextErrors.email = 'Indica un correo electrónico válido.';
+            if (
+                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()) ||
+                data.email.trim().length > 255
+            ) {
+                nextErrors.email =
+                    'Indica un correo electrónico válido (máximo 255 caracteres).';
             }
 
             if (!/^[0-9+()\-\s]{7,30}$/.test(data.phone.trim())) {
                 nextErrors.phone =
                     'Indica un teléfono de contacto válido (mínimo 7 caracteres).';
+            }
+
+            if (data.address.length > 500) {
+                nextErrors.address =
+                    'La dirección no puede superar los 500 caracteres.';
             }
         }
 
@@ -446,12 +573,18 @@ export default function AdmissionApply({
         };
     };
 
-    const goNext = () => {
+    const goNext = async () => {
         const result = validateStep(step);
 
-        if (result.valid) {
-            setStep((current) => Math.min(3, current + 1));
+        if (!result.valid) {
+            return;
         }
+
+        if (step === 1 && !(await checkIdentity())) {
+            return;
+        }
+
+        setStep((current) => Math.min(3, current + 1));
     };
 
     const goBack = () => setStep((current) => Math.max(1, current - 1));
@@ -597,6 +730,14 @@ export default function AdmissionApply({
                                         identidad.
                                     </p>
                                 </div>
+                                {identityCheckError ? (
+                                    <p
+                                        role="alert"
+                                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                                    >
+                                        {identityCheckError}
+                                    </p>
+                                ) : null}
 
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div>
@@ -617,6 +758,7 @@ export default function AdmissionApply({
                                                     event.target.value,
                                                 )
                                             }
+                                            onBlur={() => validateStep(1)}
                                             aria-invalid={Boolean(
                                                 fieldError('first_name'),
                                             )}
@@ -647,6 +789,7 @@ export default function AdmissionApply({
                                                     event.target.value,
                                                 )
                                             }
+                                            onBlur={() => validateStep(1)}
                                             aria-invalid={Boolean(
                                                 fieldError('last_name'),
                                             )}
@@ -676,6 +819,7 @@ export default function AdmissionApply({
                                                         event.target.value,
                                                     )
                                                 }
+                                                onBlur={() => validateStep(1)}
                                                 className={cn(
                                                     selectClass,
                                                     'w-20 shrink-0',
@@ -691,13 +835,36 @@ export default function AdmissionApply({
                                                 autoComplete="off"
                                                 value={data.id_number}
                                                 onChange={(event) =>
-                                                    setData(
+                                                    updateIdentityField(
                                                         'id_number',
                                                         event.target.value.replace(
                                                             /\D/g,
                                                             '',
                                                         ),
                                                     )
+                                                }
+                                                onBlur={() => {
+                                                    validateStep(1);
+
+                                                    const hasValidIdNumber =
+                                                        /^\d{5,9}$/.test(
+                                                            data.id_number.trim(),
+                                                        );
+                                                    const hasValidEmail =
+                                                        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                                                            data.email.trim(),
+                                                        );
+
+                                                    if (hasValidIdNumber) {
+                                                        void checkIdentity(
+                                                            hasValidEmail
+                                                                ? undefined
+                                                                : 'id_number',
+                                                        );
+                                                    }
+                                                }}
+                                                disabled={
+                                                    identityCheck.processing
                                                 }
                                                 aria-invalid={Boolean(
                                                     fieldError('id_number'),
@@ -730,6 +897,7 @@ export default function AdmissionApply({
                                                     event.target.value,
                                                 )
                                             }
+                                            onBlur={() => validateStep(1)}
                                             aria-invalid={Boolean(
                                                 fieldError('birth_date'),
                                             )}
@@ -754,11 +922,32 @@ export default function AdmissionApply({
                                             autoComplete="email"
                                             value={data.email}
                                             onChange={(event) =>
-                                                setData(
+                                                updateIdentityField(
                                                     'email',
                                                     event.target.value,
                                                 )
                                             }
+                                            onBlur={() => {
+                                                validateStep(1);
+
+                                                const hasValidIdNumber =
+                                                    /^\d{5,9}$/.test(
+                                                        data.id_number.trim(),
+                                                    );
+                                                const hasValidEmail =
+                                                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                                                        data.email.trim(),
+                                                    );
+
+                                                if (hasValidEmail) {
+                                                    void checkIdentity(
+                                                        hasValidIdNumber
+                                                            ? undefined
+                                                            : 'email',
+                                                    );
+                                                }
+                                            }}
+                                            disabled={identityCheck.processing}
                                             aria-invalid={Boolean(
                                                 fieldError('email'),
                                             )}
@@ -791,6 +980,7 @@ export default function AdmissionApply({
                                                     ),
                                                 )
                                             }
+                                            onBlur={() => validateStep(1)}
                                             aria-invalid={Boolean(
                                                 fieldError('phone'),
                                             )}
@@ -822,6 +1012,7 @@ export default function AdmissionApply({
                                                     event.target.value,
                                                 )
                                             }
+                                            onBlur={() => validateStep(1)}
                                             className={selectClass}
                                         >
                                             <option value="">
@@ -860,6 +1051,7 @@ export default function AdmissionApply({
                                                     event.target.value,
                                                 )
                                             }
+                                            onBlur={() => validateStep(1)}
                                             className="w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 py-2.5 text-sm font-medium text-upel-navy placeholder:text-upel-slate/50 focus:border-upel-blue focus:bg-white focus:ring-2 focus:ring-upel-blue/15 focus:outline-none"
                                             placeholder="Estado, municipio, parroquia y referencia"
                                         />
@@ -889,7 +1081,6 @@ export default function AdmissionApply({
                                         bachillerato.
                                     </p>
                                 </div>
-
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="sm:col-span-2">
                                         <label
@@ -1368,6 +1559,21 @@ export default function AdmissionApply({
                             </section>
                         ) : null}
 
+                        {step === 1 &&
+                        isPersonalInformationValid(data) &&
+                        validatedIdentity !== identityKey &&
+                        !identityCheck.processing &&
+                        !identityCheck.hasErrors &&
+                        identityCheckError === null ? (
+                            <p
+                                role="status"
+                                className="mt-4 text-right text-xs font-semibold text-upel-slate"
+                            >
+                                La cédula y el correo deben validarse antes de
+                                continuar.
+                            </p>
+                        ) : null}
+
                         <div className="mt-8 flex flex-col-reverse gap-3 border-t border-upel-navy/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
                             {step > 1 ? (
                                 <button
@@ -1398,13 +1604,28 @@ export default function AdmissionApply({
                                 <button
                                     type="button"
                                     onClick={goNext}
-                                    className="inline-flex items-center justify-center gap-2 rounded-[13px] bg-upel-navy px-6 py-3 text-sm font-extrabold text-white transition-all duration-300 hover:bg-upel-navy-800"
+                                    disabled={
+                                        step === 1 && !canContinueFromFirstStep
+                                    }
+                                    className="inline-flex items-center justify-center gap-2 rounded-[13px] bg-upel-navy px-6 py-3 text-sm font-extrabold text-white transition-all duration-300 hover:bg-upel-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    Continuar
-                                    <ArrowRight
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
+                                    {identityCheck.processing ? (
+                                        <>
+                                            <Loader2
+                                                className="size-4 animate-spin"
+                                                aria-hidden="true"
+                                            />
+                                            Validando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Continuar
+                                            <ArrowRight
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        </>
+                                    )}
                                 </button>
                             ) : (
                                 <button

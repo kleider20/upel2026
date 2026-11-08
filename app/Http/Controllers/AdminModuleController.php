@@ -6,7 +6,6 @@ use App\Enums\Role as RoleEnum;
 use App\Models\Career;
 use App\Models\Enrollment;
 use App\Models\Payment;
-use App\Models\ProfessorProfile;
 use App\Models\Program;
 use App\Models\StudentProfile;
 use App\Models\Subject;
@@ -39,9 +38,10 @@ class AdminModuleController extends Controller
             'No tienes permiso para acceder a este módulo.',
         );
 
+        $isAdmin = $request->user()?->hasRole(RoleEnum::Admin->value) ?? false;
+
         $data = match ($module) {
-            'students' => $this->students(),
-            'professors' => $this->professors(),
+            'students' => $this->students($isAdmin),
             'careers' => $this->careers(),
             'subjects' => $this->subjects(),
             'grades' => $this->grades(),
@@ -65,7 +65,7 @@ class AdminModuleController extends Controller
     /**
      * @return array{columns: array<int, array{key: string, label: string}>, rows: mixed, stats: array<int, array<string, string>>}
      */
-    private function students(): array
+    private function students(bool $isAdmin): array
     {
         $profiles = StudentProfile::query()
             ->with(['user', 'career'])
@@ -83,9 +83,17 @@ class AdminModuleController extends Controller
                 ['key' => 'semester', 'label' => 'Semestre'],
                 ['key' => 'status', 'label' => 'Estado'],
                 ['key' => 'average', 'label' => 'Promedio'],
+                ...($isAdmin ? [['key' => 'actions', 'label' => 'Acciones']] : []),
             ],
-            'rows' => $profiles->map(static fn (StudentProfile $profile): array => [
+            'rows' => $profiles->map(fn (StudentProfile $profile): array => [
                 'id' => $profile->id,
+                'url' => null,
+                'actions' => $isAdmin ? [
+                    'view_url' => route('admin.students.show', ['student' => $profile->student_code]),
+                    'edit_url' => route('admin.students.edit', ['student' => $profile->student_code]),
+                    'delete_url' => route('admin.students.destroy', ['student' => $profile->student_code]),
+                    'student_name' => $profile->user->name,
+                ] : null,
                 'cells' => [
                     'student' => $profile->user->name,
                     'code' => $profile->student_code,
@@ -103,43 +111,6 @@ class AdminModuleController extends Controller
                 ['label' => 'Activos', 'value' => (string) $profiles->where('status', 'activo')->count(), 'tone' => 'green'],
                 ['label' => 'Egresados', 'value' => (string) $profiles->where('status', 'egresado')->count(), 'tone' => 'navy'],
                 ['label' => 'Promedio general', 'value' => $average !== null ? number_format((float) $average, 1, ',', '.').' / 10' : '—', 'tone' => 'gold'],
-            ],
-        ];
-    }
-
-    /**
-     * @return array{columns: array<int, array{key: string, label: string}>, rows: mixed, stats: array<int, array<string, string>>}
-     */
-    private function professors(): array
-    {
-        $profiles = ProfessorProfile::query()
-            ->with('user')
-            ->withCount('subjects')
-            ->orderBy('employee_code')
-            ->get();
-
-        return [
-            'columns' => [
-                ['key' => 'professor', 'label' => 'Profesor'],
-                ['key' => 'code', 'label' => 'Código'],
-                ['key' => 'department', 'label' => 'Departamento'],
-                ['key' => 'title', 'label' => 'Título académico'],
-                ['key' => 'subjects', 'label' => 'Materias'],
-            ],
-            'rows' => $profiles->map(static fn (ProfessorProfile $profile): array => [
-                'id' => $profile->id,
-                'cells' => [
-                    'professor' => $profile->user->name,
-                    'code' => $profile->employee_code,
-                    'department' => $profile->department ?? '—',
-                    'title' => $profile->academic_title ?? '—',
-                    'subjects' => (string) $profile->subjects_count,
-                ],
-            ])->values(),
-            'stats' => [
-                ['label' => 'Profesores', 'value' => (string) $profiles->count(), 'tone' => 'blue'],
-                ['label' => 'Departamentos', 'value' => (string) $profiles->pluck('department')->filter()->unique()->count(), 'tone' => 'navy'],
-                ['label' => 'Materias asignadas', 'value' => (string) DB::table('professor_subjects')->count(), 'tone' => 'gold'],
             ],
         ];
     }

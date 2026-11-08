@@ -78,12 +78,13 @@ el esfuerzo de resolución.
 ### P-09 · Módulos administrativos sin operaciones de escritura
 
 - **Archivos:** `app/Http/Controllers/AdminModuleController.php`,
-  `app/Enums/Permission.php`
-- **Problema:** existen permisos `*.manage` y el catálogo los declara, pero los módulos de
-  estudiantes, profesores, programas y usuarios no tienen endpoints de creación, edición
-  o eliminación; son tablas de solo lectura. Carreras, materias y admisiones ya tienen su
-  propio flujo de escritura.
-- **Solución:** implementar el CRUD restante y protegerlo con los permisos ya definidos.
+  `app/Enums/Permission.php`, `app/Http/Controllers/AdminStudentProfileController.php`
+- **Estado:** parcial. El administrador ya puede ver, editar y eliminar estudiantes;
+  falta el alta desde el panel. Profesores, programas y usuarios continúan en solo lectura.
+- **Problema:** existen permisos `*.manage` y el catálogo los declara, pero faltan
+  operaciones de escritura en varios módulos administrativos.
+- **Solución:** implementar las operaciones restantes y protegerlas con los permisos ya
+  definidos.
 
 ### P-10 · Sin pruebas para el portal estudiantil nuevo
 

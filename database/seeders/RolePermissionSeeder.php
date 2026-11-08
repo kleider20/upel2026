@@ -42,6 +42,9 @@ class RolePermissionSeeder extends Seeder
             RoleEnum::Decano->value => array_values(array_unique([
                 ...$academicPermissions,
                 ...$financePermissions,
+                PermissionEnum::StudentsView->value,
+                PermissionEnum::AdmissionsView->value,
+                PermissionEnum::RolesManage->value,
             ])),
             RoleEnum::CoordinadorAcademico->value => $academicPermissions,
             RoleEnum::PersonalAdministrativo->value => $financePermissions,

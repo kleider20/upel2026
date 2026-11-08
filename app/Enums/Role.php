@@ -35,7 +35,7 @@ enum Role: string
     {
         return match ($this) {
             self::Admin => 'Control total del sistema, usuarios, roles y configuración institucional.',
-            self::Decano => 'Supervisión académica y financiera de la institución.',
+            self::Decano => 'Supervisión académica y financiera; consulta expedientes y gestiona accesos sin alterar los propios ni los del administrador.',
             self::CoordinadorAcademico => 'Gestión de carreras, materias, profesores, estudiantes y notas.',
             self::PersonalAdministrativo => 'Gestión de finanzas, pagos y cobranza estudiantil.',
             default => 'Acceso al campus virtual de la UPEL.',

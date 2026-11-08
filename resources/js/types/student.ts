@@ -121,6 +121,18 @@ export type StudentTramite = {
     created_at: string;
 };
 
+export type StudentNotificationItem = {
+    id: string;
+    title: string;
+    message: string;
+    is_read: boolean;
+};
+
+export type StudentNotificationsData = {
+    unread_count: number;
+    items: StudentNotificationItem[];
+};
+
 export type StudentAdmissionDocument = {
     id: number;
     type: string;

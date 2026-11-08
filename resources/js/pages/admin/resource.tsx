@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Inbox } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Eye, Inbox, Pencil, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/portal/empty-state';
 import { PageHeader } from '@/components/portal/page-header';
 import {
@@ -19,6 +19,13 @@ type Row = {
     id: number;
     cells: Record<string, string | number | null>;
     tones?: Record<string, string>;
+    url?: string;
+    actions?: {
+        view_url: string;
+        edit_url: string;
+        delete_url: string;
+        student_name: string;
+    } | null;
 };
 
 type Stat = {
@@ -46,6 +53,24 @@ export default function AdminResource({
     rows,
     stats,
 }: Props) {
+    const hasActions = columns.some((column) => column.key === 'actions');
+
+    const deleteStudent = (row: Row) => {
+        if (!row.actions) {
+            return;
+        }
+
+        if (
+            !window.confirm(
+                `¿Eliminar permanentemente la cuenta de ${row.actions.student_name}? También se eliminarán su perfil, inscripciones y pagos. La solicitud de admisión permanecerá como registro histórico.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(row.actions.delete_url);
+    };
+
     return (
         <>
             <Head title={title} />
@@ -107,7 +132,9 @@ export default function AdminResource({
                             </p>
                         </div>
                         <span className="rounded-full bg-upel-cloud px-3 py-1 text-[0.65rem] font-bold text-muted-foreground ring-1 ring-border dark:bg-muted">
-                            Solo lectura
+                            {hasActions
+                                ? 'Gestión de estudiantes'
+                                : 'Solo lectura'}
                         </span>
                     </div>
 
@@ -121,7 +148,9 @@ export default function AdminResource({
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                            <table
+                                className={`w-full ${hasActions ? 'min-w-[900px]' : 'min-w-[760px]'} border-collapse text-left text-sm`}
+                            >
                                 <thead>
                                     <tr className="bg-upel-cloud/70 dark:bg-muted/50">
                                         {columns.map((column) => (
@@ -142,6 +171,57 @@ export default function AdminResource({
                                             className="transition-colors hover:bg-upel-cloud/50 dark:hover:bg-muted/30"
                                         >
                                             {columns.map((column) => {
+                                                if (column.key === 'actions') {
+                                                    return (
+                                                        <td
+                                                            key={column.key}
+                                                            className="px-5 py-3.5 align-middle"
+                                                        >
+                                                            {row.actions ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Link
+                                                                        href={
+                                                                            row
+                                                                                .actions
+                                                                                .view_url
+                                                                        }
+                                                                        aria-label={`Ver perfil de ${row.actions.student_name}`}
+                                                                        title="Ver perfil"
+                                                                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border text-upel-blue transition-colors hover:bg-upel-cloud dark:hover:bg-muted"
+                                                                    >
+                                                                        <Eye className="size-3.5" />
+                                                                    </Link>
+                                                                    <Link
+                                                                        href={
+                                                                            row
+                                                                                .actions
+                                                                                .edit_url
+                                                                        }
+                                                                        aria-label={`Editar perfil de ${row.actions.student_name}`}
+                                                                        title="Editar perfil"
+                                                                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                                                    >
+                                                                        <Pencil className="size-3.5" />
+                                                                    </Link>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            deleteStudent(
+                                                                                row,
+                                                                            )
+                                                                        }
+                                                                        aria-label={`Eliminar cuenta de ${row.actions.student_name}`}
+                                                                        title="Eliminar cuenta"
+                                                                        className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 text-red-700 transition-colors hover:bg-red-50"
+                                                                    >
+                                                                        <Trash2 className="size-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : null}
+                                                        </td>
+                                                    );
+                                                }
+
                                                 const value =
                                                     row.cells[column.key] ??
                                                     '—';
@@ -153,7 +233,16 @@ export default function AdminResource({
                                                         key={column.key}
                                                         className="max-w-[320px] px-5 py-3.5 align-middle text-xs font-medium text-foreground"
                                                     >
-                                                        {tone ? (
+                                                        {row.url &&
+                                                        column.key ===
+                                                            'student' ? (
+                                                            <Link
+                                                                href={row.url}
+                                                                className="font-bold text-upel-blue hover:underline"
+                                                            >
+                                                                {value}
+                                                            </Link>
+                                                        ) : tone ? (
                                                             <ToneBadge
                                                                 tone={
                                                                     tone as Tone

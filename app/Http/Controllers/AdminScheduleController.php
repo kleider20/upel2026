@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Schedules\NotifyMatchingStudents;
 use App\Enums\Permission;
 use App\Http\Requests\ScheduleRequest;
 use App\Models\Career;
@@ -165,18 +166,25 @@ class AdminScheduleController extends Controller
     /**
      * Registra un nuevo horario junto con las materias elegidas.
      */
-    public function store(ScheduleRequest $request): RedirectResponse
-    {
+    public function store(
+        ScheduleRequest $request,
+        NotifyMatchingStudents $notifyMatchingStudents,
+    ): RedirectResponse {
         $validated = $request->validated();
         $subjects = $validated['subjects'] ?? [];
 
         unset($validated['subjects']);
         $subjectData = self::subjectPivotData($subjects);
 
-        $schedule = DB::transaction(static function () use ($validated, $subjectData): Schedule {
+        $schedule = DB::transaction(static function () use (
+            $validated,
+            $subjectData,
+            $notifyMatchingStudents,
+        ): Schedule {
             $schedule = Schedule::create($validated);
 
             $schedule->subjects()->sync($subjectData);
+            $notifyMatchingStudents->handle($schedule);
 
             return $schedule;
         });
@@ -189,17 +197,26 @@ class AdminScheduleController extends Controller
     /**
      * Actualiza un horario publicado y sus materias seleccionadas.
      */
-    public function update(ScheduleRequest $request, Schedule $schedule): RedirectResponse
-    {
+    public function update(
+        ScheduleRequest $request,
+        Schedule $schedule,
+        NotifyMatchingStudents $notifyMatchingStudents,
+    ): RedirectResponse {
         $validated = $request->validated();
         $subjects = $validated['subjects'] ?? [];
 
         unset($validated['subjects']);
         $subjectData = self::subjectPivotData($subjects);
 
-        DB::transaction(static function () use ($schedule, $validated, $subjectData): void {
+        DB::transaction(static function () use (
+            $schedule,
+            $validated,
+            $subjectData,
+            $notifyMatchingStudents,
+        ): void {
             $schedule->update($validated);
             $schedule->subjects()->sync($subjectData);
+            $notifyMatchingStudents->handle($schedule);
         });
 
         return redirect()
@@ -415,7 +432,11 @@ class AdminScheduleController extends Controller
                         $query->orWhereIn('id', $scheduleSubjectIds);
                     }
                 })
-                ->with('professors:id,name')
+                ->with([
+                    'professors' => static fn ($query) => $query
+                        ->whereHas('professorProfile')
+                        ->select('users.id', 'users.name'),
+                ])
                 ->orderBy('semester')
                 ->orderBy('name')
                 ->get(['id', 'career_id', 'semester', 'code', 'name', 'modality'])

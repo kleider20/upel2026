@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowLeft,
+    CheckCircle2,
     Clock3,
     FileSearch,
     FileText,
@@ -53,6 +54,7 @@ type HistoryRow = {
     id: number;
     from: string;
     to: string;
+    title: string;
     tone: string;
     note: string | null;
     changed_by: string;
@@ -289,38 +291,112 @@ function AdmissionDetailView({
     admission: AdmissionDetail;
     documentTypes: DocumentTypeOption[];
 }) {
-    const uploadedTypes = new Set(
-        admission.documents.map((document) => document.type),
+    const firstIncompleteType = documentTypes.find((type) => {
+        const document = admission.documents.find(
+            (uploadedDocument) => uploadedDocument.type === type.value,
+        );
+
+        return document === undefined || document.status === 'rechazado';
+    });
+    const [activeType, setActiveType] = useState<string | null>(
+        firstIncompleteType?.value ?? null,
     );
-    const suggestedType =
-        documentTypes.find((type) => !uploadedTypes.has(type.value))?.value ??
-        documentTypes[0]?.value ??
-        '';
+    const [replacingType, setReplacingType] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const advanceAfterUploadRef = useRef(false);
 
     const uploadForm = useForm<{ type: string; document: File | null }>({
-        type: suggestedType,
+        type: firstIncompleteType?.value ?? documentTypes[0]?.value ?? '',
         document: null,
     });
 
     useEffect(() => {
-        if (
-            documentTypes.length > 0 &&
-            !documentTypes.some((type) => type.value === uploadForm.data.type)
-        ) {
-            uploadForm.setData('type', suggestedType);
+        if (advanceAfterUploadRef.current) {
+            advanceAfterUploadRef.current = false;
+
+            if (firstIncompleteType !== undefined) {
+                setActiveType(firstIncompleteType.value);
+                setReplacingType(null);
+            }
         }
-    }, [documentTypes, suggestedType, uploadForm.data.type]);
+    }, [admission.documents, firstIncompleteType]);
+
+    useEffect(() => {
+        if (activeType !== null && uploadForm.data.type !== activeType) {
+            uploadForm.setData('type', activeType);
+        }
+    }, [activeType, uploadForm.data.type]);
 
     const selectedType = documentTypes.find(
-        (type) => type.value === uploadForm.data.type,
+        (type) => type.value === activeType,
     );
+    const activeStep = documentTypes.findIndex(
+        (type) => type.value === activeType,
+    );
+    const uploadedCount = documentTypes.filter((type) =>
+        admission.documents.some(
+            (uploadedDocument) => uploadedDocument.type === type.value,
+        ),
+    ).length;
+    const validatedCount = documentTypes.filter((type) =>
+        admission.documents.some(
+            (document) =>
+                document.type === type.value && document.status === 'validado',
+        ),
+    ).length;
+    const pendingCount = documentTypes.filter((type) =>
+        admission.documents.some(
+            (document) =>
+                document.type === type.value && document.status === 'pendiente',
+        ),
+    ).length;
+    const documentsToUploadCount =
+        documentTypes.length - validatedCount - pendingCount;
+
+    const selectDocumentType = (type: string) => {
+        setActiveType(type);
+        setReplacingType(null);
+        uploadForm.setData('type', type);
+        uploadForm.setData('document', null);
+        uploadForm.clearErrors();
+
+        if (fileInputRef.current !== null) {
+            fileInputRef.current.value = '';
+        }
+
+        window.requestAnimationFrame(() => {
+            window.document
+                .getElementById('selected-admission-document')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    };
+
+    const cancelReplacement = () => {
+        setReplacingType(null);
+        uploadForm.setData('document', null);
+        uploadForm.clearErrors();
+
+        if (fileInputRef.current !== null) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     const submitUpload = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        advanceAfterUploadRef.current =
+            firstIncompleteType?.value === uploadForm.data.type;
+
         uploadForm.post(admission.upload_url, {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => uploadForm.reset('document'),
+            onSuccess: () => {
+                uploadForm.reset('document');
+                setReplacingType(null);
+
+                if (fileInputRef.current !== null) {
+                    fileInputRef.current.value = '';
+                }
+            },
         });
     };
 
@@ -333,8 +409,23 @@ function AdmissionDetailView({
             return;
         }
 
-        router.delete(document.delete_url, { preserveScroll: true });
+        router.delete(document.delete_url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setReplacingType(null);
+                uploadForm.setData('document', null);
+                uploadForm.clearErrors();
+
+                if (fileInputRef.current !== null) {
+                    fileInputRef.current.value = '';
+                }
+            },
+        });
     };
+
+    const selectedDocument = admission.documents.find(
+        (document) => document.type === activeType,
+    );
 
     return (
         <>
@@ -570,78 +661,330 @@ function AdmissionDetailView({
                                     Documentos del expediente
                                 </h2>
                                 <span className="rounded-full bg-upel-cloud px-2.5 py-1 text-[0.62rem] font-bold text-upel-slate">
-                                    {admission.documents.length} de{' '}
-                                    {documentTypes.length} cargados
+                                    {uploadedCount} de {documentTypes.length}{' '}
+                                    cargados
                                 </span>
                             </div>
+                            <p className="mt-2 text-[0.65rem] font-semibold text-upel-slate">
+                                Validado: {validatedCount} · Pendiente de
+                                revisión: {pendingCount} · Por cargar o
+                                corregir: {documentsToUploadCount}
+                            </p>
 
-                            {admission.documents.length === 0 ? (
-                                <div className="mt-4 rounded-xl border border-dashed border-upel-navy/15 bg-upel-cloud/50 px-4 py-8 text-center">
-                                    <UploadCloud
-                                        className="mx-auto size-6 text-upel-slate"
-                                        aria-hidden="true"
-                                    />
-                                    <p className="mt-2 text-xs font-bold text-upel-navy">
-                                        Todavía no has cargado documentos
-                                    </p>
-                                    <p className="mt-1 text-[0.7rem] text-upel-slate">
-                                        Usa el formulario de la derecha para
-                                        adjuntar cada requisito.
-                                    </p>
-                                </div>
-                            ) : (
-                                <ul className="mt-4 space-y-3">
-                                    {admission.documents.map((document) => (
+                            <ol
+                                role="tablist"
+                                aria-label="Documentos del expediente"
+                                className="mt-5 grid list-none grid-cols-2 gap-2 sm:grid-cols-4"
+                            >
+                                {documentTypes.map((type, index) => {
+                                    const document = admission.documents.find(
+                                        (uploadedDocument) =>
+                                            uploadedDocument.type ===
+                                            type.value,
+                                    );
+                                    const isValidated =
+                                        document?.status === 'validado';
+                                    const isPending =
+                                        document?.status === 'pendiente';
+                                    const isRejected =
+                                        document?.status === 'rechazado';
+                                    const isActive = activeType === type.value;
+                                    const statusLabel = isRejected
+                                        ? 'Rechazado · debes cargarlo de nuevo'
+                                        : (document?.status_label ??
+                                          'Por cargar');
+
+                                    return (
                                         <li
-                                            key={document.id}
-                                            className="rounded-xl border border-upel-navy/10 p-4"
+                                            key={type.value}
+                                            role="presentation"
                                         >
-                                            <div className="flex flex-wrap items-start justify-between gap-2">
-                                                <div>
-                                                    <p className="text-xs font-extrabold text-upel-navy">
-                                                        {document.type_label}
-                                                    </p>
-                                                    <p className="mt-0.5 text-[0.68rem] text-upel-slate">
-                                                        {document.original_name}{' '}
-                                                        · {document.size}
-                                                        {document.uploaded_at
-                                                            ? ` · ${document.uploaded_at}`
-                                                            : ''}
-                                                    </p>
-                                                </div>
-                                                <ToneBadge
-                                                    tone={
-                                                        document.status_tone as Tone
-                                                    }
+                                            <button
+                                                id={`admission-document-tab-${type.value}`}
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={isActive}
+                                                aria-controls="selected-admission-document"
+                                                onClick={() =>
+                                                    selectDocumentType(
+                                                        type.value,
+                                                    )
+                                                }
+                                                className={`flex h-full items-center gap-2 rounded-xl border px-3 py-2 ${
+                                                    isActive
+                                                        ? 'border-upel-blue bg-blue-50 text-upel-navy ring-2 ring-upel-blue/15'
+                                                        : isValidated
+                                                          ? 'border-emerald-200 bg-emerald-50/70 text-emerald-900'
+                                                          : isPending
+                                                            ? 'border-amber-200 bg-amber-50/70 text-amber-950'
+                                                            : isRejected
+                                                              ? 'border-red-200 bg-red-50/70 text-red-900'
+                                                              : 'border-upel-navy/10 bg-upel-cloud/50 text-upel-slate'
+                                                }`}
+                                            >
+                                                {isValidated ? (
+                                                    <CheckCircle2
+                                                        className="size-5 shrink-0 text-emerald-600"
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : isPending ? (
+                                                    <Clock3
+                                                        className="size-5 shrink-0 text-amber-600"
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : isRejected ? (
+                                                    <AlertTriangle
+                                                        className="size-5 shrink-0 text-red-600"
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : (
+                                                    <span
+                                                        className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[0.62rem] font-extrabold ${
+                                                            isActive
+                                                                ? 'bg-upel-blue text-white'
+                                                                : 'bg-upel-navy/10 text-upel-slate'
+                                                        }`}
+                                                    >
+                                                        {index + 1}
+                                                    </span>
+                                                )}
+                                                <span className="flex flex-col items-start gap-1 text-left">
+                                                    <span className="text-[0.62rem] leading-tight font-bold">
+                                                        {index + 1}.{' '}
+                                                        {type.label}
+                                                    </span>
+                                                    <span
+                                                        className={`text-[0.55rem] leading-tight font-semibold ${
+                                                            isValidated
+                                                                ? 'text-emerald-700'
+                                                                : isPending
+                                                                  ? 'text-amber-700'
+                                                                  : isRejected
+                                                                    ? 'text-red-700'
+                                                                    : 'text-upel-slate'
+                                                        }`}
+                                                    >
+                                                        {statusLabel}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+
+                            {selectedType && activeType !== null ? (
+                                <div
+                                    id="selected-admission-document"
+                                    role="tabpanel"
+                                    aria-labelledby={`admission-document-tab-${selectedType.value}`}
+                                    className="mt-4 rounded-xl border border-upel-navy/10 p-4"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-extrabold text-upel-navy">
+                                                {activeStep + 1}.{' '}
+                                                {selectedType.label}
+                                            </p>
+                                            <p className="mt-1 text-[0.68rem] leading-relaxed text-upel-slate">
+                                                {selectedType.description}
+                                            </p>
+                                        </div>
+                                        {selectedDocument ? (
+                                            <ToneBadge
+                                                tone={
+                                                    selectedDocument.status_tone as Tone
+                                                }
+                                            >
+                                                {selectedDocument.status_label}
+                                            </ToneBadge>
+                                        ) : (
+                                            <span className="rounded-full bg-upel-cloud px-2.5 py-1 text-[0.62rem] font-bold text-upel-slate">
+                                                Pendiente de carga
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {selectedDocument ? (
+                                        <div className="mt-3 rounded-lg bg-upel-cloud/60 px-3 py-2.5">
+                                            <p className="truncate text-[0.7rem] font-bold text-upel-navy">
+                                                {selectedDocument.original_name}
+                                            </p>
+                                            <p className="mt-0.5 text-[0.65rem] text-upel-slate">
+                                                {selectedDocument.size}
+                                                {selectedDocument.uploaded_at
+                                                    ? ` · ${selectedDocument.uploaded_at}`
+                                                    : ''}
+                                            </p>
+                                        </div>
+                                    ) : null}
+
+                                    {selectedDocument?.notes ? (
+                                        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[0.68rem] leading-relaxed text-red-700">
+                                            {selectedDocument.notes}
+                                        </p>
+                                    ) : null}
+
+                                    {selectedDocument?.status ===
+                                    'rechazado' ? (
+                                        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[0.68rem] leading-relaxed font-semibold text-red-800">
+                                            Debes cargar nuevamente este
+                                            documento para que pueda ser
+                                            revisado.
+                                        </p>
+                                    ) : null}
+
+                                    {admission.can_upload ? (
+                                        selectedDocument &&
+                                        replacingType !== selectedType.value ? (
+                                            <div className="mt-4 flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setReplacingType(
+                                                            selectedType.value,
+                                                        );
+                                                        uploadForm.setData(
+                                                            'document',
+                                                            null,
+                                                        );
+                                                        uploadForm.clearErrors();
+
+                                                        if (
+                                                            fileInputRef.current !==
+                                                            null
+                                                        ) {
+                                                            fileInputRef.current.value =
+                                                                '';
+                                                        }
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-upel-navy px-3 py-2 text-[0.68rem] font-extrabold text-white transition-colors hover:bg-upel-navy-800"
                                                 >
-                                                    {document.status_label}
-                                                </ToneBadge>
-                                            </div>
-
-                                            {document.notes ? (
-                                                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[0.68rem] leading-relaxed text-red-700">
-                                                    {document.notes}
-                                                </p>
-                                            ) : null}
-
-                                            {admission.can_upload ? (
+                                                    <UploadCloud
+                                                        className="size-3.5"
+                                                        aria-hidden="true"
+                                                    />
+                                                    Cargar otro / reemplazar
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        removeDocument(document)
+                                                        removeDocument(
+                                                            selectedDocument,
+                                                        )
                                                     }
-                                                    className="mt-3 inline-flex items-center gap-1.5 text-[0.68rem] font-bold text-red-600 transition-colors hover:text-red-700"
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-[0.68rem] font-bold text-red-600 transition-colors hover:bg-red-50"
                                                 >
                                                     <Trash2
                                                         className="size-3.5"
                                                         aria-hidden="true"
                                                     />
-                                                    Eliminar y reemplazar
+                                                    Eliminar documento
                                                 </button>
-                                            ) : null}
-                                        </li>
-                                    ))}
-                                </ul>
+                                            </div>
+                                        ) : (
+                                            <form
+                                                onSubmit={submitUpload}
+                                                className="mt-4 space-y-3"
+                                            >
+                                                <p className="text-[0.68rem] leading-relaxed text-upel-slate">
+                                                    {selectedDocument
+                                                        ? 'El archivo nuevo sustituirá al anterior y deberá pasar por una nueva revisión.'
+                                                        : 'Adjunta este documento para continuar.'}{' '}
+                                                    Formato:{' '}
+                                                    {selectedType.accept
+                                                        .replaceAll('.', '')
+                                                        .toUpperCase()}
+                                                    . Tamaño máximo 5 MB.
+                                                </p>
+                                                <div>
+                                                    <label
+                                                        htmlFor="document_file"
+                                                        className={labelClass}
+                                                    >
+                                                        Archivo
+                                                    </label>
+                                                    <input
+                                                        ref={fileInputRef}
+                                                        id="document_file"
+                                                        type="file"
+                                                        accept={
+                                                            selectedType.accept
+                                                        }
+                                                        onChange={(event) =>
+                                                            uploadForm.setData(
+                                                                'document',
+                                                                event.target
+                                                                    .files?.[0] ??
+                                                                    null,
+                                                            )
+                                                        }
+                                                        className="mt-1.5 block w-full cursor-pointer rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 py-2.5 text-xs font-semibold text-upel-slate file:mr-3 file:rounded-lg file:border-0 file:bg-upel-navy file:px-3 file:py-1.5 file:text-[0.68rem] file:font-bold file:text-white"
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            uploadForm.errors
+                                                                .document as
+                                                                | string
+                                                                | undefined
+                                                        }
+                                                        className="mt-1 text-xs"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        type="submit"
+                                                        disabled={
+                                                            uploadForm.processing ||
+                                                            uploadForm.data
+                                                                .document ===
+                                                                null
+                                                        }
+                                                        className="inline-flex items-center justify-center gap-2 rounded-[13px] bg-upel-navy px-4 py-2.5 text-xs font-extrabold text-white transition-colors hover:bg-upel-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    >
+                                                        {uploadForm.processing ? (
+                                                            <Loader2
+                                                                className="size-4 animate-spin"
+                                                                aria-hidden="true"
+                                                            />
+                                                        ) : (
+                                                            <UploadCloud
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                        )}
+                                                        {uploadForm.processing
+                                                            ? 'Cargando...'
+                                                            : selectedDocument
+                                                              ? 'Guardar reemplazo'
+                                                              : 'Subir documento'}
+                                                    </button>
+                                                    {replacingType !== null ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={
+                                                                cancelReplacement
+                                                            }
+                                                            className="rounded-[13px] border border-upel-navy/10 px-4 py-2.5 text-xs font-bold text-upel-slate transition-colors hover:bg-upel-cloud"
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            </form>
+                                        )
+                                    ) : null}
+                                </div>
+                            ) : (
+                                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-5 text-center">
+                                    <CheckCircle2
+                                        className="mx-auto size-6 text-emerald-600"
+                                        aria-hidden="true"
+                                    />
+                                    <p className="mt-2 text-xs font-extrabold text-emerald-900">
+                                        Todos los documentos están cargados
+                                    </p>
+                                </div>
                             )}
                         </section>
 
@@ -662,7 +1005,7 @@ function AdmissionDetailView({
                                             aria-hidden="true"
                                         />
                                         <p className="text-xs font-extrabold text-upel-navy">
-                                            {item.to}
+                                            {item.title}
                                         </p>
                                         <p className="mt-0.5 text-[0.65rem] font-semibold text-upel-slate">
                                             {item.date ?? '—'} ·{' '}
@@ -680,128 +1023,7 @@ function AdmissionDetailView({
                     </div>
 
                     <aside className="space-y-6">
-                        {admission.can_upload ? (
-                            <section className="rounded-2xl border border-upel-navy/10 bg-white p-6 shadow-sm">
-                                <h2 className="flex items-center gap-2 text-sm font-extrabold text-upel-navy">
-                                    <UploadCloud
-                                        className="size-4 text-upel-blue"
-                                        aria-hidden="true"
-                                    />
-                                    Cargar un documento
-                                </h2>
-                                <p className="mt-1 text-[0.7rem] leading-relaxed text-upel-slate">
-                                    Formatos PDF, JPG o PNG. Tamaño máximo 5 MB.
-                                    Al reemplazar un documento deberás esperar
-                                    una nueva revisión.
-                                </p>
-
-                                <form
-                                    onSubmit={submitUpload}
-                                    className="mt-4 space-y-4"
-                                >
-                                    <div>
-                                        <label
-                                            htmlFor="document_type"
-                                            className={labelClass}
-                                        >
-                                            Tipo de documento
-                                        </label>
-                                        <select
-                                            id="document_type"
-                                            value={uploadForm.data.type}
-                                            onChange={(event) =>
-                                                uploadForm.setData(
-                                                    'type',
-                                                    event.target.value,
-                                                )
-                                            }
-                                            className="mt-1.5 h-11 w-full rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 text-sm font-medium text-upel-navy focus:border-upel-blue focus:bg-white focus:outline-none"
-                                        >
-                                            {documentTypes.map((type) => (
-                                                <option
-                                                    key={type.value}
-                                                    value={type.value}
-                                                >
-                                                    {type.label}
-                                                    {uploadedTypes.has(
-                                                        type.value,
-                                                    )
-                                                        ? ' · ya cargado'
-                                                        : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {selectedType ? (
-                                            <p className="mt-1.5 text-[0.66rem] leading-relaxed text-upel-slate">
-                                                {selectedType.description}
-                                            </p>
-                                        ) : null}
-                                        <InputError
-                                            message={
-                                                uploadForm.errors.type as
-                                                    | string
-                                                    | undefined
-                                            }
-                                            className="mt-1 text-xs"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label
-                                            htmlFor="document_file"
-                                            className={labelClass}
-                                        >
-                                            Archivo
-                                        </label>
-                                        <input
-                                            id="document_file"
-                                            type="file"
-                                            accept={selectedType?.accept}
-                                            onChange={(event) =>
-                                                uploadForm.setData(
-                                                    'document',
-                                                    event.target.files?.[0] ??
-                                                        null,
-                                                )
-                                            }
-                                            className="mt-1.5 block w-full cursor-pointer rounded-[11px] border border-upel-mist bg-upel-cloud/50 px-3 py-2.5 text-xs font-semibold text-upel-slate file:mr-3 file:rounded-lg file:border-0 file:bg-upel-navy file:px-3 file:py-1.5 file:text-[0.68rem] file:font-bold file:text-white"
-                                        />
-                                        <InputError
-                                            message={
-                                                uploadForm.errors.document as
-                                                    | string
-                                                    | undefined
-                                            }
-                                            className="mt-1 text-xs"
-                                        />
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        disabled={
-                                            uploadForm.processing ||
-                                            uploadForm.data.document === null
-                                        }
-                                        className="inline-flex w-full items-center justify-center gap-2 rounded-[13px] bg-upel-navy px-4 py-3 text-xs font-extrabold text-white transition-colors hover:bg-upel-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {uploadForm.processing ? (
-                                            <Loader2
-                                                className="size-4 animate-spin"
-                                                aria-hidden="true"
-                                            />
-                                        ) : (
-                                            <UploadCloud
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                        )}
-                                        {uploadForm.processing
-                                            ? 'Cargando...'
-                                            : 'Subir documento'}
-                                    </button>
-                                </form>
-                            </section>
-                        ) : (
+                        {!admission.can_upload ? (
                             <section className="rounded-2xl border border-upel-navy/10 bg-white p-6 text-center shadow-sm">
                                 <LockKeyhole
                                     className="mx-auto size-6 text-upel-slate"
@@ -816,7 +1038,7 @@ function AdmissionDetailView({
                                     escribe a admision@upel.edu.ve.
                                 </p>
                             </section>
-                        )}
+                        ) : null}
 
                         <section className="rounded-2xl border border-upel-navy/10 bg-white p-6 shadow-sm">
                             <h2 className="text-xs font-extrabold text-upel-navy">

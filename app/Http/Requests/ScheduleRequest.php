@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\Permission;
 use App\Models\Career;
+use App\Models\CareerOffering;
 use App\Models\Schedule;
 use App\Models\Subject;
 use App\Support\AcademicOptions;
@@ -45,6 +46,8 @@ class ScheduleRequest extends FormRequest
         $schedule = $this->route('schedule');
         $careerId = $this->integer('career_id');
         $period = $this->integer('period');
+        $studySchedule = $this->string('study_schedule')->toString();
+        $modality = $this->string('modality')->toString();
         $maxPosition = count(StudentSchedule::template()['subjects']);
 
         return [
@@ -58,12 +61,14 @@ class ScheduleRequest extends FormRequest
                     ->where(
                         static fn ($query) => $query
                             ->where('career_id', $careerId)
-                            ->where('period', $period),
+                            ->where('period', $period)
+                            ->where('study_schedule', $studySchedule)
+                            ->where('modality', $modality),
                     )
                     ->ignore($schedule?->id),
             ],
             'study_schedule' => ['required', Rule::in(array_keys(AcademicOptions::SCHEDULES))],
-            'modality' => ['nullable', Rule::in(array_keys(AcademicOptions::MODALITIES))],
+            'modality' => ['required', Rule::in(array_keys(AcademicOptions::MODALITIES))],
             'starts_on' => ['required', 'date_format:Y-m-d'],
             'ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
             'subjects' => ['required', 'array', 'min:1', 'max:'.$maxPosition],
@@ -124,18 +129,23 @@ class ScheduleRequest extends FormRequest
 
             $modality = (string) $this->input('modality');
 
-            if (array_key_exists($modality, AcademicOptions::MODALITIES)) {
-                $offerings = $career->offerings()->get(['modality', 'is_active']);
+            if (
+                array_key_exists($studySchedule, AcademicOptions::SCHEDULES)
+                && array_key_exists($modality, AcademicOptions::MODALITIES)
+            ) {
+                $offerings = $career->offerings()->get(['schedule', 'modality', 'is_active']);
 
                 if ($offerings->isNotEmpty()) {
-                    $activeModalities = $offerings
-                        ->where('is_active', true)
-                        ->pluck('modality');
+                    $hasActiveOffering = $offerings->contains(
+                        static fn (CareerOffering $offering): bool => $offering->is_active
+                            && $offering->schedule === $studySchedule
+                            && $offering->modality === $modality,
+                    );
 
-                    if (! $activeModalities->contains($modality)) {
+                    if (! $hasActiveOffering) {
                         $validator->errors()->add(
                             'modality',
-                            'La modalidad seleccionada no está activa en la oferta de la carrera.',
+                            'La combinación de horario y modalidad no está activa en la oferta de la carrera.',
                         );
                     }
                 }
@@ -189,7 +199,11 @@ class ScheduleRequest extends FormRequest
                 ->whereIn('id', $subjectIds)
                 ->where('career_id', $career->id)
                 ->when($validPeriod, static fn ($query) => $query->where('semester', $period))
-                ->with('professors:id')
+                ->with([
+                    'professors' => static fn ($query) => $query
+                        ->whereHas('professorProfile')
+                        ->select('users.id'),
+                ])
                 ->get()
                 ->keyBy('id');
 

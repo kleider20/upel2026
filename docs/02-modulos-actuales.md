@@ -59,9 +59,12 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
   mayúsculas ni acentos; si el aspirante escribe uno nuevo, se agrega al catálogo al enviar
   la solicitud (`HighSchool::firstOrCreate`).
 - `HighSchoolSeeder` carga 15 planteles iniciales (liceos y unidades educativas de Caracas).
-- Validación en `StoreAdmissionRequest`: edad mínima de 15 años, cédula única por
-  convocatoria, correo sin cuenta previa, aceptación de las condiciones y que la
-  combinación carrera/modalidad/horario/turno corresponda a una oferta activa.
+- Validación en `StoreAdmissionRequest`: edad mínima de 15 años; cédula no registrada en
+  ninguna convocatoria previa; correo no asociado a cuentas, correos personales de
+  estudiantes ni solicitudes de ninguna convocatoria; aceptación de las condiciones y
+  oferta académica activa. La cédula y el correo se verifican en el primer paso al salir
+  de cada campo y de nuevo al continuar; los duplicados muestran el error junto al campo
+  correspondiente y bloquean el avance.
 - Genera el código de aspirante `ASP-{año}-{secuencia}` (`Admission::nextCode()`), guarda
   el estado `recibida` y el primer registro de `admission_status_histories`.
 - La ventana la controla `AdmissionWindow` + `config/admissions.php`: antes del
@@ -96,10 +99,12 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
 ### Bandeja administrativa
 
 - `/admin/admissions`: filtros por estado, búsqueda por código/cédula/nombre/correo,
-  paginación y tarjetas de resumen.
+  paginación y tarjetas de resumen. Las solicitudes convertidas ya no se muestran aquí.
 - `/admin/admissions/{code}`: expediente completo, descarga de archivos, apertura del
   documento en una pestaña nueva (PDF/JPG/PNG servidos inline), validación de documentos y
-  cambio de estado.
+  cambio de estado. Una solicitud convertida redirige al perfil estudiantil.
+- El administrador puede editar o eliminar solicitudes no convertidas; los permisos
+  `admissions.edit` y `admissions.delete` son exclusivos del rol administrador.
 - Flujo `recibida → en_revision → observada / aprobada / rechazada`; no permite aprobar si
   faltan documentos obligatorios.
 - Cada cambio guarda `reviewed_by`, `reviewed_at`, la nota y el historial en
@@ -119,7 +124,8 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
 ### Permisos
 
 - `admissions.view` para consultar y `admissions.manage` para cambiar estados, revisar
-  documentos y convertir aspirantes.
+  documentos y convertir aspirantes. `admissions.edit` y `admissions.delete` habilitan la
+  edición y eliminación de solicitudes únicamente al administrador.
 
 > La **inscripción formal / matrícula en línea** (selección de materias y pago) sigue
 > pendiente: por ahora solo existe la fecha de apertura (`isEnrollmentOpen`) que usan la
@@ -204,29 +210,30 @@ Si el correo existe pero pertenece a otro portal, se devuelve un mensaje especí
 
 Portal de una sola página con barra lateral y 9 módulos conmutables por pestaña:
 
-| Pestaña             | Componente                      | Funcionalidad                                                                                                                                                                                                                                  |
-| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inicio              | `modules/Inicio.tsx`            | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos.                                                                                                                                 |
-| Mi solicitud        | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                                                                 |
-| Mis materias        | `modules/MisMaterias.tsx`       | Inscripciones con período, profesor, créditos y estado.                                                                                                                                                                                        |
-| Mis calificaciones  | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia.                                                                                                                                                                                              |
-| Mis profesores      | `modules/MisProfesores.tsx`     | Docentes de las materias inscritas con departamento y materias.                                                                                                                                                                                |
-| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE).                                                                                                                                          |
-| Mi horario          | `modules/MiHorario.tsx`         | Horario oficial de actividades presenciales (plantilla de 16 sábados o rango dinámico publicado) filtrado por el horario de preinscripción, con las dos cuadrículas del documento y descarga/impresión en PDF (`GET /estudiante/horario/pdf`). |
-| Mi perfil           | `modules/MiPerfil.tsx`          | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`).                                                                                                                      |
-| Mis trámites        | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                                                           |
+| Pestaña             | Componente                      | Funcionalidad                                                                                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Inicio              | `modules/Inicio.tsx`            | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos.                                                                                                                                                                                                     |
+| Mi solicitud        | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                                                                                                                                     |
+| Mis materias        | `modules/MisMaterias.tsx`       | Inscripciones con período, profesor, créditos y estado.                                                                                                                                                                                                                                                            |
+| Mis calificaciones  | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia.                                                                                                                                                                                                                                                                  |
+| Mis profesores      | `modules/MisProfesores.tsx`     | Docentes de las materias inscritas con departamento y materias.                                                                                                                                                                                                                                                    |
+| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE).                                                                                                                                                                                                              |
+| Mi horario          | `modules/MiHorario.tsx`         | Horario oficial (plantilla de 16 sábados o rango dinámico publicado), seleccionado por carrera, período, modalidad y horario de preinscripción; incluye las dos cuadrículas, descarga/impresión en PDF (`GET /estudiante/horario/pdf`) y avisos en la campana al publicar o actualizar el horario correspondiente. |
+| Mi perfil           | `modules/MiPerfil.tsx`          | Datos reales del aspirante (cédula, nacimiento, período, turno) y formulario de actualización (`PUT /estudiante/perfil`).                                                                                                                                                                                          |
+| Mis trámites        | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                                                                                                                               |
 
 - `Student\DashboardController` envía `admission` con la solicitud que originó la cuenta
   (datos, documentos e historial) y completa el perfil con esos datos cuando el
   `student_profile` no los tiene; ya no inventa valores personales.
 
 - `App\Support\StudentSchedule` transcribe el horario oficial de Educación Primaria
-  período 1 y lo filtra por el horario de estudio del estudiante; si la administración
-  publicó un horario para su carrera y período, ese tiene prioridad. Los horarios con
-  rango de fechas se generan con `ScheduleCalendar` (columnas por sábado o por semana) y
-  conservan las fechas y horas exactas de cada materia. `MiHorario` lo muestra completo y
-  `App\Support\StudentSchedulePdf` genera el PDF oficial para imprimir o descargar (sin
-  dependencias externas).
+  período 1 y lo filtra por el horario de estudio del estudiante; los horarios publicados
+  se seleccionan por carrera, período, modalidad y horario de estudio. Al publicarlos o
+  actualizarlos, los estudiantes activos que coinciden reciben una notificación en la
+  aplicación. Los horarios con rango de fechas se generan con `ScheduleCalendar`
+  (columnas por sábado o por semana) y conservan las fechas y horas exactas de cada
+  materia. `MiHorario` lo muestra completo y `App\Support\StudentSchedulePdf` genera el
+  PDF oficial para imprimir o descargar (sin dependencias externas).
 
 - La barra lateral (`components/student/Sidebar.tsx`) agrupa “Mi vida académica” y
   “Cuenta y Servicios”, e incluye cierre de sesión.
@@ -272,19 +279,19 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 ### Módulos disponibles
 
-| Módulo       | Permiso           | Contenido                                                                           |
-| ------------ | ----------------- | ----------------------------------------------------------------------------------- |
-| `admissions` | `admissions.view` | Bandeja de preinscripciones, expediente, documentos y conversión (páginas propias). |
-| `students`   | `students.view`   | Expedientes, carrera, semestre, estado y promedio.                                  |
-| `professors` | `professors.view` | Plantilla docente, departamento, título y materias.                                 |
-| `careers`    | `careers.view`    | Oferta académica, modalidad, duración, materias y estudiantes.                      |
-| `subjects`   | `subjects.view`   | Unidades curriculares, créditos, docentes e inscritos.                              |
-| `schedules`  | `schedules.view`  | Horarios oficiales por carrera, período y cohorte, con vista previa y PDF.          |
-| `grades`     | `grades.view`     | Calificaciones globales, promedio, aprobadas y sin nota.                            |
-| `finance`    | `finance.view`    | Recaudado, por cobrar, vencidos y detalle de pagos.                                 |
-| `programs`   | `programs.view`   | Postgrados, cursos y talleres.                                                      |
-| `users`      | `users.view`      | Cuentas, roles, verificación y fecha de registro.                                   |
-| `roles`      | `roles.manage`    | Roles, permisos, usuarios y alcance.                                                |
+| Módulo       | Permiso           | Contenido                                                                                                    |
+| ------------ | ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `admissions` | `admissions.view` | Bandeja de preinscripciones, expediente, documentos y conversión (páginas propias).                          |
+| `students`   | `students.view`   | Listado de expedientes, carrera, semestre, estado y promedio; acciones de perfil solo para el administrador. |
+| `professors` | `professors.view` | Perfiles docentes, departamento, título y materias asignadas; gestión según permiso.                         |
+| `careers`    | `careers.view`    | Oferta académica, modalidad, duración, materias y estudiantes.                                               |
+| `subjects`   | `subjects.view`   | Unidades curriculares, créditos, docentes e inscritos.                                                       |
+| `schedules`  | `schedules.view`  | Horarios oficiales por carrera, período y cohorte, con vista previa y PDF.                                   |
+| `grades`     | `grades.view`     | Calificaciones globales, promedio, aprobadas y sin nota.                                                     |
+| `finance`    | `finance.view`    | Recaudado, por cobrar, vencidos y detalle de pagos.                                                          |
+| `programs`   | `programs.view`   | Postgrados, cursos y talleres.                                                                               |
+| `users`      | `users.view`      | Cuentas, roles, verificación y fecha de registro.                                                            |
+| `roles`      | `roles.manage`    | Roles, permisos, usuarios y alcance.                                                                         |
 
 ### Visibilidad por rol
 
@@ -297,9 +304,29 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 - `AdminDashboardController` construye las tarjetas a partir del catálogo y de los
   permisos del usuario.
+- Los usuarios con `students.view` pueden consultar el listado. Solo el administrador puede
+  ver perfiles, editar datos personales/académicos y eliminar cuentas; la eliminación
+  permanente borra perfil, inscripciones y pagos, conservando la solicitud de admisión como
+  registro histórico.
 - `AdminAdmissionController` implementa el flujo de admisiones con escritura (estados,
-  revisión de documentos y conversión); carreras, materias y horarios tienen sus propios
-  controladores CRUD. El resto de módulos del catálogo sigue en solo lectura.
+  revisión de documentos y conversión); carreras, materias, profesores y horarios tienen
+  sus propios flujos de gestión. Los programas y usuarios siguen en solo lectura.
+- `AdminProfessorController` permite registrar cuentas con rol Profesor y contraseña
+  temporal de cambio obligatorio, editar datos del perfil, consultar el perfil docente y
+  sincronizar las materias asignadas. La selección usa el catálogo de materias de carreras
+  existente, agrupado en acordeones por carrera y, dentro de cada carrera, por período (I,
+  II, III…), de modo que se pueden elegir materias de distintos períodos para el mismo
+  profesor; desde el formulario se puede abrir el CRUD de materias.
+    - **Rutas:** `/admin/professors` (`admin.professors.index`), `/create`,
+      `/{professor}/edit`, `GET /{professor}` (perfil) y `DELETE /{professor}`.
+    - **Páginas:** `resources/js/pages/admin/professors/index.tsx`, `form.tsx` y `show.tsx`.
+    - El listado muestra las acciones **Ver**, **Editar** y **Eliminar** según permisos.
+      Eliminar borra la cuenta, su perfil docente, sus materias asignadas y sus
+      notificaciones; los horarios publicados conservan el registro sin docente asignado.
+      Requiere `professors.delete`, exclusivo del administrador, y no permite borrar cuentas
+      con rol administrador.
+    - `AdminScheduleController` ofrece en cada materia únicamente los profesores con perfil
+      registrado y vínculo en `professor_subjects`.
 - `AdminModuleController` valida permiso antes de responder y devuelve `403` si falta.
 - La tabla se renderiza con `resources/js/pages/admin/resource.tsx` (columnas, filas,
   tonos y estadísticas).
@@ -307,19 +334,28 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 ### Horarios publicados
 
 **Rutas:** `/admin/schedules` (`admin.schedules.index`), `/create`, `/{schedule}`,
-`/{schedule}/pdf` y `DELETE /{schedule}`
+`/{schedule}/edit`, `/{schedule}/pdf` y `DELETE /{schedule}`
 **Controlador:** `App\Http\Controllers\AdminScheduleController`
 **Páginas:** `resources/js/pages/admin/schedules/index.tsx`, `form.tsx`, `show.tsx`
 
 - Tabla `schedules`: `career_id`, `period` (1–12), `cohort` (`2025-II`), `study_schedule`
-  (`sabatino` o `lunes_viernes`), `starts_on` y `ends_on`, con índice único por carrera +
-  período + cohorte.
+  (`sabatino` o `lunes_viernes`), `modality` (`presencial`, `mixta` u `online`), `starts_on`
+  y `ends_on`, con índice único por carrera + período + cohorte + tipo de horario +
+  modalidad.
 - Tabla `schedule_subjects`: `schedule_id`, `subject_id`, `professor_id` opcional,
   `teacher_name` opcional, `position` (1–7), `dates` (JSON con los días exactos de clase),
-  `starts_at` y `ends_at`, con unicidad por horario + posición y horario + materia.
+  `date_times` (JSON con la hora de inicio y fin de cada fecha), `starts_at` y `ends_at`
+  como respaldo, con unicidad por horario + posición y horario + materia.
 - El formulario elige la carrera con un `select` de las carreras activas, muestra los
   períodos según su `duration_semesters` (I, II, III…), pide la cohorte manualmente con
   el formato `AAAA-I` o `AAAA-II` y deja elegir el tipo de horario.
+- El tipo de horario y la modalidad se cargan de las **ofertas activas** de la carrera
+  (`career_offerings`): si una carrera solo ofrece Sabatino, el selector no muestra Lunes a
+  viernes; al elegir un tipo de horario, el selector de modalidad solo lista las
+  modalidades activas para esa combinación (Presencial, Semipresencial u Online). Si la
+  carrera no tiene ofertas activas, no se puede publicar un horario.
+- El formulario también permite **editar** un horario publicado, conservando sus materias,
+  fechas y horas, y la acción de eliminar sigue disponible desde el listado y la vista.
 - El rango de clases se define con fecha de inicio y fecha de finalización. A partir de
   esas fechas, `App\Support\ScheduleCalendar` genera:
     - **Sabatino:** una columna por cada sábado del rango.
@@ -329,16 +365,19 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 - Cada fila de **Unidad / Eje Curricular** es un `select` con las materias activas de la
   carrera y el período elegidos. Una materia ya seleccionada desaparece de las demás filas
   y el código (`EDPRI-002`, `EDPRI-007`, …) se completa automáticamente.
-- Cada materia elegida define su hora de inicio y fin libre (se muestran en formato de 12
-  horas, por ejemplo `8 am - 12 pm`) y marca sus fechas exactas en un calendario de chips
-  agrupado por mes, con acciones para seleccionar todas o limpiar. Cambiar el rango o el
-  tipo de horario limpia las fechas marcadas para evitar valores fuera de rango.
+- Cada materia elegida marca sus fechas exactas en un calendario de chips agrupado por
+  mes, con acciones para seleccionar todas o limpiar. Al marcar una fecha aparecen sus
+  propios campos de **hora de inicio y hora de fin**, de modo que una misma materia puede
+  tener horarios distintos según el día; solo las fechas marcadas se muestran en la vista
+  previa y en el horario publicado. Cambiar el rango o el tipo de horario limpia las fechas
+  y horas marcadas para evitar valores fuera de rango.
 - La vista previa arranca vacía y solo muestra las materias seleccionadas; no reutiliza
   los datos de la plantilla oficial como contenido de ejemplo.
-- Junto a cada materia hay un `select` de docente con los profesores asignados a esa
-  materia (`professor_subjects`) y con los docentes de la plantilla oficial. El profesor
-  del sistema se guarda en `professor_id`; el docente de plantilla, en `teacher_name`.
-  Si no se elige ninguno, se usa el primero asignado o el docente de la franja oficial.
+- Junto a cada materia hay un `select` con los profesores que tienen perfil registrado y
+  están asignados a esa materia (`professor_subjects`); al elegir la materia se preselecciona
+  el primero. Si no hay perfiles asignados, el selector lo indica y no ofrece docentes de la
+  plantilla como si fueran cuentas del sistema. Los nombres históricos guardados en
+  `teacher_name` se conservan al editar horarios existentes.
 - Las materias con modalidad `online` se publican como **Virtual** únicamente en sus
   fechas seleccionadas, en ambas cuadrículas. Las materias presenciales o mixtas muestran
   su hora solo en las fechas marcadas y nunca heredan el texto `Virtual`.
@@ -346,10 +385,11 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   semana, fechas, dos cuadrículas y leyenda de franjas). `pdf_hours` genera etiquetas
   compactas (`8-12`, `LM 8-12`, `L-V 8-12`) para que las celdas del PDF no se desborden;
   `StudentSchedulePdf` reduce el tamaño de fuente cuando la etiqueta no cabe.
-- `ScheduleRequest` valida el tipo de horario, el rango de fechas, que el fin sea posterior
-  al inicio, que cada fecha pertenezca al rango y al tipo de horario, que las horas tengan
-  formato `HH:MM` y que el fin sea posterior al inicio; además conserva las validaciones
-  de cohorte, período, materias, posiciones y docentes.
+- `ScheduleRequest` valida el tipo de horario y la modalidad contra la oferta activa de la
+  carrera, el rango de fechas, que el fin sea posterior al inicio, que cada fecha pertenezca
+  al rango y al tipo de horario, que cada fecha tenga hora de inicio y fin con formato
+  `HH:MM` y que el fin sea posterior al inicio; además conserva las validaciones de cohorte,
+  período, materias, posiciones y que el profesor tenga perfil y esté asignado.
 - Los horarios publicados antes de este módulo (sin `starts_on`, `ends_on` ni fechas por
   materia) siguen mostrando las 16 semanas de la plantilla oficial como respaldo.
 - `App\Support\StudentSchedule::forStudent()` prioriza el horario publicado por la
@@ -393,6 +433,7 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 | `tests/Feature/AdminPortalTest.php`            | Acceso y visibilidad de módulos por rol.                                                         |
 | `tests/Feature/AdminCareerTest.php`            | CRUD de carreras: permisos, validación, alta, edición y baja.                                    |
 | `tests/Feature/AdminSubjectTest.php`           | CRUD de materias: permisos, validación, búsqueda y baja.                                         |
+| `tests/Feature/AdminProfessorTest.php`         | Cuentas docentes, permisos, asignaciones de materias y opciones en horarios.                     |
 | `tests/Feature/AdminScheduleTest.php`          | Horarios: permisos, filtros, alta con materias, validación, PDF, baja y prioridad en el portal.  |
 | `tests/Feature/AcademicSeederTest.php`         | Solo las 4 carreras oficiales y renombrado de códigos históricos.                                |
 | `tests/Feature/AdmissionApplicationTest.php`   | Ventana, registro, validaciones, consulta, enlaces firmados y documentos.                        |

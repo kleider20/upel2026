@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\AdmissionDocumentStatus;
+use App\Enums\AdmissionDocumentType;
 use App\Enums\AdmissionStatus;
 use App\Mail\AdmissionReceived;
 use App\Models\Admission;
@@ -134,6 +136,7 @@ test('solo se muestran las carreras activas con ofertas activas', function () {
 
 test('un aspirante puede registrar su solicitud y recibe su código', function () {
     Mail::fake();
+    Storage::fake('local');
     $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
 
     $career = offeredCareer();
@@ -158,11 +161,13 @@ test('un aspirante puede registrar su solicitud y recibe su código', function (
         ->and($admission->submitted_at)->not->toBeNull()
         ->and($admission->statusHistories()->count())->toBe(1);
 
+    Storage::disk('local')->assertExists('admissions/18765432');
     Mail::assertQueued(AdmissionReceived::class);
 });
 
 test('el plantel escrito se guarda en el catálogo al enviar la solicitud', function () {
     Mail::fake();
+    Storage::fake('local');
     $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
 
     $career = offeredCareer();
@@ -177,6 +182,7 @@ test('el plantel escrito se guarda en el catálogo al enviar la solicitud', func
 
 test('el plantel existente no se duplica al enviar la solicitud', function () {
     Mail::fake();
+    Storage::fake('local');
     $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
 
     $career = offeredCareer();
@@ -217,6 +223,130 @@ test('la cédula no puede repetirse en la misma convocatoria', function () {
         ...$payload,
         'email' => 'otro.aspirante@example.com',
     ])->assertSessionHasErrors('id_number');
+});
+
+test('el correo no puede repetirse en una solicitud de la misma convocatoria', function () {
+    Mail::fake();
+    Storage::fake('local');
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+
+    $career = offeredCareer();
+    $payload = validAdmissionPayload($career);
+
+    $this->post(route('admissions.store'), $payload)
+        ->assertSessionHasNoErrors();
+
+    $this->post(route('admissions.store'), [
+        ...$payload,
+        'id_number' => '19876543',
+    ])->assertSessionHasErrors([
+        'email' => 'Ya existe una cuenta o solicitud asociada a este correo.',
+    ]);
+
+    expect(Admission::query()->count())->toBe(1);
+});
+
+test('no se puede preinscribir con la cédula o el correo de un estudiante existente', function () {
+    Mail::fake();
+    Storage::fake('local');
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+
+    $career = offeredCareer();
+    $student = User::factory()->create(['email' => 'estudiante@example.com']);
+    Admission::factory()->create([
+        'period_year' => 2026,
+        'id_number' => '18765432',
+        'email' => $student->email,
+        'converted_user_id' => $student->id,
+        'status' => AdmissionStatus::Convertida->value,
+    ]);
+
+    $this->post(route('admissions.store'), validAdmissionPayload($career, [
+        'id_number' => '18.765.432',
+        'email' => 'ESTUDIANTE@example.com',
+    ]))->assertSessionHasErrors([
+        'id_number' => 'Ya existe una solicitud o un estudiante registrado con esta cédula.',
+        'email' => 'Ya existe una cuenta o solicitud asociada a este correo.',
+    ]);
+
+    expect(Admission::query()->count())->toBe(1);
+});
+
+test('la preinscripción rechaza cédulas y correos de solicitudes de convocatorias anteriores', function () {
+    Mail::fake();
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+
+    $career = offeredCareer();
+    Admission::factory()->create([
+        'period_year' => 2026,
+        'id_number' => '18765432',
+        'email' => 'aspirante.anterior@example.com',
+    ]);
+
+    $this->post(route('admissions.store'), validAdmissionPayload($career, [
+        'id_number' => '18.765.432',
+        'email' => 'ASPIRANTE.ANTERIOR@example.com',
+    ]))->assertSessionHasErrors([
+        'id_number' => 'Ya existe una solicitud o un estudiante registrado con esta cédula.',
+        'email' => 'Ya existe una cuenta o solicitud asociada a este correo.',
+    ]);
+
+    expect(Admission::query()->count())->toBe(1);
+    Mail::assertNothingQueued();
+});
+
+test('la preinscripción rechaza el correo personal de un estudiante existente', function () {
+    Mail::fake();
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+
+    $career = offeredCareer();
+    StudentProfile::factory()
+        ->for(User::factory()->create(['email' => 'estudiante.usuario@example.com']))
+        ->create(['personal_email' => 'estudiante.personal@example.com']);
+
+    $this->post(route('admissions.store'), validAdmissionPayload($career, [
+        'email' => 'ESTUDIANTE.PERSONAL@example.com',
+    ]))->assertSessionHasErrors([
+        'email' => 'Ya existe una cuenta o solicitud asociada a este correo.',
+    ]);
+
+    expect(Admission::query()->count())->toBe(0);
+    Mail::assertNothingQueued();
+});
+
+test('la validación previa rechaza cédulas y correos duplicados antes de enviar la solicitud', function () {
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+    Admission::factory()->create([
+        'period_year' => 2026,
+        'id_number' => '18765432',
+        'email' => 'aspirante.anterior@example.com',
+    ]);
+
+    $this->postJson(route('admissions.identity'), [
+        'id_number' => '18.765.432',
+        'email' => 'ASPIRANTE.ANTERIOR@example.com',
+    ])
+        ->assertUnprocessable()
+        ->assertJsonPath(
+            'errors.id_number.0',
+            'Ya existe una solicitud o un estudiante registrado con esta cédula.',
+        )
+        ->assertJsonPath(
+            'errors.email.0',
+            'Ya existe una cuenta o solicitud asociada a este correo.',
+        );
+});
+
+test('la validación previa permite una identidad disponible sin crear una solicitud', function () {
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+
+    $this->postJson(route('admissions.identity'), [
+        'id_number' => '18765432',
+        'email' => 'nueva.aspirante@example.com',
+    ])->assertOk()
+        ->assertExactJson([]);
+
+    expect(Admission::query()->count())->toBe(0);
 });
 
 test('un aspirante menor de 15 años no puede preinscribirse', function () {
@@ -368,6 +498,32 @@ test('el expediente solo se muestra con un enlace firmado', function () {
         ->assertForbidden();
 });
 
+test('el seguimiento muestra el estado del documento y su revisión en el historial', function () {
+    $admission = Admission::factory()->create();
+    $admission->documents()->create([
+        'type' => AdmissionDocumentType::Cedula->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'cedula.pdf',
+        'path' => 'admissions/'.$admission->code.'/cedula.pdf',
+        'mime_type' => 'application/pdf',
+        'size' => 1024,
+    ]);
+    $admission->statusHistories()->create([
+        'from_status' => AdmissionStatus::Recibida->value,
+        'to_status' => AdmissionStatus::Recibida->value,
+        'note' => 'Se ha validado tu Cédula de identidad.',
+    ]);
+
+    $this->get($admission->trackingUrl(60))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admissions/status')
+            ->where('admission.documents.0.status_label', 'Validado')
+            ->where('admission.history.0.title', 'Se ha validado tu Cédula de identidad.')
+            ->where('admission.history.0.note', null)
+        );
+});
+
 test('el aspirante puede cargar un documento desde el seguimiento', function () {
     Storage::fake('local');
 
@@ -387,9 +543,175 @@ test('el aspirante puede cargar un documento desde el seguimiento', function () 
 
     expect($document->type)->toBe('titulo_bachiller')
         ->and($document->status)->toBe('pendiente')
-        ->and($document->original_name)->toBe('titulo.pdf');
+        ->and($document->original_name)->toBe('titulo.pdf')
+        ->and($document->path)->toStartWith('admissions/'.$admission->id_number.'/titulo_bachiller/');
 
     Storage::disk('local')->assertExists($document->path);
+
+    $document->forceFill([
+        'created_at' => now()->subDay(),
+        'updated_at' => now(),
+    ])->save();
+
+    $this->get($admission->trackingUrl(60))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('admission.documents.0.uploaded_at', now()->format('d/m/Y'))
+        );
+});
+
+test('los documentos distintos de la foto solo aceptan archivos PDF', function () {
+    Storage::fake('local');
+
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+
+    $this->post($url, [
+        'type' => 'cedula',
+        'document' => UploadedFile::fake()->image('cedula.jpg'),
+    ])->assertSessionHasErrors([
+        'document' => 'El formato del archivo no es válido para este documento.',
+    ]);
+
+    expect($admission->documents()->count())->toBe(0);
+});
+
+test('los documentos PDF también deben tener extensión PDF', function () {
+    Storage::fake('local');
+
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+
+    $this->post($url, [
+        'type' => 'cedula',
+        'document' => UploadedFile::fake()->createWithContent('cedula.jpg', "%PDF-1.4\n"),
+    ])->assertSessionHasErrors([
+        'document' => 'La extensión del archivo no es válida para este documento.',
+    ]);
+
+    expect($admission->documents()->count())->toBe(0);
+});
+
+test('la fotografía tipo carnet acepta imágenes', function () {
+    Storage::fake('local');
+
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+
+    $this->post($url, [
+        'type' => 'foto',
+        'document' => UploadedFile::fake()->image('foto.png'),
+    ])->assertRedirect();
+
+    $document = $admission->documents()->firstOrFail();
+
+    expect($document->type)->toBe('foto')
+        ->and($document->original_name)->toBe('foto.png');
+
+    Storage::disk('local')->assertExists($document->path);
+});
+
+test('la fotografía tipo carnet no acepta documentos PDF', function () {
+    Storage::fake('local');
+
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+
+    $this->post($url, [
+        'type' => 'foto',
+        'document' => UploadedFile::fake()->create('foto.pdf', 120, 'application/pdf'),
+    ])->assertSessionHasErrors([
+        'document' => 'La fotografía tipo carnet debe ser una imagen JPG, JPEG o PNG.',
+    ]);
+
+    expect($admission->documents()->count())->toBe(0);
+});
+
+test('el rechazo de PHP por tamaño muestra el motivo de la carga fallida', function () {
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+    $file = UploadedFile::fake()->create('titulo.pdf');
+    $failedUpload = new UploadedFile(
+        $file->getPathname(),
+        'titulo.pdf',
+        'application/pdf',
+        UPLOAD_ERR_INI_SIZE,
+        true,
+    );
+
+    $this->post($url, [
+        'type' => 'titulo_bachiller',
+        'document' => $failedUpload,
+    ])->assertSessionHasErrors([
+        'document' => 'El servidor rechazó el archivo porque supera el límite de carga de PHP. Reduce el tamaño del archivo o aumenta upload_max_filesize.',
+    ]);
+});
+
+test('el fallo al escribir el temporal muestra el motivo de la carga fallida', function () {
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+    $file = UploadedFile::fake()->create('titulo.pdf');
+    $failedUpload = new UploadedFile(
+        $file->getPathname(),
+        'titulo.pdf',
+        'application/pdf',
+        UPLOAD_ERR_CANT_WRITE,
+        true,
+    );
+
+    $this->post($url, [
+        'type' => 'titulo_bachiller',
+        'document' => $failedUpload,
+    ])->assertSessionHasErrors([
+        'document' => 'El servidor no pudo escribir el archivo temporal. Revisa el espacio disponible y los permisos de la carpeta temporal.',
+    ]);
+});
+
+test('la falta de carpeta temporal muestra el motivo real de la carga fallida', function () {
+    $admission = Admission::factory()->create();
+    $url = URL::temporarySignedRoute(
+        'admissions.documents.store',
+        now()->addDay(),
+        ['admission' => $admission->code],
+    );
+    $file = UploadedFile::fake()->create('titulo.pdf');
+    $failedUpload = new UploadedFile(
+        $file->getPathname(),
+        'titulo.pdf',
+        'application/pdf',
+        UPLOAD_ERR_NO_TMP_DIR,
+        true,
+    );
+
+    $this->post($url, [
+        'type' => 'titulo_bachiller',
+        'document' => $failedUpload,
+    ])->assertSessionHasErrors([
+        'document' => 'El servidor no tiene disponible una carpeta temporal para recibir archivos.',
+    ]);
 });
 
 test('no se pueden cargar documentos en una solicitud cerrada', function () {

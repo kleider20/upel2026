@@ -24,9 +24,9 @@ class StoreAdmissionDocumentRequest extends FormRequest
     public function rules(): array
     {
         $type = AdmissionDocumentType::tryFrom((string) $this->input('type'));
-        $mimes = $type !== null
-            ? implode(',', $type->acceptedMimes())
-            : 'pdf,jpg,jpeg,png';
+        $isPhoto = $type === AdmissionDocumentType::Foto;
+        $acceptedMimes = $type?->acceptedMimes() ?? ['pdf'];
+        $fileTypeRules = $isPhoto ? ['image'] : [];
 
         return [
             'type' => [
@@ -40,7 +40,9 @@ class StoreAdmissionDocumentRequest extends FormRequest
                 'required',
                 'file',
                 'max:'.(int) config('admissions.documents.max_kb'),
-                'mimes:'.$mimes,
+                ...$fileTypeRules,
+                'mimes:'.implode(',', $acceptedMimes),
+                'extensions:'.implode(',', $acceptedMimes),
             ],
         ];
     }
@@ -75,13 +77,27 @@ class StoreAdmissionDocumentRequest extends FormRequest
      */
     public function messages(): array
     {
+        $uploadError = $this->file('document')?->getError();
+        $uploadedMessage = match ($uploadError) {
+            UPLOAD_ERR_INI_SIZE => 'El servidor rechazó el archivo porque supera el límite de carga de PHP. Reduce el tamaño del archivo o aumenta upload_max_filesize.',
+            UPLOAD_ERR_FORM_SIZE => 'El archivo supera el límite de tamaño del formulario.',
+            UPLOAD_ERR_PARTIAL => 'La carga del archivo se interrumpió. Inténtalo de nuevo.',
+            UPLOAD_ERR_NO_TMP_DIR => 'El servidor no tiene disponible una carpeta temporal para recibir archivos.',
+            UPLOAD_ERR_CANT_WRITE => 'El servidor no pudo escribir el archivo temporal. Revisa el espacio disponible y los permisos de la carpeta temporal.',
+            UPLOAD_ERR_EXTENSION => 'Una extensión de PHP detuvo la carga del archivo.',
+            default => 'No se pudo recibir el archivo. Inténtalo de nuevo o contacta al administrador.',
+        };
+
         return [
             'type.required' => 'Selecciona el tipo de documento.',
             'type.in' => 'El tipo de documento no es válido.',
             'document.required' => 'Adjunta el archivo del documento.',
-            'document.file' => 'El documento no pudo cargarse.',
+            'document.file' => 'El archivo adjunto no es válido.',
+            'document.uploaded' => $uploadedMessage,
             'document.max' => 'El archivo supera el tamaño máximo permitido (5 MB).',
             'document.mimes' => 'El formato del archivo no es válido para este documento.',
+            'document.extensions' => 'La extensión del archivo no es válida para este documento.',
+            'document.image' => 'La fotografía tipo carnet debe ser una imagen JPG, JPEG o PNG.',
         ];
     }
 }

@@ -6,9 +6,11 @@ use App\Enums\AdmissionStatus;
 use App\Enums\Role;
 use App\Models\Admission;
 use App\Models\Career;
+use App\Models\Schedule;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
+use App\Notifications\SchedulePublishedNotification;
 use Database\Seeders\RolePermissionSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -185,6 +187,116 @@ test('el horario del estudiante sabatino muestra las 16 semanas del documento of
             ->where('schedule.distance_subjects.0.hours.0', null)
             ->where('schedule.distance_subjects.6.hours.0', 'Virtual')
         );
+});
+
+it('shows only the published schedule matching the student modality and study schedule', function () {
+    $career = Career::factory()->create([
+        'code' => 'EDTEST',
+        'duration_semesters' => 8,
+    ]);
+    $user = User::factory()->create(['must_change_password' => false]);
+    $user->assignRole(Role::Estudiante->value);
+
+    StudentProfile::factory()->for($career)->for($user)->create([
+        'current_semester' => 1,
+    ]);
+
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $user->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+        'modality' => 'mixta',
+        'schedule' => 'sabatino',
+    ]);
+
+    Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2025-II',
+        'study_schedule' => 'sabatino',
+        'modality' => 'mixta',
+    ]);
+    Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2026-I',
+        'study_schedule' => 'lunes_viernes',
+        'modality' => 'presencial',
+    ]);
+
+    $differentOfferingStudent = User::factory()->create(['must_change_password' => false]);
+    $differentOfferingStudent->assignRole(Role::Estudiante->value);
+    StudentProfile::factory()->for($career)->for($differentOfferingStudent)->create([
+        'current_semester' => 1,
+    ]);
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $differentOfferingStudent->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+        'modality' => 'presencial',
+        'schedule' => 'sabatino',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('schedule.cohort', '2025-II')
+            ->where('schedule.schedule_label', 'Sabatino')
+        );
+
+    $this->actingAs($differentOfferingStudent)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('schedule', null));
+});
+
+it('shares unread schedule notifications and marks an owned notification as read', function () {
+    $user = User::factory()->create(['must_change_password' => false]);
+    $user->assignRole(Role::Estudiante->value);
+    StudentProfile::factory()->for($user)->create();
+    $schedule = Schedule::factory()->create();
+
+    $user->notify(new SchedulePublishedNotification($schedule));
+    $user->notify(new SchedulePublishedNotification($schedule));
+    $notification = $user->unreadNotifications()->firstOrFail();
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('studentNotifications.unread_count', 2)
+            ->has('studentNotifications.items', 2)
+            ->where('studentNotifications.items.0.title', 'Horario de clases')
+            ->where('studentNotifications.items.0.message', 'Se ha publicado tu horario de clases.')
+        );
+
+    $this->actingAs($user)
+        ->from(route('student.dashboard'))
+        ->patch(route('student.notifications.read', $notification->id))
+        ->assertRedirect(route('student.dashboard'));
+
+    expect($user->fresh()->unreadNotifications()->count())->toBe(1)
+        ->and($notification->fresh()->read_at)->not->toBeNull();
+});
+
+it('does not allow a student to mark another users notification as read', function () {
+    $student = User::factory()->create(['must_change_password' => false]);
+    $student->assignRole(Role::Estudiante->value);
+    StudentProfile::factory()->for($student)->create();
+
+    $otherStudent = User::factory()->create(['must_change_password' => false]);
+    $otherStudent->assignRole(Role::Estudiante->value);
+    $otherProfile = StudentProfile::factory()->for($otherStudent)->create();
+    $notificationSchedule = Schedule::factory()->for($otherProfile->career)->create();
+    $otherStudent->notify(new SchedulePublishedNotification($notificationSchedule));
+    $notification = $otherStudent->unreadNotifications()->firstOrFail();
+
+    $this->actingAs($student)
+        ->patch(route('student.notifications.read', $notification->id))
+        ->assertNotFound();
+
+    expect($notification->fresh()->read_at)->toBeNull();
 });
 
 test('el estudiante descarga su horario en PDF', function () {

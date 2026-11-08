@@ -229,15 +229,23 @@ final class StudentSchedule
      *
      * @return array<string, mixed>|null
      */
-    public static function forStudent(?string $careerCode, int $semester, ?string $schedule): ?array
-    {
-        $record = Schedule::query()
-            ->with('career:id,name,code')
-            ->whereHas('career', static fn ($query) => $query->where('code', $careerCode ?? ''))
-            ->where('period', $semester)
-            ->orderByDesc('cohort')
-            ->orderByDesc('id')
-            ->first();
+    public static function forStudent(
+        ?string $careerCode,
+        int $semester,
+        ?string $schedule,
+        ?string $modality = null,
+    ): ?array {
+        $record = $schedule !== null && $modality !== null
+            ? Schedule::query()
+                ->with('career:id,name,code')
+                ->whereHas('career', static fn ($query) => $query->where('code', $careerCode ?? ''))
+                ->where('period', $semester)
+                ->where('study_schedule', $schedule)
+                ->where('modality', $modality)
+                ->orderByDesc('cohort')
+                ->orderByDesc('id')
+                ->first()
+            : null;
 
         if ($record !== null && $record->career !== null) {
             return $record->toScheduleArray($schedule);

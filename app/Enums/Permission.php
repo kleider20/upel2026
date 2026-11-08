@@ -15,6 +15,7 @@ enum Permission: string
 
     case ProfessorsView = 'professors.view';
     case ProfessorsManage = 'professors.manage';
+    case ProfessorsDelete = 'professors.delete';
 
     case CareersView = 'careers.view';
     case CareersManage = 'careers.manage';
@@ -30,6 +31,8 @@ enum Permission: string
 
     case AdmissionsView = 'admissions.view';
     case AdmissionsManage = 'admissions.manage';
+    case AdmissionsEdit = 'admissions.edit';
+    case AdmissionsDelete = 'admissions.delete';
 
     case FinanceView = 'finance.view';
     case FinanceManage = 'finance.manage';
@@ -57,6 +60,7 @@ enum Permission: string
             self::StudentsManage => 'Gestionar estudiantes',
             self::ProfessorsView => 'Ver profesores',
             self::ProfessorsManage => 'Gestionar profesores',
+            self::ProfessorsDelete => 'Eliminar profesores',
             self::CareersView => 'Ver carreras',
             self::CareersManage => 'Gestionar carreras',
             self::SubjectsView => 'Ver materias',
@@ -67,6 +71,8 @@ enum Permission: string
             self::GradesManage => 'Gestionar notas',
             self::AdmissionsView => 'Ver admisiones',
             self::AdmissionsManage => 'Gestionar admisiones',
+            self::AdmissionsEdit => 'Editar solicitudes de admisión',
+            self::AdmissionsDelete => 'Eliminar solicitudes de admisión',
             self::FinanceView => 'Ver finanzas',
             self::FinanceManage => 'Gestionar finanzas',
             self::ProgramsView => 'Ver postgrados y cursos',
@@ -87,8 +93,6 @@ enum Permission: string
     {
         return [
             self::DashboardView,
-            self::StudentsView,
-            self::StudentsManage,
             self::ProfessorsView,
             self::ProfessorsManage,
             self::CareersView,
@@ -99,8 +103,6 @@ enum Permission: string
             self::SchedulesManage,
             self::GradesView,
             self::GradesManage,
-            self::AdmissionsView,
-            self::AdmissionsManage,
             self::ProgramsView,
             self::ProgramsManage,
         ];

@@ -36,6 +36,7 @@ class AdminDashboardController extends Controller
                     'subjects' => route('admin.subjects.index'),
                     'schedules' => route('admin.schedules.index'),
                     'careers' => route('admin.careers.index'),
+                    'professors' => route('admin.professors.index'),
                     default => route('admin.module', ['module' => $key]),
                 },
             ])

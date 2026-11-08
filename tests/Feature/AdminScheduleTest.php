@@ -4,6 +4,7 @@ use App\Enums\AdmissionStatus;
 use App\Enums\Role;
 use App\Models\Admission;
 use App\Models\Career;
+use App\Models\ProfessorProfile;
 use App\Models\Schedule;
 use App\Models\StudentProfile;
 use App\Models\Subject;
@@ -219,6 +220,135 @@ test('academic managers can list schedules with filters and stats', function () 
         );
 });
 
+it('notifies only active students matching the published career, period, modality and study schedule', function () {
+    $career = Career::factory()->create([
+        'name' => 'Educación Primaria',
+        'code' => 'EDPRI',
+    ]);
+
+    $createStudent = static function (
+        Career $studentCareer,
+        string $modality = 'mixta',
+        string $studySchedule = 'sabatino',
+        int $semester = 1,
+        string $profileStatus = 'activo',
+    ): User {
+        $user = User::factory()->create(['must_change_password' => false]);
+        $user->assignRole(Role::Estudiante->value);
+
+        StudentProfile::factory()->for($studentCareer)->for($user)->create([
+            'current_semester' => $semester,
+            'status' => $profileStatus,
+        ]);
+
+        Admission::factory()->create([
+            'status' => AdmissionStatus::Convertida->value,
+            'converted_user_id' => $user->id,
+            'career_id' => $studentCareer->id,
+            'modality' => $modality,
+            'schedule' => $studySchedule,
+        ]);
+
+        return $user;
+    };
+
+    $matchingStudent = $createStudent($career);
+    $wrongModalityStudent = $createStudent($career, 'presencial');
+    $wrongStudyScheduleStudent = $createStudent($career, 'mixta', 'lunes_viernes');
+    $wrongSemesterStudent = $createStudent($career, 'mixta', 'sabatino', 2);
+    $inactiveStudent = $createStudent($career, 'mixta', 'sabatino', 1, 'suspendido');
+    $otherCareerStudent = $createStudent(Career::factory()->create());
+
+    $subject = Subject::factory()->for($career)->create(['semester' => 1]);
+
+    $this->actingAs(scheduleManager())
+        ->post(route('admin.schedules.store'), schedulePayload(
+            $career->id,
+            [scheduleSubject(1, $subject->id)],
+        ))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect($matchingStudent->notifications()->count())->toBe(1)
+        ->and($matchingStudent->notifications()->first()->data)->toMatchArray([
+            'title' => 'Horario de clases',
+            'message' => 'Se ha publicado tu horario de clases.',
+            'destination' => 'horario',
+        ]);
+
+    expect($wrongModalityStudent->notifications()->count())->toBe(0)
+        ->and($wrongStudyScheduleStudent->notifications()->count())->toBe(0)
+        ->and($wrongSemesterStudent->notifications()->count())->toBe(0)
+        ->and($inactiveStudent->notifications()->count())->toBe(0)
+        ->and($otherCareerStudent->notifications()->count())->toBe(0);
+
+    $schedule = Schedule::query()->firstOrFail();
+
+    $this->actingAs(scheduleManager())
+        ->put(route('admin.schedules.update', $schedule), schedulePayload(
+            $career->id,
+            [scheduleSubject(1, $subject->id)],
+        ))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect($matchingStudent->notifications()->count())->toBe(2);
+});
+
+it('allows publishing the same cohort for a different modality and study schedule', function () {
+    $career = Career::factory()->create();
+    $subject = Subject::factory()->for($career)->create(['semester' => 1]);
+    $manager = scheduleManager();
+    $firstSchedule = schedulePayload($career->id, [
+        scheduleSubject(1, $subject->id),
+    ]);
+    $secondSchedule = schedulePayload($career->id, [
+        scheduleSubject(1, $subject->id, [
+            'dates' => ['2025-08-04'],
+            'starts_at' => '08:00',
+            'ends_at' => '12:00',
+        ]),
+    ], [
+        'study_schedule' => 'lunes_viernes',
+        'modality' => 'presencial',
+    ]);
+
+    $this->actingAs($manager)
+        ->post(route('admin.schedules.store'), $firstSchedule)
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $this->actingAs($manager)
+        ->post(route('admin.schedules.store'), $secondSchedule)
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $this->assertDatabaseCount('schedules', 2);
+});
+
+it('rejects a modality that is not offered for the selected study schedule', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $career->offerings()->create([
+        'modality' => 'mixta',
+        'schedule' => 'sabatino',
+        'shift' => 'diurno',
+        'is_active' => true,
+    ]);
+    $subject = Subject::factory()->for($career)->create(['semester' => 1]);
+
+    $this->actingAs(scheduleManager())
+        ->post(route('admin.schedules.store'), schedulePayload(
+            $career->id,
+            [scheduleSubject(1, $subject->id)],
+            ['modality' => 'presencial'],
+        ))
+        ->assertSessionHasErrors([
+            'modality' => 'La combinación de horario y modalidad no está activa en la oferta de la carrera.',
+        ]);
+
+    $this->assertDatabaseCount('schedules', 0);
+});
+
 test('academic managers can create a schedule with the official template', function () {
     $career = Career::factory()->create([
         'name' => 'Educación Primaria',
@@ -233,11 +363,12 @@ test('academic managers can create a schedule with the official template', funct
         'is_active' => true,
     ]);
     $professor = User::factory()->create(['name' => 'Ana Pérez']);
+    $professorProfile = ProfessorProfile::factory()->for($professor)->create();
     $subjects = Subject::factory()->count(2)->for($career)->create([
         'semester' => 1,
         'modality' => 'presencial',
     ]);
-    $subjects->first()->professors()->attach($professor);
+    $professorProfile->subjects()->attach($subjects->first());
 
     $this->actingAs(scheduleManager())
         ->post(route('admin.schedules.store'), schedulePayload($career->id, [
@@ -295,6 +426,30 @@ test('academic managers can create a schedule with the official template', funct
             ->where('meta.period_label', 'I')
             ->where('meta.schedule_label', 'Sabatino')
             ->where('can_manage', true)
+        );
+});
+
+test('schedule form lists only registered professors assigned to each subject', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $subject = Subject::factory()->for($career)->create([
+        'name' => 'Desarrollo de Procesos Cognitivos',
+        'semester' => 1,
+    ]);
+    $professor = User::factory()->create(['name' => 'Amada Prim']);
+    $professorProfile = ProfessorProfile::factory()->for($professor)->create();
+    $professorProfile->subjects()->attach($subject);
+    $unregisteredProfessor = User::factory()->create(['name' => 'Docente sin perfil']);
+    $subject->professors()->attach($unregisteredProfessor);
+
+    $this->actingAs(scheduleManager())
+        ->get(route('admin.schedules.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/schedules/form')
+            ->where('subjects.0.name', 'Desarrollo de Procesos Cognitivos')
+            ->has('subjects.0.professors', 1)
+            ->where('subjects.0.professors.0.name', 'Amada Prim')
+            ->where('subjects.0.professors.0.id', $professor->id)
         );
 });
 
@@ -376,6 +531,8 @@ test('schedule managers cannot update a schedule to another schedules cohort', f
     Schedule::factory()->for($career)->create([
         'period' => 1,
         'cohort' => '2026-I',
+        'study_schedule' => 'sabatino',
+        'modality' => 'mixta',
     ]);
 
     $this->actingAs(scheduleManager())
@@ -715,10 +872,27 @@ test('presencial subjects never inherit Virtual from the template slot', functio
         );
 });
 
-test('the selected professor must be assigned to the subject', function () {
+test('the selected professor must have an assignment to the subject', function () {
     $career = Career::factory()->create(['duration_semesters' => 8]);
     $subject = Subject::factory()->for($career)->create(['semester' => 1]);
     $professor = User::factory()->create();
+
+    $this->actingAs(scheduleManager())
+        ->post(route('admin.schedules.store'), schedulePayload($career->id, [
+            scheduleSubject(1, $subject->id, [
+                'professor_id' => $professor->id,
+            ]),
+        ]))
+        ->assertSessionHasErrors('subjects.0.professor_id');
+
+    expect(Schedule::query()->count())->toBe(0);
+});
+
+test('a professor without a profile cannot be selected even when linked to a subject', function () {
+    $career = Career::factory()->create(['duration_semesters' => 8]);
+    $subject = Subject::factory()->for($career)->create(['semester' => 1]);
+    $professor = User::factory()->create();
+    $subject->professors()->attach($professor);
 
     $this->actingAs(scheduleManager())
         ->post(route('admin.schedules.store'), schedulePayload($career->id, [
@@ -785,6 +959,8 @@ test('the same career, period and cohort cannot be published twice', function ()
     Schedule::factory()->for($career)->create([
         'period' => 1,
         'cohort' => '2025-II',
+        'study_schedule' => 'sabatino',
+        'modality' => 'mixta',
     ]);
 
     $this->actingAs(scheduleManager())
@@ -891,6 +1067,8 @@ test('the student schedule prefers the schedule published by the administration'
     Schedule::factory()->for($career)->create([
         'period' => 1,
         'cohort' => '2026-I',
+        'study_schedule' => 'sabatino',
+        'modality' => 'mixta',
     ]);
 
     $user = User::factory()->create(['must_change_password' => false]);
@@ -907,6 +1085,7 @@ test('the student schedule prefers the schedule published by the administration'
         'converted_user_id' => $user->id,
         'converted_at' => now(),
         'career_id' => $career->id,
+        'modality' => 'mixta',
         'schedule' => 'sabatino',
     ]);
 

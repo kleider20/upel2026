@@ -169,6 +169,9 @@ fechas. En desarrollo se puede forzar la apertura con `ADMISSIONS_FORCE_OPEN=tru
 | Decano                  | Académicos + financieros                                                                                                                          |
 | Administrador           | Todos, incluidos `users.*`, `roles.manage`, `settings.manage`                                                                                     |
 
+Los usuarios con `students.view` pueden consultar el listado de estudiantes. Solo el rol
+administrador puede abrir, editar o eliminar perfiles estudiantiles.
+
 ## 7. Credenciales de demostración
 
 | Perfil                  | Correo                       | Contraseña             |
@@ -243,6 +246,10 @@ fechas. En desarrollo se puede forzar la apertura con `ADMISSIONS_FORCE_OPEN=tru
 | GET    | `/admin/admissions/{code}/documents/{document}`          | `admin.admissions.documents.download` | `admissions.view`                   |
 | GET    | `/admin/admissions/{code}/documents/{document}/ver`      | `admin.admissions.documents.preview`  | `admissions.view`                   |
 | GET    | `/admin/{module}`                                        | `admin.module`                        | Permiso del módulo                  |
+| GET    | `/admin/students/{student}`                              | `admin.students.show`                 | Solo administrador                  |
+| GET    | `/admin/students/{student}/edit`                         | `admin.students.edit`                 | Solo administrador                  |
+| PUT    | `/admin/students/{student}`                              | `admin.students.update`               | Solo administrador                  |
+| DELETE | `/admin/students/{student}`                              | `admin.students.destroy`              | Solo administrador                  |
 | GET    | `/dashboard`                                             | `dashboard`                           | Autenticados y verificados          |
 | PUT    | `/dashboard/notas/{enrollment}`                          | `professor.grades.update`             | Rol profesor                        |
 | GET    | `/estudiante/dashboard`                                  | `student.dashboard`                   | Rol estudiante                      |

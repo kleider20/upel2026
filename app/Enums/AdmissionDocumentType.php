@@ -55,7 +55,7 @@ enum AdmissionDocumentType: string
     {
         return match ($this) {
             self::Foto => ['jpg', 'jpeg', 'png'],
-            default => ['pdf', 'jpg', 'jpeg', 'png'],
+            default => ['pdf'],
         };
     }
 

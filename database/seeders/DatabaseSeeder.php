@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PensumSeeder::class,
             HighSchoolSeeder::class,
             DemoUserSeeder::class,
+            DemoProfessorSeeder::class,
             AdmissionSeeder::class,
         ]);
     }

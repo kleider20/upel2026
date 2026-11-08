@@ -11,11 +11,13 @@ import {
     Loader2,
     Mail,
     MapPin,
+    Pencil,
     Phone,
     ShieldCheck,
     UserCheck,
     UserRound,
     XCircle,
+    Trash2,
 } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/portal/page-header';
@@ -93,6 +95,8 @@ type AdmissionDetail = {
     can_convert: boolean;
     converted_user: string | null;
     converted_at: string | null;
+    edit_url: string;
+    delete_url: string;
     documents: AdminDocument[];
     history: HistoryRow[];
 };
@@ -111,6 +115,8 @@ type Props = {
     admission: AdmissionDetail;
     transitions: Transition[];
     documentStatuses: DocumentStatusOption[];
+    can_edit: boolean;
+    can_delete: boolean;
 };
 
 const labelClass =
@@ -232,6 +238,8 @@ export default function AdminAdmissionsShow({
     admission,
     transitions,
     documentStatuses,
+    can_edit,
+    can_delete,
 }: Props) {
     const statusForm = useForm({
         status: transitions[0]?.value ?? '',
@@ -265,6 +273,18 @@ export default function AdminAdmissionsShow({
         );
     };
 
+    const handleDelete = () => {
+        if (
+            !window.confirm(
+                `¿Eliminar la solicitud ${admission.code} de ${admission.full_name}? También se borrarán sus documentos privados.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(admission.delete_url);
+    };
+
     return (
         <>
             <Head title={`Solicitud ${admission.code}`} />
@@ -279,6 +299,25 @@ export default function AdminAdmissionsShow({
                             <ToneBadge tone={admission.status_tone as Tone}>
                                 {admission.status_label}
                             </ToneBadge>
+                            {can_edit && admission.converted_user === null ? (
+                                <Link
+                                    href={admission.edit_url}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-upel-navy shadow-sm transition-colors hover:bg-upel-cloud dark:bg-card dark:text-foreground"
+                                >
+                                    <Pencil className="size-3.5" />
+                                    Editar
+                                </Link>
+                            ) : null}
+                            {can_delete && admission.converted_user === null ? (
+                                <button
+                                    type="button"
+                                    onClick={handleDelete}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-xs font-bold text-red-700 shadow-sm transition-colors hover:bg-red-50"
+                                >
+                                    <Trash2 className="size-3.5" />
+                                    Eliminar
+                                </button>
+                            ) : null}
                             <Link
                                 href={admissionsIndex()}
                                 className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-upel-navy shadow-sm transition-colors hover:bg-upel-cloud dark:bg-card dark:text-foreground"

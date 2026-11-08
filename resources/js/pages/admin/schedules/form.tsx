@@ -230,18 +230,6 @@ export default function AdminScheduleForm({
         [subjectCatalog],
     );
 
-    const templateTeachers = useMemo(
-        () =>
-            Array.from(
-                new Set(
-                    template.subjects
-                        .map((subject) => subject.teacher.trim())
-                        .filter((teacher) => teacher !== ''),
-                ),
-            ),
-        [template],
-    );
-
     const range = {
         starts_on: form.data.starts_on,
         ends_on: form.data.ends_on,
@@ -308,7 +296,6 @@ export default function AdminScheduleForm({
                                   professor.id === Number(choice.professor_id),
                           )
                         : undefined;
-                const chosenTeacherName = choice.teacher_name.trim();
                 const chosenDates = new Set(choice.dates);
 
                 return {
@@ -316,9 +303,12 @@ export default function AdminScheduleForm({
                     name: subject.name,
                     teacher:
                         chosenProfessor?.name ??
-                        (chosenTeacherName !== ''
-                            ? chosenTeacherName
-                            : (subject.professors[0]?.name ?? slot.teacher)),
+                        (choice.teacher_name.trim() !== ''
+                            ? choice.teacher_name
+                            : (subject.professors[0]?.name ??
+                              (isEditing
+                                  ? slot.teacher
+                                  : 'Sin profesor asignado'))),
                     hours: previewWeeks.map((week) => {
                         const matches = (week.dates ?? []).filter((date) =>
                             chosenDates.has(date),
@@ -385,6 +375,7 @@ export default function AdminScheduleForm({
     }, [
         form.data.subjects,
         form.data.study_schedule,
+        isEditing,
         subjectById,
         template,
         previewWeeks,
@@ -487,13 +478,11 @@ export default function AdminScheduleForm({
                 .map((o) => o.modality)
                 .filter((m, index, self) => self.indexOf(m) === index);
 
-            const nextSchedule =
-                careerSchedules.length > 0 &&
-                careerSchedules.some(
-                    (option) => option.value === current.study_schedule,
-                )
-                    ? current.study_schedule
-                    : (careerSchedules[0]?.value ?? '');
+            const nextSchedule = careerSchedules.some(
+                (option) => option.value === current.study_schedule,
+            )
+                ? current.study_schedule
+                : (careerSchedules[0]?.value ?? '');
 
             // Si el tipo de horario ha cambiado, reiniciar la modalidad
             let nextModality = current.modality;
@@ -588,11 +577,6 @@ export default function AdminScheduleForm({
 
     const setSubject = (index: number, subjectId: string) => {
         const subject = subjectById.get(Number(subjectId));
-        const choice = form.data.subjects[index];
-        const slot =
-            choice !== undefined
-                ? template.subjects[Number(choice.position) - 1]
-                : undefined;
         const defaultProfessor = subject?.professors[0]?.id;
 
         form.setData(
@@ -606,10 +590,7 @@ export default function AdminScheduleForm({
                               defaultProfessor !== undefined
                                   ? String(defaultProfessor)
                                   : '',
-                          teacher_name:
-                              defaultProfessor === undefined
-                                  ? (slot?.teacher ?? '')
-                                  : '',
+                          teacher_name: '',
                           dates: subjectId === '' ? [] : item.dates,
                           date_times: subjectId === '' ? {} : item.date_times,
                       }
@@ -779,6 +760,8 @@ export default function AdminScheduleForm({
 
     const canSubmit =
         form.data.career_id !== '' &&
+        form.data.study_schedule !== '' &&
+        form.data.modality !== '' &&
         form.data.starts_on !== '' &&
         form.data.ends_on !== '' &&
         classDates.length > 0 &&
@@ -901,7 +884,9 @@ export default function AdminScheduleForm({
                                                     form.errors.study_schedule,
                                                 )}
                                                 disabled={
-                                                    selectedCareer === undefined
+                                                    selectedCareer ===
+                                                        undefined ||
+                                                    careerSchedules.length === 0
                                                 }
                                                 className={inputClass}
                                             >
@@ -909,6 +894,11 @@ export default function AdminScheduleForm({
                                                 undefined ? (
                                                     <option value="">
                                                         Selecciona una carrera
+                                                    </option>
+                                                ) : careerSchedules.length ===
+                                                  0 ? (
+                                                    <option value="">
+                                                        Sin ofertas activas
                                                     </option>
                                                 ) : (
                                                     careerSchedules.map(
@@ -933,6 +923,15 @@ export default function AdminScheduleForm({
                                                 }
                                                 className="mt-1 text-xs"
                                             />
+                                            {selectedCareer !== undefined &&
+                                            careerSchedules.length === 0 ? (
+                                                <p className="mt-1 text-[0.64rem] font-semibold text-amber-700 dark:text-amber-400">
+                                                    Esta carrera no tiene
+                                                    ofertas activas. Actívalas
+                                                    en el módulo de carreras
+                                                    para publicar un horario.
+                                                </p>
+                                            ) : null}
                                         </div>
 
                                         <div>
@@ -1264,19 +1263,11 @@ export default function AdminScheduleForm({
                                                     ];
                                                 const professors =
                                                     selected?.professors ?? [];
-                                                const professorNames = new Set(
-                                                    professors.map(
-                                                        (professor) =>
-                                                            professor.name,
-                                                    ),
-                                                );
-                                                const plantillaTeachers =
-                                                    templateTeachers.filter(
-                                                        (teacher) =>
-                                                            !professorNames.has(
-                                                                teacher,
-                                                            ),
-                                                    );
+                                                const hasSavedTeacher =
+                                                    isEditing &&
+                                                    choice.professor_id ===
+                                                        '' &&
+                                                    choice.teacher_name !== '';
                                                 const teacherValue =
                                                     choice.professor_id !== ''
                                                         ? `professor:${choice.professor_id}`
@@ -1498,12 +1489,14 @@ export default function AdminScheduleForm({
                                                                                 inputClass
                                                                             }
                                                                         >
-                                                                            {teacherValue ===
-                                                                            '' ? (
+                                                                            {professors.length ===
+                                                                                0 &&
+                                                                            !hasSavedTeacher ? (
                                                                                 <option value="">
-                                                                                    Selecciona
-                                                                                    una
-                                                                                    materia
+                                                                                    No
+                                                                                    hay
+                                                                                    profesores
+                                                                                    asignados
                                                                                 </option>
                                                                             ) : null}
                                                                             {professors.length >
@@ -1525,22 +1518,17 @@ export default function AdminScheduleForm({
                                                                                     )}
                                                                                 </optgroup>
                                                                             ) : null}
-                                                                            <optgroup label="Docentes de la plantilla">
-                                                                                {plantillaTeachers.map(
-                                                                                    (
-                                                                                        teacher,
-                                                                                    ) => (
-                                                                                        <option
-                                                                                            key={`teacher-${teacher}`}
-                                                                                            value={`teacher:${teacher}`}
-                                                                                        >
-                                                                                            {
-                                                                                                teacher
-                                                                                            }
-                                                                                        </option>
-                                                                                    ),
-                                                                                )}
-                                                                            </optgroup>
+                                                                            {hasSavedTeacher ? (
+                                                                                <optgroup label="Docente guardado (sin perfil)">
+                                                                                    <option
+                                                                                        value={`teacher:${choice.teacher_name}`}
+                                                                                    >
+                                                                                        {
+                                                                                            choice.teacher_name
+                                                                                        }
+                                                                                    </option>
+                                                                                </optgroup>
+                                                                            ) : null}
                                                                         </select>
                                                                         <InputError
                                                                             message={
