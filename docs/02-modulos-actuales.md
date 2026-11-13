@@ -16,7 +16,7 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
 | Hero                | `hero-slider.tsx` | 5 diapositivas (institucional, noticia, congreso, preinscripción, portal), autoplay de 7 s con pausa al pasar el cursor o al ocultar la pestaña, flechas, puntos y navegación por teclado. |
 | Cifras              | `stats-band.tsx`  | Contadores animados con `IntersectionObserver`.                                                                                                                                            |
 | Nosotros            | `about.tsx`       | Historia institucional y sellos oficiales UPEL / IMPM en SVG.                                                                                                                              |
-| Carreras            | `careers.tsx`     | 12 carreras con filtros por modalidad (todas, presencial, mixta, online).                                                                                                                  |
+| Carreras            | `careers.tsx`     | Carreras activas con ofertas vigentes, filtros por modalidad calculados desde la base de datos y página de detalle con su pensum.                                                          |
 | Modalidad online    | `online-mode.tsx` | Bloque oscuro con 4 tarjetas de vidrio.                                                                                                                                                    |
 | Cursos              | `courses.tsx`     | 6 cursos y talleres con precio, duración y modalidad.                                                                                                                                      |
 | Profesores          | `teachers.tsx`    | Carrusel de 12 docentes con especialidad y avatar.                                                                                                                                         |
@@ -286,6 +286,7 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 | `professors` | `professors.view` | Perfiles docentes, departamento, título y materias asignadas; gestión según permiso.                         |
 | `careers`    | `careers.view`    | Oferta académica, modalidad, duración, materias y estudiantes.                                               |
 | `subjects`   | `subjects.view`   | Unidades curriculares, créditos, docentes e inscritos.                                                       |
+| `pensums`    | `subjects.view`   | Pensums por carrera, materias agrupadas por período y acceso para agregar materias con `subjects.manage`.    |
 | `schedules`  | `schedules.view`  | Horarios oficiales por carrera, período y cohorte, con vista previa y PDF.                                   |
 | `grades`     | `grades.view`     | Calificaciones globales, promedio, aprobadas y sin nota.                                                     |
 | `finance`    | `finance.view`    | Recaudado, por cobrar, vencidos y detalle de pagos.                                                          |
@@ -304,6 +305,8 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 - `AdminDashboardController` construye las tarjetas a partir del catálogo y de los
   permisos del usuario.
+- El panel incluye el resumen del pensum por carrera. Desde allí se puede consultar el
+  detalle y, con `subjects.manage`, agregar materias directamente a la carrera seleccionada.
 - Los usuarios con `students.view` pueden consultar el listado. Solo el administrador puede
   ver perfiles, editar datos personales/académicos y eliminar cuentas; la eliminación
   permanente borra perfil, inscripciones y pagos, conservando la solicitud de admisión como

@@ -48,6 +48,12 @@ final class AdminModuleCatalog
                 'permission' => Permission::SubjectsView->value,
                 'icon' => 'book-open',
             ],
+            'pensums' => [
+                'title' => 'Pensums',
+                'description' => 'Organiza las materias de cada carrera por período académico y créditos.',
+                'permission' => Permission::SubjectsView->value,
+                'icon' => 'layers',
+            ],
             'schedules' => [
                 'title' => 'Horarios',
                 'description' => 'Publica los horarios oficiales por carrera, período y cohorte.',

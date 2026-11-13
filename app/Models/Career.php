@@ -8,17 +8,31 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $code
  * @property string|null $description
+ * @property string $degree
+ * @property string|null $icon
+ * @property string|null $image_path
  * @property string $modality
  * @property int $duration_semesters
  * @property bool $is_active
  */
-#[Fillable(['name', 'code', 'description', 'modality', 'duration_semesters', 'is_active'])]
+#[Fillable([
+    'name',
+    'code',
+    'description',
+    'degree',
+    'icon',
+    'image_path',
+    'modality',
+    'duration_semesters',
+    'is_active',
+])]
 class Career extends Model
 {
     /** @use HasFactory<CareerFactory> */
@@ -65,5 +79,15 @@ class Career extends Model
     public function modalityLabel(): string
     {
         return AcademicOptions::modalityLabel($this->modality);
+    }
+
+    /**
+     * URL pública de la imagen de la carrera, si tiene una.
+     */
+    public function imageUrl(): ?string
+    {
+        return $this->image_path !== null
+            ? Storage::disk('public')->url($this->image_path)
+            : null;
     }
 }

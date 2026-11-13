@@ -68,6 +68,8 @@ type SubjectFormData = {
 
 type Props = {
     subject: SubjectRecord | null;
+    defaultCareerId?: number | null;
+    defaultSemester?: number | null;
     careers: CareerOption[];
     subjects: SubjectOption[];
     modalities: Option[];
@@ -87,6 +89,8 @@ const inputClass =
  */
 export default function AdminSubjectForm({
     subject,
+    defaultCareerId,
+    defaultSemester,
     careers,
     subjects,
     modalities,
@@ -97,10 +101,18 @@ export default function AdminSubjectForm({
     const isEditing = subject !== null;
 
     const form = useForm<SubjectFormData>({
-        career_id: subject ? String(subject.career_id) : '',
+        career_id: subject
+            ? String(subject.career_id)
+            : defaultCareerId
+              ? String(defaultCareerId)
+              : '',
         code: subject?.code ?? '',
         name: subject?.name ?? '',
-        semester: subject ? String(subject.semester) : '',
+        semester: subject
+            ? String(subject.semester)
+            : defaultSemester
+              ? String(defaultSemester)
+              : '',
         modality: subject?.modality ?? '',
         component: subject?.component ?? 'CFPE',
         type: subject?.type ?? 'UNCO',

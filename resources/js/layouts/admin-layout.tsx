@@ -18,6 +18,7 @@ import {
     create as schedulesCreate,
     index as schedulesIndex,
 } from '@/routes/admin/schedules';
+import { index as pensumsIndex } from '@/routes/admin/pensums';
 import {
     create as subjectsCreate,
     index as subjectsIndex,
@@ -116,6 +117,12 @@ const navigation: AdminNavGroup[] = [
                 href: subjectsCreate(),
                 permission: 'subjects.manage',
                 iconName: 'plus-circle',
+            },
+            {
+                title: 'Gestionar pensums',
+                href: pensumsIndex(),
+                permission: 'subjects.view',
+                iconName: 'layers',
             },
         ],
     },

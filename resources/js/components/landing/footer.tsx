@@ -16,26 +16,26 @@ import { store as subscribe } from '@/routes/newsletter';
 import { ImpmLogo, UpelLogo } from '@/components/landing/brand';
 
 const academicLinks = [
-    { label: 'Pregrado', href: '#carreras' },
-    { label: 'Postgrado', href: '#cursos' },
-    { label: 'Educación continua', href: '#cursos' },
-    { label: 'Campus virtual', href: '#online' },
-    { label: 'Calendario académico', href: '#graduaciones' },
+    { label: 'Pregrado', href: '/#carreras' },
+    { label: 'Postgrado', href: '/#cursos' },
+    { label: 'Educación continua', href: '/#cursos' },
+    { label: 'Campus virtual', href: '/#online' },
+    { label: 'Calendario académico', href: '/#graduaciones' },
 ];
 
 const universityLinks = [
-    { label: 'Sobre la UPEL', href: '#nosotros' },
-    { label: 'Autoridades', href: '#profesores' },
-    { label: 'Núcleos e institutos', href: '#nosotros' },
-    { label: 'Investigación', href: '#noticias' },
-    { label: 'Transparencia', href: '#contacto' },
+    { label: 'Sobre la UPEL', href: '/#nosotros' },
+    { label: 'Autoridades', href: '/#profesores' },
+    { label: 'Núcleos e institutos', href: '/#nosotros' },
+    { label: 'Investigación', href: '/#noticias' },
+    { label: 'Transparencia', href: '/#contacto' },
 ];
 
 const legalLinks = [
-    { label: 'Políticas de privacidad', href: '#contacto' },
-    { label: 'Términos de uso', href: '#contacto' },
-    { label: 'Accesibilidad', href: '#contacto' },
-    { label: 'Mapa del sitio', href: '#inicio' },
+    { label: 'Políticas de privacidad', href: '/#contacto' },
+    { label: 'Términos de uso', href: '/#contacto' },
+    { label: 'Accesibilidad', href: '/#contacto' },
+    { label: 'Mapa del sitio', href: '/#inicio' },
 ];
 
 const socialLinks = [
@@ -355,7 +355,7 @@ export function Footer({ onLoginClick }: { onLoginClick: () => void }) {
                             </a>
                         ))}
                         <a
-                            href="#inicio"
+                            href="/#inicio"
                             aria-label="Volver arriba"
                             className="inline-flex size-8 items-center justify-center rounded-full border border-white/15 text-white/60 transition-colors hover:border-upel-gold hover:text-upel-gold"
                         >

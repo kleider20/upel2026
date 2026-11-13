@@ -7,6 +7,8 @@ use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -144,8 +146,80 @@ test('academic managers can create a career with several offerings', function ()
     expect($career)->not->toBeNull()
         ->and($career->name)->toBe('Educación Integral')
         ->and($career->duration_semesters)->toBe(10)
+        ->and($career->degree)->toBe('Licenciatura')
         ->and($career->modality)->toBe('mixta')
         ->and($career->offerings)->toHaveCount(2);
+});
+
+test('academic managers can create a career with landing details and an image', function () {
+    Storage::fake('public');
+
+    $this->actingAs(careerManager())
+        ->post(route('admin.careers.store'), [
+            'name' => 'Educación Primaria',
+            'code' => 'EDPRI',
+            'description' => 'Formación para acompañar el desarrollo integral de niños y niñas en la etapa primaria.',
+            'degree' => 'Licenciatura en Educación',
+            'icon' => '📚',
+            'image' => UploadedFile::fake()->image('primaria.jpg'),
+            'duration_semesters' => 8,
+            'is_active' => true,
+            'offerings' => offeringsPayload(),
+        ])
+        ->assertRedirect(route('admin.careers.index'));
+
+    $career = Career::query()->where('code', 'EDPRI')->firstOrFail();
+
+    expect($career->degree)->toBe('Licenciatura en Educación')
+        ->and($career->icon)->toBe('📚')
+        ->and($career->image_path)->not->toBeNull();
+
+    Storage::disk('public')->assertExists($career->image_path);
+});
+
+test('academic managers can replace and remove a career image', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('careers/old.jpg', 'old-image');
+
+    $career = Career::factory()->create([
+        'image_path' => 'careers/old.jpg',
+    ]);
+
+    $this->actingAs(careerManager())
+        ->put(route('admin.careers.update', $career), [
+            'name' => $career->name,
+            'code' => $career->code,
+            'description' => null,
+            'degree' => 'Licenciatura',
+            'duration_semesters' => 8,
+            'is_active' => true,
+            'image' => UploadedFile::fake()->image('nueva.png'),
+            'offerings' => offeringsPayload(),
+        ])
+        ->assertRedirect(route('admin.careers.index'));
+
+    $career->refresh();
+    $newImagePath = $career->image_path;
+
+    expect($newImagePath)->not->toBe('careers/old.jpg');
+    Storage::disk('public')->assertMissing('careers/old.jpg');
+    Storage::disk('public')->assertExists($newImagePath);
+
+    $this->actingAs(careerManager())
+        ->put(route('admin.careers.update', $career), [
+            'name' => $career->name,
+            'code' => $career->code,
+            'description' => null,
+            'degree' => 'Licenciatura',
+            'duration_semesters' => 8,
+            'is_active' => true,
+            'remove_image' => true,
+            'offerings' => offeringsPayload(),
+        ])
+        ->assertRedirect(route('admin.careers.index'));
+
+    expect($career->fresh()->image_path)->toBeNull();
+    Storage::disk('public')->assertMissing($newImagePath);
 });
 
 test('duplicate offering combinations are rejected', function () {

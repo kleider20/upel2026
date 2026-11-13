@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminEntryController;
 use App\Http\Controllers\AdminLoginController;
 use App\Http\Controllers\AdminModuleController;
+use App\Http\Controllers\AdminPensumController;
 use App\Http\Controllers\AdminProfessorController;
 use App\Http\Controllers\AdminRoleController;
 use App\Http\Controllers\AdminScheduleController;
@@ -26,6 +27,8 @@ use App\Http\Middleware\EnsureAdminPortal;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingController::class, 'index'])->name('landing');
+Route::get('carreras/{career:code}', [LandingController::class, 'career'])
+    ->name('careers.show');
 
 Route::post('newsletter', [NewsletterSubscriptionController::class, 'store'])
     ->middleware('throttle:6,1')
@@ -161,6 +164,13 @@ Route::middleware(['auth', EnsureAdminPortal::class])
             ->name('careers.update');
         Route::delete('careers/{career}', [AdminCareerController::class, 'destroy'])
             ->name('careers.destroy');
+
+        Route::get('pensums', [AdminPensumController::class, 'index'])
+            ->name('pensums.index');
+        Route::get('pensums/{career:code}', [AdminPensumController::class, 'show'])
+            ->name('pensums.show');
+        Route::get('pensums/{career:code}/pdf', [AdminPensumController::class, 'pdf'])
+            ->name('pensums.pdf');
 
         Route::get('roles', [AdminRoleController::class, 'index'])
             ->name('roles.index');

@@ -6,14 +6,14 @@ import { UpelLogo } from '@/components/landing/brand';
 import { create as admissionCreate } from '@/routes/admissions';
 
 const navLinks = [
-    { label: 'Inicio', href: '#inicio' },
-    { label: 'Nosotros', href: '#nosotros' },
-    { label: 'Carreras', href: '#carreras' },
-    { label: 'Online', href: '#online' },
-    { label: 'Cursos', href: '#cursos' },
-    { label: 'Profesores', href: '#profesores' },
-    { label: 'Noticias', href: '#noticias' },
-    { label: 'Graduaciones', href: '#graduaciones' },
+    { label: 'Inicio', href: '/#inicio' },
+    { label: 'Nosotros', href: '/#nosotros' },
+    { label: 'Carreras', href: '/#carreras' },
+    { label: 'Online', href: '/#online' },
+    { label: 'Cursos', href: '/#cursos' },
+    { label: 'Profesores', href: '/#profesores' },
+    { label: 'Noticias', href: '/#noticias' },
+    { label: 'Graduaciones', href: '/#graduaciones' },
 ];
 
 function daysUntil(target: string): number {
@@ -70,7 +70,7 @@ export function Navbar({
                 aria-label="Navegación principal"
             >
                 <a
-                    href="#inicio"
+                    href="/#inicio"
                     className="flex shrink-0 items-center rounded-lg"
                     aria-label="UPEL, ir al inicio"
                 >
@@ -132,7 +132,7 @@ export function Navbar({
                                 href={
                                     canRegister
                                         ? admissionCreate.url()
-                                        : '#carreras'
+                                        : '/#carreras'
                                 }
                                 aria-disabled={!canRegister}
                                 onClick={(event) => {
@@ -240,7 +240,7 @@ export function Navbar({
                                 href={
                                     canRegister
                                         ? admissionCreate.url()
-                                        : '#carreras'
+                                        : '/#carreras'
                                 }
                                 aria-disabled={!canRegister}
                                 onClick={(event) => {

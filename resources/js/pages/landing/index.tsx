@@ -13,6 +13,7 @@ import { News } from '@/components/landing/news';
 import { OnlineMode } from '@/components/landing/online-mode';
 import { StatsBand } from '@/components/landing/stats-band';
 import { Teachers } from '@/components/landing/teachers';
+import type { LandingCareer } from '@/data/careers';
 
 type LandingProps = {
     canRegister: boolean;
@@ -20,6 +21,7 @@ type LandingProps = {
     preEnrollmentOpensAt: string;
     enrollmentOpensAt: string;
     graduationDate: string;
+    careers: LandingCareer[];
 };
 
 /**
@@ -30,6 +32,7 @@ export default function LandingIndex({
     canRegister,
     preEnrollmentOpensAt,
     graduationDate,
+    careers,
 }: LandingProps) {
     const navigate = (url: string) => router.visit(url);
 
@@ -83,7 +86,7 @@ export default function LandingIndex({
                         />
                         <StatsBand />
                         <About />
-                        <Careers />
+                        <Careers careers={careers} />
                         <OnlineMode />
                         <Courses />
                         <Teachers />

@@ -26,6 +26,8 @@ class CareerFactory extends Factory
             ]).' '.fake()->unique()->numerify('###'),
             'code' => strtoupper(fake()->unique()->bothify('CAR-###')),
             'description' => fake()->sentence(12),
+            'degree' => 'Licenciatura',
+            'icon' => '🎓',
             'modality' => fake()->randomElement(['online', 'mixta', 'presencial']),
             'duration_semesters' => 8,
             'is_active' => true,

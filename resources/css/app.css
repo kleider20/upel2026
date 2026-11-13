@@ -340,7 +340,13 @@
 
 @media print {
     @page {
+        size: A4 portrait;
         margin: 12mm;
+    }
+
+    @page pensum {
+        size: A4 portrait;
+        margin: 9mm;
     }
 
     body {
@@ -350,5 +356,41 @@
     * {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+    }
+
+    body.pensum-print-page * {
+        visibility: hidden !important;
+    }
+
+    body.pensum-print-page .pensum-print-document,
+    body.pensum-print-page .pensum-print-document * {
+        visibility: visible !important;
+    }
+
+    body.pensum-print-page .pensum-print-document {
+        page: pensum;
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100% !important;
+        overflow: visible !important;
+        border: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        color: #000 !important;
+        background: #fff !important;
+    }
+
+    .pensum-print-table {
+        min-width: 0 !important;
+        width: 100% !important;
+        font-size: 5.5pt !important;
+    }
+
+    .pensum-print-table thead {
+        display: table-header-group;
+    }
+
+    .pensum-print-table tr {
+        break-inside: avoid;
     }
 }

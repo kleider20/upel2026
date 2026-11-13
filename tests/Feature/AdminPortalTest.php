@@ -1,7 +1,9 @@
 <?php
 
 use App\Enums\Role;
+use App\Models\Career;
 use App\Models\StudentProfile;
+use App\Models\Subject;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -44,6 +46,42 @@ test('administrative users can access the admin dashboard', function () {
         );
 });
 
+test('academic managers can create a career pensum from the dashboard', function () {
+    $user = User::factory()->create();
+    $user->assignRole(Role::CoordinadorAcademico->value);
+    $career = Career::factory()->create([
+        'name' => 'Educación Primaria',
+        'code' => 'EDPRI',
+    ]);
+    Subject::factory()->for($career)->create();
+
+    $this->actingAs($user)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/dashboard')
+            ->has('pensums', 1)
+            ->where('pensums.0.id', $career->id)
+            ->where('pensums.0.name', 'Educación Primaria')
+            ->where('pensums.0.subjects_count', 1)
+            ->where('pensums.0.url', route('admin.pensums.show', ['career' => 'EDPRI']))
+            ->where('can_manage_pensums', true)
+        );
+});
+
+test('users without academic permissions do not see pensum management', function () {
+    $user = User::factory()->create();
+    $user->assignRole(Role::PersonalAdministrativo->value);
+
+    $this->actingAs($user)
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('pensums', 0)
+            ->where('can_manage_pensums', false)
+        );
+});
+
 test('admin dashboard modules are scoped by role', function (string $role, int $modules, int $summary) {
     $user = User::factory()->create();
     $user->assignRole($role);
@@ -58,10 +96,10 @@ test('admin dashboard modules are scoped by role', function (string $role, int $
             ->has('summary', $summary)
         );
 })->with([
-    'coordinador académico' => [Role::CoordinadorAcademico->value, 6, 3],
+    'coordinador académico' => [Role::CoordinadorAcademico->value, 7, 3],
     'personal administrativo' => [Role::PersonalAdministrativo->value, 1, 1],
-    'decano' => [Role::Decano->value, 10, 5],
-    'administrador' => [Role::Admin->value, 11, 6],
+    'decano' => [Role::Decano->value, 11, 5],
+    'administrador' => [Role::Admin->value, 12, 6],
 ]);
 
 test('academic coordinators can access modules granted by permissions', function () {
@@ -108,7 +146,7 @@ test('dashboard exposes student and admission modules granted through direct per
         ->get(route('admin.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('modules', 8)
+            ->has('modules', 9)
             ->has('summary', 4)
         );
 

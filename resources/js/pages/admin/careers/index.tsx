@@ -41,6 +41,9 @@ type CareerRow = {
     name: string;
     code: string;
     description: string | null;
+    degree: string;
+    icon: string | null;
+    image_url: string | null;
     duration_semesters: number;
     is_active: boolean;
     subjects_count: number;
@@ -385,13 +388,32 @@ export default function AdminCareersIndex({
                                             key={row.id}
                                             className="transition-colors hover:bg-upel-cloud/50 dark:hover:bg-muted/30"
                                         >
-                                            <td className="max-w-[300px] px-5 py-3.5 align-top">
-                                                <p className="text-xs font-bold text-foreground">
-                                                    {row.name}
-                                                </p>
-                                                <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-                                                    {row.code}
-                                                </p>
+                                            <td className="max-w-[320px] px-5 py-3.5 align-top">
+                                                <div className="flex items-start gap-3">
+                                                    {row.image_url ? (
+                                                        <img
+                                                            src={row.image_url}
+                                                            alt={`Imagen de ${row.name}`}
+                                                            className="h-11 w-14 shrink-0 rounded-lg object-cover ring-1 ring-border"
+                                                        />
+                                                    ) : (
+                                                        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-upel-cloud text-xl ring-1 ring-border dark:bg-muted">
+                                                            <span aria-hidden="true">
+                                                                {row.icon ??
+                                                                    '🎓'}
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-foreground">
+                                                            {row.name}
+                                                        </p>
+                                                        <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
+                                                            {row.code} ·{' '}
+                                                            {row.degree}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-5 py-3.5 align-top">
                                                 {row.offerings.length === 0 ? (

@@ -1,16 +1,19 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     ArrowRight,
+    BookOpen,
     CalendarDays,
     CheckCircle2,
     KeyRound,
     LayoutGrid,
+    Plus,
 } from 'lucide-react';
 import { ModuleIcon } from '@/components/admin/module-icon';
 import { PageHeader } from '@/components/portal/page-header';
 import { RoleBadge } from '@/components/portal/role-badge';
 import { type Tone, toneClasses } from '@/components/portal/tone-badge';
 import { cn } from '@/lib/utils';
+import { create as subjectsCreate } from '@/routes/admin/subjects';
 
 type SummaryCard = {
     label: string;
@@ -28,6 +31,15 @@ type AdminModule = {
     href: string;
 };
 
+type CareerPensum = {
+    id: number;
+    name: string;
+    code: string;
+    icon: string;
+    subjects_count: number;
+    url: string;
+};
+
 type Props = {
     role?: string | null;
     role_key?: string | null;
@@ -35,6 +47,8 @@ type Props = {
     permissions_count: number;
     summary: SummaryCard[];
     modules: AdminModule[];
+    pensums: CareerPensum[];
+    can_manage_pensums: boolean;
     active_period?: string | null;
 };
 
@@ -48,6 +62,8 @@ export default function AdminDashboard({
     permissions_count,
     summary,
     modules,
+    pensums,
+    can_manage_pensums,
     active_period,
 }: Props) {
     return (
@@ -242,6 +258,78 @@ export default function AdminDashboard({
                         </div>
                     </aside>
                 </div>
+
+                {pensums.length > 0 ? (
+                    <section
+                        aria-label="Gestión de pensums"
+                        className="space-y-4"
+                    >
+                        <div>
+                            <p className="text-[0.68rem] font-bold tracking-[0.18em] text-upel-blue uppercase">
+                                Gestión académica
+                            </p>
+                            <h2 className="mt-1 font-display text-2xl font-bold text-upel-navy dark:text-foreground">
+                                Crear y actualizar pensums
+                            </h2>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Elige una carrera para organizar sus materias y
+                                períodos académicos.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            {pensums.map((pensum) => (
+                                <article
+                                    key={pensum.id}
+                                    className="flex flex-col justify-between rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-upel-cloud text-xl ring-1 ring-border dark:bg-muted">
+                                            <span aria-hidden="true">
+                                                {pensum.icon}
+                                            </span>
+                                        </span>
+                                        <div className="min-w-0">
+                                            <h3 className="truncate text-sm font-bold text-upel-navy dark:text-foreground">
+                                                {pensum.name}
+                                            </h3>
+                                            <p className="mt-1 text-[0.68rem] font-semibold text-muted-foreground">
+                                                {pensum.code} ·{' '}
+                                                {pensum.subjects_count}{' '}
+                                                {pensum.subjects_count === 1
+                                                    ? 'materia'
+                                                    : 'materias'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 flex flex-wrap items-center gap-2">
+                                        <Link
+                                            href={pensum.url}
+                                            className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[0.68rem] font-bold text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                        >
+                                            <BookOpen className="size-3.5" />
+                                            Ver pensum
+                                        </Link>
+                                        {can_manage_pensums ? (
+                                            <Link
+                                                href={subjectsCreate.url({
+                                                    query: {
+                                                        career_id: pensum.id,
+                                                    },
+                                                })}
+                                                className="inline-flex items-center gap-1.5 rounded-xl bg-upel-navy px-3 py-2 text-[0.68rem] font-bold text-white transition-colors hover:bg-upel-navy-800"
+                                            >
+                                                <Plus className="size-3.5" />
+                                                Agregar materia
+                                            </Link>
+                                        ) : null}
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
             </div>
         </>
     );

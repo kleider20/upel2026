@@ -6,6 +6,7 @@ import {
     ClipboardList,
     GraduationCap,
     Inbox,
+    Layers,
     LayoutGrid,
     Library,
     PlusCircle,
@@ -29,6 +30,7 @@ const icons: Record<string, LucideIcon> = {
     'shield-check': ShieldCheck,
     dashboard: LayoutGrid,
     inbox: Inbox,
+    layers: Layers,
 };
 
 /**

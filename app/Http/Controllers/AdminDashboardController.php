@@ -34,6 +34,7 @@ class AdminDashboardController extends Controller
                 ...$module,
                 'href' => match ($key) {
                     'subjects' => route('admin.subjects.index'),
+                    'pensums' => route('admin.pensums.index'),
                     'schedules' => route('admin.schedules.index'),
                     'careers' => route('admin.careers.index'),
                     'professors' => route('admin.professors.index'),
@@ -49,8 +50,37 @@ class AdminDashboardController extends Controller
             'permissions_count' => $user->getAllPermissions()->count(),
             'summary' => $this->summary($user),
             'modules' => $modules,
+            'pensums' => $this->pensums($user),
+            'can_manage_pensums' => $user->can(PermissionEnum::SubjectsManage->value),
             'active_period' => AcademicPeriod::query()->where('is_active', true)->value('name'),
         ]);
+    }
+
+    /**
+     * Carreras con su avance de pensum para el panel administrativo.
+     *
+     * @return array<int, array{id: int, name: string, code: string, icon: string, subjects_count: int, url: string}>
+     */
+    private function pensums(User $user): array
+    {
+        if (! $user->can(PermissionEnum::SubjectsView->value)) {
+            return [];
+        }
+
+        return Career::query()
+            ->withCount('subjects')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'icon'])
+            ->map(static fn (Career $career): array => [
+                'id' => $career->id,
+                'name' => $career->name,
+                'code' => $career->code,
+                'icon' => $career->icon ?? '🎓',
+                'subjects_count' => $career->subjects_count,
+                'url' => route('admin.pensums.show', ['career' => $career->code]),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

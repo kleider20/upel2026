@@ -11,6 +11,7 @@ use App\Support\AcademicOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -62,6 +63,9 @@ class AdminCareerController extends Controller
                 'name' => $career->name,
                 'code' => $career->code,
                 'description' => $career->description,
+                'degree' => $career->degree,
+                'icon' => $career->icon,
+                'image_url' => $career->imageUrl(),
                 'duration_semesters' => $career->duration_semesters,
                 'is_active' => $career->is_active,
                 'subjects_count' => $career->subjects_count,
@@ -122,7 +126,12 @@ class AdminCareerController extends Controller
     {
         $data = $request->validated();
         $offerings = $data['offerings'];
-        unset($data['offerings']);
+        $image = $request->file('image');
+        unset($data['offerings'], $data['image'], $data['remove_image']);
+
+        if ($image !== null) {
+            $data['image_path'] = $image->store('careers', 'public');
+        }
 
         $career = DB::transaction(function () use ($data, $offerings): Career {
             $career = Career::create([
@@ -157,6 +166,9 @@ class AdminCareerController extends Controller
                 'name' => $career->name,
                 'code' => $career->code,
                 'description' => $career->description,
+                'degree' => $career->degree,
+                'icon' => $career->icon,
+                'image_url' => $career->imageUrl(),
                 'duration_semesters' => $career->duration_semesters,
                 'is_active' => $career->is_active,
                 'offerings' => $career->offerings
@@ -180,9 +192,19 @@ class AdminCareerController extends Controller
     {
         $data = $request->validated();
         $offerings = $data['offerings'];
-        unset($data['offerings']);
+        $image = $request->file('image');
+        $removeImage = $request->boolean('remove_image');
+        unset($data['offerings'], $data['image'], $data['remove_image']);
 
-        DB::transaction(function () use ($career, $data, $offerings): void {
+        DB::transaction(function () use ($career, $data, $offerings, $image, $removeImage): void {
+            if ($image !== null) {
+                $this->deleteImage($career->image_path);
+                $data['image_path'] = $image->store('careers', 'public');
+            } elseif ($removeImage) {
+                $this->deleteImage($career->image_path);
+                $data['image_path'] = null;
+            }
+
             $career->update([
                 ...$data,
                 'modality' => $this->aggregateModality($offerings),
@@ -219,6 +241,7 @@ class AdminCareerController extends Controller
         }
 
         $career->offerings()->delete();
+        $this->deleteImage($career->image_path);
         $career->delete();
 
         return redirect()
@@ -248,6 +271,16 @@ class AdminCareerController extends Controller
             403,
             'No tienes permiso para gestionar las carreras.',
         );
+    }
+
+    /**
+     * Elimina del disco público la imagen anterior de una carrera.
+     */
+    private function deleteImage(?string $path): void
+    {
+        if ($path !== null) {
+            Storage::disk('public')->delete($path);
+        }
     }
 
     /**

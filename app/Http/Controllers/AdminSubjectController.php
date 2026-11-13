@@ -101,6 +101,8 @@ class AdminSubjectController extends Controller
 
         return Inertia::render('admin/subjects/form', [
             'subject' => null,
+            'defaultCareerId' => $request->integer('career_id') ?: null,
+            'defaultSemester' => $request->integer('semester') ?: null,
             ...$this->formOptions(),
         ]);
     }

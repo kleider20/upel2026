@@ -25,6 +25,8 @@ class CareerRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $description = trim((string) $this->input('description'));
+        $degree = trim((string) $this->input('degree'));
+        $icon = trim((string) $this->input('icon'));
 
         $offeringsInput = $this->input('offerings', []);
         $offerings = collect(is_array($offeringsInput) ? $offeringsInput : [])
@@ -45,6 +47,8 @@ class CareerRequest extends FormRequest
             'code' => strtoupper(trim((string) $this->input('code'))),
             'name' => trim((string) $this->input('name')),
             'description' => $description !== '' ? $description : null,
+            'degree' => $degree !== '' ? $degree : 'Licenciatura',
+            'icon' => $icon !== '' ? $icon : null,
             'offerings' => $offerings,
             'is_active' => $this->boolean('is_active'),
         ]);
@@ -67,6 +71,10 @@ class CareerRequest extends FormRequest
                 Rule::unique('careers', 'code')->ignore($career?->id),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
+            'degree' => ['required', 'string', 'max:100'],
+            'icon' => ['nullable', 'string', 'max:16'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_image' => ['boolean'],
             'duration_semesters' => ['required', 'integer', 'min:1', 'max:12'],
             'is_active' => ['boolean'],
             'offerings' => ['required', 'array', 'min:1'],
@@ -122,6 +130,12 @@ class CareerRequest extends FormRequest
             'name.required' => 'Indica el nombre de la carrera.',
             'code.required' => 'Indica el código de la carrera.',
             'code.unique' => 'Ya existe una carrera con ese código.',
+            'degree.required' => 'Indica el título que otorga la carrera.',
+            'degree.max' => 'El título no puede superar los 100 caracteres.',
+            'icon.max' => 'El icono no puede superar los 16 caracteres.',
+            'image.image' => 'La imagen debe ser un archivo de imagen válido.',
+            'image.mimes' => 'La imagen debe ser JPG, PNG o WEBP.',
+            'image.max' => 'La imagen no puede superar los 2 MB.',
             'duration_semesters.required' => 'Indica la duración en periodos.',
             'duration_semesters.min' => 'La duración debe ser al menos 1 periodo.',
             'duration_semesters.max' => 'La duración no puede ser mayor a 12 periodos.',
