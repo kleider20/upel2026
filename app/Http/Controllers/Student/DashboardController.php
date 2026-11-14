@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Enums\AdmissionDocumentType;
 use App\Enums\AdmissionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicPeriod;
 use App\Models\Admission;
+use App\Models\AdmissionDocument;
 use App\Models\Enrollment;
 use App\Models\Subject;
 use App\Models\User;
+use App\Support\AdmissionTimeline;
 use App\Support\StudentSchedule;
 use App\Support\SubjectCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -59,29 +63,6 @@ class DashboardController extends Controller
         $approvedCredits = $approved->sum(
             static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
-
-        // Profesores de las materias del estudiante
-        $teachers = $enrollments->pluck('professor')
-            ->filter()
-            ->unique('id')
-            ->map(static function (User $professor) use ($enrollments) {
-                $professorSubjects = $enrollments->where('professor_id', $professor->id)
-                    ->pluck('subject.name')
-                    ->filter()
-                    ->unique()
-                    ->values();
-
-                $profProfile = $professor->professorProfile()->first();
-
-                return [
-                    'id' => $professor->id,
-                    'name' => $professor->name,
-                    'email' => $professor->email,
-                    'department' => data_get($profProfile, 'department') ?? 'Academia UPEL',
-                    'academic_title' => data_get($profProfile, 'academic_title') ?? 'Profesor',
-                    'subjects' => $professorSubjects,
-                ];
-            })->values();
 
         // Pénsum / Mapa curricular de la carrera
         $pensum = [];
@@ -155,6 +136,130 @@ class DashboardController extends Controller
             ],
         ]);
 
+        // Materias del período: las del horario publicado, cruzadas con la
+        // inscripción del estudiante para reflejar notas y estado.
+        $activePeriodName = AcademicPeriod::query()->where('is_active', true)->value('name') ?? '2026-II';
+
+        // El cohorte del horario identifica el período académico que se cursa.
+        $schedulePeriodName = is_string($schedule['cohort'] ?? null) && $schedule['cohort'] !== ''
+            ? $schedule['cohort']
+            : $activePeriodName;
+
+        $scheduleSubjects = collect(is_array($schedule['subjects'] ?? null) ? $schedule['subjects'] : [])
+            ->merge(is_array($schedule['distance_subjects'] ?? null) ? $schedule['distance_subjects'] : [])
+            ->filter(static fn (mixed $subject): bool => is_array($subject) && isset($subject['code']))
+            ->unique('code')
+            ->values();
+
+        $subjectCatalog = $scheduleSubjects->isEmpty()
+            ? collect()
+            : Subject::query()
+                ->with('career:id,name,code')
+                ->whereIn('code', $scheduleSubjects->pluck('code')->all())
+                ->get()
+                ->keyBy('code');
+
+        $presentSubject = static function (array $subject, int $index, ?string $period = null) use ($enrollments, $subjectCatalog, $profile, $activePeriodName): array {
+            $catalog = $subjectCatalog->get($subject['code']);
+            $enrollment = $enrollments->first(
+                static fn (Enrollment $candidate): bool => $candidate->subject?->code === $subject['code'],
+            );
+
+            $professorId = isset($subject['professor_id'])
+                ? (int) $subject['professor_id']
+                : $enrollment?->professor_id;
+            $teacher = trim((string) ($subject['teacher'] ?? ''));
+            $professorName = $teacher !== '' ? $teacher : $enrollment?->professor?->name;
+            $grade = $enrollment?->final_grade !== null ? (float) $enrollment->final_grade : null;
+
+            return [
+                'id' => $enrollment?->id ?? $catalog?->id ?? $index + 1,
+                'subject' => $subject['name'] ?? $catalog?->name,
+                'code' => (string) $subject['code'],
+                'semester' => $catalog?->semester ?? $profile?->current_semester,
+                'credits' => $catalog?->credits,
+                'career' => $catalog?->career?->name ?? $profile?->career?->name,
+                'period' => $enrollment?->academicPeriod?->name ?? $period ?? $activePeriodName,
+                'professor' => $professorName,
+                'professor_id' => $professorId,
+                'professor_url' => $professorId !== null
+                    ? route('student.professors.show', $professorId, absolute: false)
+                    : null,
+                'n1' => null,
+                'n2' => null,
+                'n3' => null,
+                'final' => $grade,
+                'grade' => $grade,
+                'status' => $enrollment?->status ?? 'cursando',
+                'status_label' => $enrollment?->statusLabel() ?? 'Cursando',
+                'status_tone' => $enrollment?->statusTone() ?? 'amber',
+                'modality' => $catalog?->modalityLabel(),
+            ];
+        };
+
+        $subjects = $scheduleSubjects
+            ->map(static fn (array $subject, int $index): array => $presentSubject($subject, $index, $schedulePeriodName))
+            ->concat(
+                $enrollments
+                    ->reject(static fn (Enrollment $enrollment): bool => $scheduleSubjects->contains(
+                        'code',
+                        $enrollment->subject?->code,
+                    ))
+                    ->values()
+                    ->map(static function (Enrollment $enrollment, int $index) use ($presentSubject): array {
+                        return $presentSubject([
+                            'code' => $enrollment->subject?->code,
+                            'name' => $enrollment->subject?->name,
+                            'teacher' => $enrollment->professor?->name,
+                            'professor_id' => $enrollment->professor_id,
+                        ], $index);
+                    }),
+            )
+            ->values();
+
+        // Docentes que imparten esas materias, para agruparlos por período.
+        $professorIds = $subjects
+            ->pluck('professor_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $professors = $professorIds->isEmpty()
+            ? collect()
+            : User::query()
+                ->with('professorProfile')
+                ->whereIn('id', $professorIds->all())
+                ->get()
+                ->keyBy('id');
+
+        // Un docente puede dictar en más de un período: se agrupa por ambos.
+        $teachers = $subjects
+            ->filter(static fn (array $subject): bool => $subject['professor_id'] !== null)
+            ->groupBy(static fn (array $subject): string => $subject['professor_id'].'|'.$subject['period'])
+            ->map(static function (Collection $rows) use ($professors): ?array {
+                $professor = $professors->get((int) $rows->first()['professor_id']);
+
+                if ($professor === null) {
+                    return null;
+                }
+
+                $professorProfile = $professor->professorProfile;
+
+                return [
+                    'id' => $professor->id,
+                    'name' => $professor->name,
+                    'email' => $professor->email,
+                    'department' => data_get($professorProfile, 'department') ?? 'Academia UPEL',
+                    'academic_title' => data_get($professorProfile, 'academic_title') ?? 'Profesor',
+                    'subjects' => $rows->pluck('subject')->filter()->unique()->values()->all(),
+                    'semesters' => $rows->pluck('semester')->filter()->unique()->sort()->values()->all(),
+                    'period' => $rows->pluck('period')->filter()->first() ?? $activePeriodName,
+                    'profile_url' => route('student.professors.show', $professor->id, absolute: false),
+                ];
+            })
+            ->filter()
+            ->values();
+
         return Inertia::render('Student/Dashboard/Index', [
             'profile' => $profile !== null ? [
                 'id' => $profile->id,
@@ -178,11 +283,19 @@ class DashboardController extends Controller
                 'shift' => $profile->shift ?? $admission?->shiftLabel(),
                 'advisor' => $profile->advisor,
                 'id_number' => $admission?->formattedIdNumber(),
-                'nationality' => $admission?->nationality,
+                'nationality' => $admission?->nationalityLabel(),
+                'gender' => $admission?->genderLabel(),
                 'period_year' => $admission !== null ? $admission->period_year : $profile->admission_year,
                 'admission_code' => $admission?->code,
             ] : null,
             'admission' => $admission !== null ? $this->admissionData($admission) : null,
+            'document_types' => AdmissionDocumentType::options(),
+            'documents_upload_url' => route('student.documents.store', absolute: false),
+            'photo_url' => $admission?->documents->contains(
+                static fn (AdmissionDocument $document): bool => $document->type === AdmissionDocumentType::Foto->value,
+            ) === true
+                ? route('student.photo', absolute: false)
+                : null,
             'summary' => [
                 'average' => $average !== null ? round((float) $average, 1) : null,
                 'subjects_count' => $enrollments->count(),
@@ -223,11 +336,12 @@ class DashboardController extends Controller
                     ];
                 },
             )->values(),
+            'subjects' => $subjects,
             'teachers' => $teachers,
             'pensum' => $pensum,
             'schedule' => $schedule,
             'tramites' => $tramites,
-            'active_period' => AcademicPeriod::query()->where('is_active', true)->value('name') ?? '2026-II',
+            'active_period' => $activePeriodName,
         ]);
     }
 
@@ -257,12 +371,12 @@ class DashboardController extends Controller
             'full_name' => $admission->fullName(),
             'first_name' => $admission->first_name,
             'last_name' => $admission->last_name,
-            'nationality' => $this->nationalityLabel($admission->nationality),
+            'nationality' => $admission->nationalityLabel(),
             'id_number' => $admission->id_number,
             'formatted_id_number' => $admission->formattedIdNumber(),
             'birth_date' => $admission->birth_date->format('d/m/Y'),
             'age' => $admission->age(),
-            'gender' => $this->genderLabel($admission->gender),
+            'gender' => $admission->genderLabel(),
             'email' => $admission->email,
             'phone' => $admission->phone,
             'address' => $admission->address,
@@ -272,7 +386,7 @@ class DashboardController extends Controller
             'review_notes' => $admission->review_notes,
             'tracking_url' => $admission->trackingUrl(),
             'documents' => $admission->documents->map(
-                static fn ($document): array => [
+                static fn (AdmissionDocument $document): array => [
                     'id' => $document->id,
                     'type' => $document->type,
                     'type_label' => $document->typeLabel(),
@@ -283,46 +397,13 @@ class DashboardController extends Controller
                     'size' => $document->humanSize(),
                     'notes' => $document->notes,
                     'uploaded_at' => $document->created_at?->format('d/m/Y'),
+                    'is_previewable' => $document->isPreviewable(),
+                    'preview_url' => route('student.documents.preview', ['document' => $document->id], absolute: false),
+                    'download_url' => route('student.documents.download', ['document' => $document->id], absolute: false),
                 ],
             )->values(),
-            'history' => $admission->statusHistories->map(
-                static fn ($history): array => [
-                    'id' => $history->id,
-                    'from' => $history->fromLabel(),
-                    'to' => $history->toLabel(),
-                    'tone' => $history->toTone(),
-                    'note' => $history->note,
-                    'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
-                    'date' => $history->created_at?->format('d/m/Y h:i A'),
-                ],
-            )->values(),
+            'history' => AdmissionTimeline::present($admission->statusHistories),
         ];
-    }
-
-    /**
-     * Etiqueta legible de la nacionalidad de la cédula (V o E).
-     */
-    private function nationalityLabel(?string $nationality): ?string
-    {
-        return match ($nationality) {
-            'V' => 'Venezolano',
-            'E' => 'Extranjero',
-            default => $nationality,
-        };
-    }
-
-    /**
-     * Etiqueta legible del género declarado en la solicitud.
-     */
-    private function genderLabel(?string $gender): ?string
-    {
-        return match ($gender) {
-            'masculino' => 'Masculino',
-            'femenino' => 'Femenino',
-            'otro' => 'Otro',
-            'prefiero_no_decir' => 'Prefiero no decir',
-            default => null,
-        };
     }
 
     /**
@@ -340,7 +421,8 @@ class DashboardController extends Controller
             'phone' => ['required', 'string', 'max:30'],
             'personal_email' => ['required', 'email', 'max:255'],
             'address' => ['required', 'string', 'max:500'],
-            'emergency_contact' => ['required', 'string', 'max:255'],
+            'birth_place' => ['nullable', 'string', 'max:255'],
+            'emergency_contact' => ['nullable', 'string', 'max:255'],
         ]);
 
         $profile = $user->studentProfile()->first();
@@ -349,7 +431,8 @@ class DashboardController extends Controller
                 'phone' => $validated['phone'],
                 'personal_email' => $validated['personal_email'],
                 'address' => $validated['address'],
-                'emergency_contact' => $validated['emergency_contact'],
+                'birth_place' => $validated['birth_place'] ?? null,
+                'emergency_contact' => $validated['emergency_contact'] ?? null,
             ]);
         }
 

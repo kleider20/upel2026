@@ -290,11 +290,16 @@ export function MiSolicitud({ admission, profile }: StudentDashboardProps) {
                                     aria-hidden="true"
                                 />
                                 <p className="text-xs font-bold text-upel-navy">
-                                    {entry.from} → {entry.to}
+                                    {entry.title}
                                 </p>
                                 <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
                                     {entry.date ?? '—'} · {entry.changed_by}
                                 </p>
+                                {entry.from !== entry.to ? (
+                                    <p className="mt-0.5 text-[0.65rem] font-semibold text-upel-slate">
+                                        {entry.from} → {entry.to}
+                                    </p>
+                                ) : null}
                                 {entry.note ? (
                                     <p className="mt-1 rounded-lg bg-upel-cloud px-3 py-2 text-[0.68rem] leading-relaxed text-upel-slate">
                                         {entry.note}

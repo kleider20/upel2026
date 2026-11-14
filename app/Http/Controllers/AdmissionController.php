@@ -10,10 +10,10 @@ use App\Http\Requests\StoreAdmissionRequest;
 use App\Mail\AdmissionReceived;
 use App\Models\Admission;
 use App\Models\AdmissionDocument;
-use App\Models\AdmissionStatusHistory;
 use App\Models\Career;
 use App\Models\CareerOffering;
 use App\Models\HighSchool;
+use App\Support\AdmissionTimeline;
 use App\Support\AdmissionWindow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -287,23 +287,7 @@ class AdmissionController extends Controller
                     ),
                 ],
             )->values(),
-            'history' => $admission->statusHistories->map(
-                static function (AdmissionStatusHistory $history): array {
-                    $isDocumentReview = $history->from_status === $history->to_status
-                        && $history->note !== null;
-
-                    return [
-                        'id' => $history->id,
-                        'from' => $history->fromLabel(),
-                        'to' => $history->toLabel(),
-                        'title' => $isDocumentReview ? $history->note : $history->toLabel(),
-                        'tone' => $history->toTone(),
-                        'note' => $isDocumentReview ? null : $history->note,
-                        'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
-                        'date' => $history->created_at?->format('d/m/Y h:i A'),
-                    ];
-                },
-            )->values(),
+            'history' => AdmissionTimeline::present($admission->statusHistories),
             'upload_url' => URL::temporarySignedRoute(
                 'admissions.documents.store',
                 now()->addDays($trackingDays),

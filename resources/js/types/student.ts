@@ -21,6 +21,7 @@ export type StudentProfileData = {
     advisor?: string | null;
     id_number?: string | null;
     nationality?: string | null;
+    gender?: string | null;
     period_year?: number | null;
     admission_code?: string | null;
 };
@@ -55,13 +56,38 @@ export type StudentEnrollment = {
     modality?: string;
 };
 
+export type StudentSubject = {
+    id: number;
+    subject: string | null;
+    code: string;
+    semester: number | null;
+    credits: number | null;
+    career: string | null;
+    period: string | null;
+    professor: string | null;
+    professor_id: number | null;
+    professor_url: string | null;
+    n1: number | null;
+    n2: number | null;
+    n3: number | null;
+    final: number | null;
+    grade: number | null;
+    status: string;
+    status_label: string;
+    status_tone: string;
+    modality: string | null;
+};
+
 export type StudentTeacher = {
     id: number;
     name: string;
     email: string;
-    department?: string | null;
-    academic_title?: string | null;
+    department: string;
+    academic_title: string;
     subjects: string[];
+    semesters: number[];
+    period: string | null;
+    profile_url: string | null;
 };
 
 export type StudentPensumSubject = {
@@ -92,6 +118,7 @@ export type StudentScheduleSubject = {
     code: string;
     name: string;
     teacher: string;
+    professor_id?: number | null;
     hours: (string | null)[];
     pdf_hours?: (string | null)[];
 };
@@ -144,12 +171,24 @@ export type StudentAdmissionDocument = {
     size: string;
     notes: string | null;
     uploaded_at: string | null;
+    is_previewable: boolean;
+    preview_url: string;
+    download_url: string;
+};
+
+export type StudentDocumentTypeOption = {
+    value: string;
+    label: string;
+    description: string;
+    required: boolean;
+    accept: string;
 };
 
 export type StudentAdmissionHistory = {
     id: number;
     from: string;
     to: string;
+    title: string;
     tone: string;
     note: string | null;
     changed_by: string;
@@ -194,11 +233,42 @@ export type StudentAdmission = {
 export type StudentDashboardProps = {
     profile: StudentProfileData | null;
     admission: StudentAdmission | null;
+    photo_url?: string | null;
+    document_types: StudentDocumentTypeOption[];
+    documents_upload_url: string;
     summary: StudentSummary;
     enrollments: StudentEnrollment[];
+    subjects: StudentSubject[];
     teachers: StudentTeacher[];
     pensum: { semester: number; subjects: StudentPensumSubject[] }[];
     schedule: StudentScheduleData | null;
     tramites: StudentTramite[];
     active_period?: string | null;
+};
+
+export type StudentProfessorSubject = {
+    id: number;
+    name: string;
+    code: string;
+    semester: number;
+    credits: number;
+    modality: string | null;
+    career: string | null;
+};
+
+export type StudentProfessorProfile = {
+    id: number;
+    name: string;
+    email: string;
+    employee_code: string | null;
+    department: string;
+    academic_title: string;
+    assigned_in_schedule: boolean;
+    subjects: StudentProfessorSubject[];
+};
+
+export type StudentProfessorPageProps = {
+    professor: StudentProfessorProfile;
+    dashboard_url: string;
+    subjects_url: string;
 };

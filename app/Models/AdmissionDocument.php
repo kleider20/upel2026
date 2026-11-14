@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $notes
  * @property int|null $reviewed_by
  * @property Carbon|null $reviewed_at
+ * @property Carbon|null $review_requested_at
  */
 #[Fillable([
     'admission_id',
@@ -35,6 +36,7 @@ use Illuminate\Support\Carbon;
     'notes',
     'reviewed_by',
     'reviewed_at',
+    'review_requested_at',
 ])]
 class AdmissionDocument extends Model
 {
@@ -49,6 +51,7 @@ class AdmissionDocument extends Model
         return [
             'size' => 'integer',
             'reviewed_at' => 'datetime',
+            'review_requested_at' => 'datetime',
         ];
     }
 

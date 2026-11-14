@@ -20,10 +20,14 @@ type Row = {
     cells: Record<string, string | number | null>;
     tones?: Record<string, string>;
     url?: string;
+    review?: {
+        count: number;
+        labels: string[];
+    } | null;
     actions?: {
         view_url: string;
-        edit_url: string;
-        delete_url: string;
+        edit_url?: string;
+        delete_url?: string;
         student_name: string;
     } | null;
 };
@@ -56,7 +60,7 @@ export default function AdminResource({
     const hasActions = columns.some((column) => column.key === 'actions');
 
     const deleteStudent = (row: Row) => {
-        if (!row.actions) {
+        if (!row.actions?.delete_url) {
             return;
         }
 
@@ -171,6 +175,11 @@ export default function AdminResource({
                                             className="transition-colors hover:bg-upel-cloud/50 dark:hover:bg-muted/30"
                                         >
                                             {columns.map((column) => {
+                                                const reviewCount =
+                                                    row.review?.count ?? 0;
+                                                const reviewLabels =
+                                                    row.review?.labels ?? [];
+
                                                 if (column.key === 'actions') {
                                                     return (
                                                         <td
@@ -178,44 +187,96 @@ export default function AdminResource({
                                                             className="px-5 py-3.5 align-middle"
                                                         >
                                                             {row.actions ? (
-                                                                <div className="flex items-center gap-1.5">
+                                                                <div className="flex flex-wrap items-center gap-1.5">
                                                                     <Link
                                                                         href={
                                                                             row
                                                                                 .actions
                                                                                 .view_url
                                                                         }
-                                                                        aria-label={`Ver perfil de ${row.actions.student_name}`}
-                                                                        title="Ver perfil"
-                                                                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border text-upel-blue transition-colors hover:bg-upel-cloud dark:hover:bg-muted"
+                                                                        aria-label={
+                                                                            reviewCount >
+                                                                            0
+                                                                                ? `Ver perfil de ${row.actions.student_name}: ${reviewCount} solicitud${reviewCount === 1 ? '' : 'es'} de revisión pendiente${reviewCount === 1 ? '' : 's'}`
+                                                                                : `Ver perfil de ${row.actions.student_name}`
+                                                                        }
+                                                                        title={
+                                                                            reviewCount >
+                                                                            0
+                                                                                ? `Solicitudes pendientes: ${reviewLabels.join(', ')}`
+                                                                                : 'Ver perfil'
+                                                                        }
+                                                                        className="relative inline-flex size-8 items-center justify-center rounded-lg border border-border text-upel-blue transition-colors hover:bg-upel-cloud dark:hover:bg-muted"
                                                                     >
                                                                         <Eye className="size-3.5" />
+                                                                        {reviewCount >
+                                                                        0 ? (
+                                                                            <span className="absolute -top-1.5 -right-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.6rem] font-extrabold text-white">
+                                                                                {reviewCount >
+                                                                                9
+                                                                                    ? '9+'
+                                                                                    : reviewCount}
+                                                                            </span>
+                                                                        ) : null}
                                                                     </Link>
-                                                                    <Link
-                                                                        href={
-                                                                            row
-                                                                                .actions
-                                                                                .edit_url
-                                                                        }
-                                                                        aria-label={`Editar perfil de ${row.actions.student_name}`}
-                                                                        title="Editar perfil"
-                                                                        className="inline-flex size-8 items-center justify-center rounded-lg border border-border text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
-                                                                    >
-                                                                        <Pencil className="size-3.5" />
-                                                                    </Link>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            deleteStudent(
-                                                                                row,
-                                                                            )
-                                                                        }
-                                                                        aria-label={`Eliminar cuenta de ${row.actions.student_name}`}
-                                                                        title="Eliminar cuenta"
-                                                                        className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 text-red-700 transition-colors hover:bg-red-50"
-                                                                    >
-                                                                        <Trash2 className="size-3.5" />
-                                                                    </button>
+                                                                    {row.actions
+                                                                        .edit_url ? (
+                                                                        <Link
+                                                                            href={
+                                                                                row
+                                                                                    .actions
+                                                                                    .edit_url
+                                                                            }
+                                                                            aria-label={`Editar perfil de ${row.actions.student_name}`}
+                                                                            title="Editar perfil"
+                                                                            className="inline-flex size-8 items-center justify-center rounded-lg border border-border text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                                                        >
+                                                                            <Pencil className="size-3.5" />
+                                                                        </Link>
+                                                                    ) : null}
+                                                                    {row.actions
+                                                                        .delete_url ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                deleteStudent(
+                                                                                    row,
+                                                                                )
+                                                                            }
+                                                                            aria-label={`Eliminar cuenta de ${row.actions.student_name}`}
+                                                                            title="Eliminar cuenta"
+                                                                            className="inline-flex size-8 items-center justify-center rounded-lg border border-red-200 text-red-700 transition-colors hover:bg-red-50"
+                                                                        >
+                                                                            <Trash2 className="size-3.5" />
+                                                                        </button>
+                                                                    ) : null}
+                                                                    {reviewCount >
+                                                                    0 ? (
+                                                                        <Link
+                                                                            href={
+                                                                                row
+                                                                                    .actions
+                                                                                    .view_url
+                                                                            }
+                                                                            title={`Solicitudes pendientes: ${reviewLabels.join(', ')}`}
+                                                                            className="inline-flex max-w-44 items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[0.6rem] font-bold text-amber-800 transition-colors hover:bg-amber-200"
+                                                                        >
+                                                                            <span className="truncate">
+                                                                                Revisión{' '}
+                                                                                {
+                                                                                    reviewLabels[0]
+                                                                                }
+                                                                            </span>
+                                                                            {reviewCount >
+                                                                            1 ? (
+                                                                                <span className="shrink-0">
+                                                                                    +
+                                                                                    {reviewCount -
+                                                                                        1}
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </Link>
+                                                                    ) : null}
                                                                 </div>
                                                             ) : null}
                                                         </td>

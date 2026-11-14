@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AdmissionDocumentStatus;
+use App\Enums\AdmissionDocumentType;
+use App\Enums\AdmissionStatus;
 use App\Enums\Permission;
 use App\Enums\Role;
 use App\Http\Requests\UpdateStudentProfileRequest;
@@ -9,47 +12,94 @@ use App\Models\AdmissionDocument;
 use App\Models\Career;
 use App\Models\StudentProfile;
 use App\Support\AcademicOptions;
+use App\Support\AdmissionTimeline;
+use App\Support\StudentProfilePrivacy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminStudentProfileController extends Controller
 {
     /**
-     * Muestra el perfil administrativo y, con permiso de admisiones, su expediente documental.
+     * Muestra el perfil del estudiante. Los datos privados solo se exponen a
+     * quien tenga el permiso correspondiente.
      */
     public function show(Request $request, StudentProfile $student): Response
     {
-        $this->authorizeAdmin($request);
+        $user = $request->user();
 
-        $canViewDocuments = $request->user()?->can(Permission::AdmissionsView->value) ?? false;
-        $student->load(['career', 'user']);
+        abort_unless(
+            $user?->can(Permission::StudentsView->value),
+            403,
+            'No tienes permiso para consultar expedientes de estudiantes.',
+        );
 
-        if ($canViewDocuments) {
-            $student->load([
-                'user.admission.documents' => static fn ($query) => $query->orderBy('type'),
-            ]);
-        }
+        $canViewPrivate = $user->can(Permission::StudentsViewPrivate->value);
+        $canViewDocuments = $canViewPrivate && $user->can(Permission::AdmissionsView->value);
+        $canReviewRequests = $user->can(Permission::AdmissionsManage->value)
+            || $user->can(Permission::AdmissionsReview->value);
+        $canUpdateStatus = $canViewPrivate && $canReviewRequests;
+        $canReviewDocuments = $canViewDocuments && $canReviewRequests;
+        $canManage = $user->hasRole(Role::Admin->value);
 
-        $admission = $canViewDocuments ? $student->user->admission : null;
+        $student->load([
+            'career',
+            'user',
+            'admission.reviewer',
+            'admission.statusHistories.changedBy',
+            'admission.documents' => static fn ($query) => $query->orderBy('type'),
+            'admission.documents.reviewer',
+        ]);
+
+        $admission = $student->admission;
+        $average = $student->enrollments()->whereNotNull('final_grade')->avg('final_grade');
 
         return Inertia::render('admin/students/show', [
-            'student' => [
-                'name' => $student->user->name,
-                'email' => $student->user->email,
-                'student_code' => $student->student_code,
-                'career' => $student->career?->name,
-                'semester' => $student->current_semester,
-                'status' => $student->statusLabel(),
-                'phone' => $student->phone,
-                'address' => $student->address,
-                'edit_url' => route('admin.students.edit', ['student' => $student->student_code]),
-                'delete_url' => route('admin.students.destroy', ['student' => $student->student_code]),
-            ],
+            'student' => StudentProfilePrivacy::publicData(
+                $student,
+                $admission,
+                $average !== null ? (float) $average : null,
+            ),
+            'private' => $canViewPrivate
+                ? StudentProfilePrivacy::privateData($student, $admission)
+                : null,
+            'can_view_private' => $canViewPrivate,
+            'can_manage' => $canManage,
             'can_view_documents' => $canViewDocuments,
+            'can_update_status' => $canUpdateStatus,
+            'can_review_documents' => $canReviewDocuments,
+            'document_statuses' => $canReviewDocuments
+                ? [
+                    ['value' => AdmissionDocumentStatus::Validado->value, 'label' => AdmissionDocumentStatus::Validado->label()],
+                    ['value' => AdmissionDocumentStatus::Rechazado->value, 'label' => AdmissionDocumentStatus::Rechazado->label()],
+                ]
+                : [],
+            'status_update' => $canUpdateStatus && $admission !== null
+                ? [
+                    'url' => route('admin.admissions.status', ['admission' => $admission->code]),
+                    'transitions' => array_map(
+                        static fn (AdmissionStatus $status): array => [
+                            'value' => $status->value,
+                            'label' => $status->label(),
+                        ],
+                        array_values(array_filter(
+                            $admission->statusEnum()->transitions(),
+                            static fn (AdmissionStatus $status): bool => $status !== AdmissionStatus::Convertida,
+                        )),
+                    ),
+                ]
+                : null,
+            'status_description' => $admission?->statusEnum()->description(),
+            'status_reviewed_at' => $admission?->reviewed_at?->format('d/m/Y h:i A'),
+            'status_reviewer' => $admission?->reviewer?->name,
+            'history' => $canViewPrivate && $admission !== null
+                ? AdmissionTimeline::present($admission->statusHistories)
+                : [],
             'document_folder' => $canViewDocuments && $admission !== null
                 ? $admission->formattedIdNumber()
                 : null,
@@ -58,11 +108,21 @@ class AdminStudentProfileController extends Controller
                     static fn (AdmissionDocument $document): array => [
                         'id' => $document->id,
                         'type_label' => $document->typeLabel(),
+                        'status' => $document->status,
                         'status_label' => $document->statusLabel(),
                         'status_tone' => $document->statusTone(),
                         'original_name' => $document->original_name,
                         'size' => $document->humanSize(),
+                        'uploaded_at' => $document->created_at?->format('d/m/Y'),
                         'is_previewable' => $document->isPreviewable(),
+                        'notes' => $document->notes,
+                        'reviewer' => $document->reviewer?->name,
+                        'reviewed_at' => $document->reviewed_at?->format('d/m/Y'),
+                        'review_requested' => $document->review_requested_at !== null,
+                        'review_action_url' => route('admin.admissions.documents.review', [
+                            'admission' => $admission->code,
+                            'document' => $document->id,
+                        ]),
                         'download_url' => route('admin.admissions.documents.download', [
                             'admission' => $admission->code,
                             'document' => $document->id,
@@ -74,6 +134,40 @@ class AdminStudentProfileController extends Controller
                     ],
                 )->values()
                 : [],
+            'edit_url' => $canManage
+                ? route('admin.students.edit', ['student' => $student->student_code])
+                : null,
+            'delete_url' => $canManage
+                ? route('admin.students.destroy', ['student' => $student->student_code])
+                : null,
+        ]);
+    }
+
+    /**
+     * Muestra la fotografía tipo carnet, que forma parte de la información pública.
+     */
+    public function photo(Request $request, StudentProfile $student): StreamedResponse
+    {
+        abort_unless(
+            $request->user()?->can(Permission::StudentsView->value),
+            403,
+            'No tienes permiso para consultar expedientes de estudiantes.',
+        );
+
+        $photo = AdmissionDocument::query()
+            ->where('type', AdmissionDocumentType::Foto->value)
+            ->whereHas('admission', static fn ($query) => $query->where('converted_user_id', $student->user_id))
+            ->latest('id')
+            ->first();
+
+        abort_if($photo === null, 404, 'El expediente no tiene una fotografía tipo carnet cargada.');
+
+        $disk = Storage::disk((string) config('admissions.documents.disk'));
+
+        abort_unless($disk->exists($photo->path), 404, 'La fotografía ya no está disponible.');
+
+        return $disk->response($photo->path, $photo->original_name, [
+            'Cache-Control' => 'private, max-age=3600',
         ]);
     }
 

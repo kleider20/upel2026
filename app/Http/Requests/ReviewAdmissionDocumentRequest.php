@@ -10,11 +10,13 @@ use Illuminate\Validation\Rule;
 class ReviewAdmissionDocumentRequest extends FormRequest
 {
     /**
-     * Solo los roles con permiso de gestión pueden validar documentos.
+     * Pueden validar documentos los roles con gestión de admisiones o con el
+     * permiso específico de revisión de solicitudes.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can(Permission::AdmissionsManage->value) ?? false;
+        return $this->user()?->can(Permission::AdmissionsManage->value) === true
+            || $this->user()?->can(Permission::AdmissionsReview->value) === true;
     }
 
     /**

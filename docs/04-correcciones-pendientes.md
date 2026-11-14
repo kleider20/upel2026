@@ -136,7 +136,7 @@ el esfuerzo de resolución.
 
 ### P-16 · Constancia de estudios simulada con `alert()`
 
-- **Archivo:** `resources/js/components/student/modules/MiPerfil.tsx:30-31`
+- **Archivo:** `resources/js/components/student/modules/MiPerfil.tsx`
 - **Problema:** el botón “Descargar constancia” solo muestra un aviso de demostración.
 - **Solución:** implementar la descarga real (ver módulo pendiente n.º 4) o retirar el
   botón mientras no exista.

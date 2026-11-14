@@ -11,6 +11,7 @@ enum Permission: string
     case DashboardView = 'dashboard.view';
 
     case StudentsView = 'students.view';
+    case StudentsViewPrivate = 'students.private.view';
     case StudentsManage = 'students.manage';
 
     case ProfessorsView = 'professors.view';
@@ -33,6 +34,7 @@ enum Permission: string
     case AdmissionsManage = 'admissions.manage';
     case AdmissionsEdit = 'admissions.edit';
     case AdmissionsDelete = 'admissions.delete';
+    case AdmissionsReview = 'admissions.review';
 
     case FinanceView = 'finance.view';
     case FinanceManage = 'finance.manage';
@@ -57,6 +59,7 @@ enum Permission: string
             self::GraduatePortal => 'Acceso al portal de graduados',
             self::DashboardView => 'Ver panel administrativo',
             self::StudentsView => 'Ver estudiantes',
+            self::StudentsViewPrivate => 'Ver información privada de estudiantes',
             self::StudentsManage => 'Gestionar estudiantes',
             self::ProfessorsView => 'Ver profesores',
             self::ProfessorsManage => 'Gestionar profesores',
@@ -73,6 +76,7 @@ enum Permission: string
             self::AdmissionsManage => 'Gestionar admisiones',
             self::AdmissionsEdit => 'Editar solicitudes de admisión',
             self::AdmissionsDelete => 'Eliminar solicitudes de admisión',
+            self::AdmissionsReview => 'Revisar solicitudes de admisión',
             self::FinanceView => 'Ver finanzas',
             self::FinanceManage => 'Gestionar finanzas',
             self::ProgramsView => 'Ver postgrados y cursos',

@@ -160,8 +160,14 @@ class AdminPensumController extends Controller
                         'modality_label' => $subject->modalityLabel(),
                         'prerequisites' => $subject->prerequisites,
                         'is_active' => $subject->is_active,
-                        'edit_url' => route('admin.subjects.edit', $subject),
-                        'delete_url' => route('admin.subjects.destroy', $subject),
+                        'edit_url' => route('admin.subjects.edit', [
+                            'subject' => $subject,
+                            'return_to' => 'pensum',
+                        ]),
+                        'delete_url' => route('admin.subjects.destroy', [
+                            'subject' => $subject,
+                            'return_to' => 'pensum',
+                        ]),
                     ])
                     ->values()
                     ->all(),

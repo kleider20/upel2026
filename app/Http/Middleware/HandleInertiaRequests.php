@@ -2,6 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Permission;
+use App\Models\User;
+use App\Support\StudentReviewRequests;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -76,7 +79,33 @@ class HandleInertiaRequests extends Middleware
                         ->all(),
                 ]
                 : ['unread_count' => 0, 'items' => []],
+            'adminReviewRequests' => fn (): array => $this->adminReviewRequests($user),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * Solicitudes de revisión que el personal autorizado debe atender.
+     *
+     * @return array{can_review: bool, pending_students: int, pending_total: int, items: array<int, array{id: int, student_name: string, student_code: string|null, type: string, type_label: string, message: string, requested_at: string|null, url: string|null}>}
+     */
+    private function adminReviewRequests(?User $user): array
+    {
+        $empty = [
+            'can_review' => false,
+            'pending_students' => 0,
+            'pending_total' => 0,
+            'items' => [],
+        ];
+
+        if (
+            $user === null
+            || ! $user->can(Permission::StudentsView->value)
+            || ! $user->can(Permission::StudentsViewPrivate->value)
+        ) {
+            return $empty;
+        }
+
+        return ['can_review' => true, ...StudentReviewRequests::overview()];
     }
 }

@@ -13,13 +13,16 @@ import {
     MapPin,
     Pencil,
     Phone,
-    ShieldCheck,
     UserCheck,
     UserRound,
     XCircle,
     Trash2,
 } from 'lucide-react';
 import InputError from '@/components/input-error';
+import {
+    DocumentReview,
+    type DocumentStatusOption,
+} from '@/components/admin/document-review';
 import { PageHeader } from '@/components/portal/page-header';
 import { ToneBadge, type Tone } from '@/components/portal/tone-badge';
 import { cn } from '@/lib/utils';
@@ -52,6 +55,7 @@ type HistoryRow = {
     id: number;
     from: string;
     to: string;
+    title: string;
     tone: string;
     note: string | null;
     changed_by: string;
@@ -106,130 +110,19 @@ type Transition = {
     label: string;
 };
 
-type DocumentStatusOption = {
-    value: string;
-    label: string;
-};
-
 type Props = {
     admission: AdmissionDetail;
     transitions: Transition[];
     documentStatuses: DocumentStatusOption[];
     can_edit: boolean;
     can_delete: boolean;
+    can_update_status: boolean;
+    can_review_documents: boolean;
 };
 
 const labelClass =
     'text-[0.62rem] font-extrabold tracking-wide text-muted-foreground uppercase';
 const valueClass = 'mt-0.5 text-sm font-semibold text-foreground';
-
-/**
- * Formulario de revisión de un documento del expediente.
- */
-function DocumentReview({
-    document,
-    statuses,
-}: {
-    document: AdminDocument;
-    statuses: DocumentStatusOption[];
-}) {
-    const { data, setData, patch, processing, errors, reset } = useForm({
-        status: statuses[0]?.value ?? 'validado',
-        notes: '',
-    });
-
-    const submit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        patch(document.review_url, {
-            preserveScroll: true,
-            onSuccess: () => reset('notes'),
-        });
-    };
-
-    return (
-        <details className="group mt-3">
-            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.65rem] font-bold text-upel-blue transition-colors hover:bg-upel-cloud dark:hover:bg-muted">
-                <ShieldCheck className="size-3.5" aria-hidden="true" />
-                Revisar documento
-            </summary>
-
-            <form
-                onSubmit={submit}
-                className="mt-3 space-y-3 rounded-xl bg-upel-cloud/60 p-4 dark:bg-muted/40"
-            >
-                <div>
-                    <label
-                        htmlFor={`review-status-${document.id}`}
-                        className="mb-1.5 block text-[0.65rem] font-bold text-foreground"
-                    >
-                        Resultado
-                    </label>
-                    <select
-                        id={`review-status-${document.id}`}
-                        value={data.status}
-                        onChange={(event) =>
-                            setData('status', event.target.value)
-                        }
-                        className="h-9 w-full rounded-lg border border-border bg-white px-2.5 text-xs font-semibold text-foreground focus:border-upel-blue focus:outline-none dark:bg-card"
-                    >
-                        {statuses.map((status) => (
-                            <option key={status.value} value={status.value}>
-                                {status.label}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label
-                        htmlFor={`review-notes-${document.id}`}
-                        className="mb-1.5 block text-[0.65rem] font-bold text-foreground"
-                    >
-                        Observación{' '}
-                        {data.status === 'rechazado' ? (
-                            <span className="text-red-600">(obligatoria)</span>
-                        ) : (
-                            <span className="font-medium text-muted-foreground">
-                                (opcional)
-                            </span>
-                        )}
-                    </label>
-                    <textarea
-                        id={`review-notes-${document.id}`}
-                        rows={2}
-                        value={data.notes}
-                        onChange={(event) =>
-                            setData('notes', event.target.value)
-                        }
-                        required={data.status === 'rechazado'}
-                        className="w-full rounded-lg border border-border bg-white px-2.5 py-2 text-xs font-medium text-foreground focus:border-upel-blue focus:outline-none dark:bg-card"
-                        placeholder="Explica el motivo del rechazo o deja una nota interna."
-                    />
-                    <InputError
-                        message={errors.notes as string | undefined}
-                        className="mt-1 text-[0.68rem]"
-                    />
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={processing}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-upel-navy px-3 py-2 text-[0.68rem] font-extrabold text-white transition-colors hover:bg-upel-navy-800 disabled:cursor-wait disabled:opacity-70"
-                >
-                    {processing ? (
-                        <Loader2
-                            className="size-3.5 animate-spin"
-                            aria-hidden="true"
-                        />
-                    ) : (
-                        <ShieldCheck className="size-3.5" aria-hidden="true" />
-                    )}
-                    Guardar revisión
-                </button>
-            </form>
-        </details>
-    );
-}
 
 /**
  * Expediente administrativo de una solicitud de preinscripción.
@@ -240,6 +133,8 @@ export default function AdminAdmissionsShow({
     documentStatuses,
     can_edit,
     can_delete,
+    can_update_status,
+    can_review_documents,
 }: Props) {
     const statusForm = useForm({
         status: transitions[0]?.value ?? '',
@@ -547,10 +442,15 @@ export default function AdminAdmissionsShow({
                                                 ) : null}
                                             </div>
 
-                                            <DocumentReview
-                                                document={document}
-                                                statuses={documentStatuses}
-                                            />
+                                            {can_review_documents ? (
+                                                <DocumentReview
+                                                    documentId={document.id}
+                                                    actionUrl={
+                                                        document.review_url
+                                                    }
+                                                    statuses={documentStatuses}
+                                                />
+                                            ) : null}
                                         </li>
                                     ))}
                                 </ul>
@@ -574,7 +474,7 @@ export default function AdminAdmissionsShow({
                                             aria-hidden="true"
                                         />
                                         <p className="text-xs font-extrabold text-foreground">
-                                            {item.to}
+                                            {item.title}
                                         </p>
                                         <p className="mt-0.5 text-[0.65rem] font-semibold text-muted-foreground">
                                             {item.date ?? '—'} ·{' '}
@@ -612,7 +512,7 @@ export default function AdminAdmissionsShow({
                                 </p>
                             ) : null}
 
-                            {transitions.length > 0 ? (
+                            {can_update_status && transitions.length > 0 ? (
                                 <form
                                     onSubmit={submitStatus}
                                     className="mt-4 space-y-3 border-t border-border pt-4"
@@ -723,8 +623,9 @@ export default function AdminAdmissionsShow({
                                 </form>
                             ) : (
                                 <p className="mt-3 rounded-xl bg-upel-cloud px-3 py-2 text-[0.68rem] text-muted-foreground dark:bg-muted/40">
-                                    Esta solicitud no tiene más transiciones
-                                    manuales.
+                                    {can_update_status
+                                        ? 'Esta solicitud no tiene más transiciones manuales.'
+                                        : 'No tienes permiso para actualizar el estado de esta solicitud.'}
                                 </p>
                             )}
                         </section>

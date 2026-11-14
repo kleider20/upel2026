@@ -223,6 +223,7 @@ export default function AdminPensumsIndex({
                                                 href={subjectsCreate.url({
                                                     query: {
                                                         career_id: career.id,
+                                                        return_to: 'pensum',
                                                     },
                                                 })}
                                                 className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[0.68rem] font-bold text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"

@@ -14,11 +14,33 @@ import { MisTramites } from '@/components/student/modules/MisTramites';
 import type { Auth } from '@/types';
 import type { StudentDashboardProps } from '@/types/student';
 
-export default function StudentDashboardIndex(props: StudentDashboardProps) {
-    const { auth } = usePage<{ auth: Auth }>().props;
-    const userName = auth.user?.name ?? 'Estudiante UPEL';
+const studentTabs: StudentTab[] = [
+    'inicio',
+    'solicitud',
+    'materias',
+    'calificaciones',
+    'profesores',
+    'pensum',
+    'horario',
+    'perfil',
+    'tramites',
+];
 
-    const [activeTab, setActiveTab] = useState<StudentTab>('inicio');
+function initialTabFromUrl(url: string): StudentTab {
+    const tab = new URLSearchParams(url.split('?')[1] ?? '').get('tab');
+
+    return studentTabs.includes(tab as StudentTab)
+        ? (tab as StudentTab)
+        : 'inicio';
+}
+
+export default function StudentDashboardIndex(props: StudentDashboardProps) {
+    const { props: pageProps, url } = usePage<{ auth: Auth }>();
+    const userName = pageProps.auth.user?.name ?? 'Estudiante UPEL';
+
+    const [activeTab, setActiveTab] = useState<StudentTab>(() =>
+        initialTabFromUrl(url),
+    );
 
     const renderModule = () => {
         switch (activeTab) {

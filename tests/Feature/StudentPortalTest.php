@@ -4,14 +4,20 @@ use App\Enums\AdmissionDocumentStatus;
 use App\Enums\AdmissionDocumentType;
 use App\Enums\AdmissionStatus;
 use App\Enums\Role;
+use App\Models\AcademicPeriod;
 use App\Models\Admission;
 use App\Models\Career;
+use App\Models\Enrollment;
+use App\Models\ProfessorProfile;
 use App\Models\Schedule;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
 use App\Notifications\SchedulePublishedNotification;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -22,18 +28,19 @@ beforeEach(function () {
  * Estudiante con una solicitud de admisión ya convertida.
  *
  * @param  array<string, mixed>  $attributes
+ * @param  array<string, mixed>  $profileAttributes
  * @return array{0: User, 1: Admission}
  */
-function convertedStudent(array $attributes = []): array
+function convertedStudent(array $attributes = [], array $profileAttributes = []): array
 {
     $user = User::factory()->create(['must_change_password' => false]);
     $user->assignRole(Role::Estudiante->value);
 
-    StudentProfile::factory()->create([
+    StudentProfile::factory()->create(array_merge([
         'user_id' => $user->id,
         'student_code' => 'EST-2027-001',
         'admission_year' => 2027,
-    ]);
+    ], $profileAttributes));
 
     $admission = Admission::factory()->create(array_merge([
         'status' => AdmissionStatus::Convertida->value,
@@ -49,7 +56,7 @@ function convertedStudent(array $attributes = []): array
 test('el dashboard expone el expediente de admisión del estudiante', function () {
     [$user, $admission] = convertedStudent();
 
-    $admission->documents()->create([
+    $document = $admission->documents()->create([
         'type' => AdmissionDocumentType::Cedula->value,
         'status' => AdmissionDocumentStatus::Validado->value,
         'original_name' => 'cedula.pdf',
@@ -73,10 +80,111 @@ test('el dashboard expone el expediente de admisión del estudiante', function (
             ->where('profile.id_number', $admission->formattedIdNumber())
             ->where('profile.birth_date', $admission->birth_date->format('d/m/Y'))
             ->where('profile.admission_code', $admission->code)
+            ->where('documents_upload_url', route('student.documents.store', absolute: false))
+            ->has('document_types', 4)
+            ->where('document_types.0.value', AdmissionDocumentType::TituloBachiller->value)
             ->has('admission.documents', 1)
             ->where('admission.documents.0.type_label', AdmissionDocumentType::Cedula->label())
             ->where('admission.documents.0.status_label', AdmissionDocumentStatus::Validado->label())
+            ->where('admission.documents.0.is_previewable', true)
+            ->where('admission.documents.0.preview_url', route('student.documents.preview', ['document' => $document->id], absolute: false))
+            ->where('admission.documents.0.download_url', route('student.documents.download', ['document' => $document->id], absolute: false))
         );
+});
+
+test('el dashboard expone la fotografía tipo carnet del expediente como avatar', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    [$user, $admission] = convertedStudent();
+
+    $admission->documents()->create([
+        'type' => AdmissionDocumentType::Foto->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'foto.png',
+        'path' => 'admissions/12345678/foto/foto.png',
+        'mime_type' => 'image/png',
+        'size' => 1200,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->where('photo_url', route('student.photo', absolute: false))
+            ->where('admission.documents.0.type', AdmissionDocumentType::Foto->value)
+        );
+});
+
+test('el dashboard no expone avatar cuando el expediente no tiene fotografía', function () {
+    [$user] = convertedStudent();
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->where('photo_url', null)
+        );
+});
+
+test('el estudiante abre su fotografía tipo carnet desde el almacenamiento privado', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    [$user, $admission] = convertedStudent();
+
+    $path = 'admissions/12345678/foto/foto.png';
+
+    Storage::disk((string) config('admissions.documents.disk'))->put(
+        $path,
+        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='),
+    );
+
+    $admission->documents()->create([
+        'type' => AdmissionDocumentType::Foto->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'foto.png',
+        'path' => $path,
+        'mime_type' => 'image/png',
+        'size' => 1200,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.photo'))
+        ->assertOk()
+        ->assertHeader('content-type', 'image/png')
+        ->assertHeader('content-disposition', 'inline; filename=foto.png');
+});
+
+test('la fotografía no se expone a otros usuarios', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    [, $admission] = convertedStudent();
+
+    $path = 'admissions/12345678/foto/foto.png';
+
+    Storage::disk((string) config('admissions.documents.disk'))->put(
+        $path,
+        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='),
+    );
+
+    $admission->documents()->create([
+        'type' => AdmissionDocumentType::Foto->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'foto.png',
+        'path' => $path,
+        'mime_type' => 'image/png',
+        'size' => 1200,
+    ]);
+
+    [$otherStudent] = convertedStudent([], ['student_code' => 'EST-2027-002']);
+
+    $this->actingAs($otherStudent)->get(route('student.photo'))->assertNotFound();
+
+    $professor = User::factory()->create(['must_change_password' => false]);
+    $professor->assignRole(Role::Profesor->value);
+
+    $this->actingAs($professor)->get(route('student.photo'))->assertForbidden();
 });
 
 test('el dashboard no inventa datos cuando no hay solicitud de admisión', function () {
@@ -351,6 +459,7 @@ test('el estudiante actualiza sus datos de contacto', function () {
             'phone' => '0414-1234567',
             'personal_email' => 'maria.personal@example.com',
             'address' => 'Av. Libertador, Caracas',
+            'birth_place' => 'Caracas, Distrito Capital',
             'emergency_contact' => 'Ana Rodríguez · 0412-7654321',
         ])
         ->assertRedirect();
@@ -360,5 +469,274 @@ test('el estudiante actualiza sus datos de contacto', function () {
     expect($profile->phone)->toBe('0414-1234567')
         ->and($profile->personal_email)->toBe('maria.personal@example.com')
         ->and($profile->address)->toBe('Av. Libertador, Caracas')
+        ->and($profile->birth_place)->toBe('Caracas, Distrito Capital')
         ->and($profile->emergency_contact)->toBe('Ana Rodríguez · 0412-7654321');
+});
+
+test('el estudiante recarga un documento y vuelve a quedar pendiente de revisión', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    [$user, $admission] = convertedStudent();
+
+    $disk = Storage::disk((string) config('admissions.documents.disk'));
+    $oldPath = 'admissions/12345678/titulo_bachiller/old.pdf';
+    $disk->put($oldPath, 'old');
+
+    $admission->documents()->create([
+        'type' => AdmissionDocumentType::TituloBachiller->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'old.pdf',
+        'path' => $oldPath,
+        'mime_type' => 'application/pdf',
+        'size' => 3,
+        'notes' => 'Documento legible.',
+        'reviewed_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('student.documents.store'), [
+            'type' => AdmissionDocumentType::TituloBachiller->value,
+            'document' => UploadedFile::fake()->create('titulo.pdf', 120, 'application/pdf'),
+        ])
+        ->assertRedirect();
+
+    $document = $admission->documents()
+        ->where('type', AdmissionDocumentType::TituloBachiller->value)
+        ->firstOrFail();
+
+    expect($document->status)->toBe(AdmissionDocumentStatus::Pendiente->value)
+        ->and($document->notes)->toBeNull()
+        ->and($document->reviewed_at)->toBeNull()
+        ->and($document->original_name)->toBe('titulo.pdf')
+        ->and($document->path)->not->toBe($oldPath)
+        ->and($disk->exists($oldPath))->toBeFalse()
+        ->and($disk->exists($document->path))->toBeTrue();
+});
+
+test('el estudiante previsualiza y descarga sus propios documentos', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    [$user, $admission] = convertedStudent();
+
+    $path = 'admissions/12345678/titulo_bachiller/titulo.pdf';
+
+    Storage::disk((string) config('admissions.documents.disk'))->put($path, '%PDF-1.4');
+
+    $document = $admission->documents()->create([
+        'type' => AdmissionDocumentType::TituloBachiller->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'titulo.pdf',
+        'path' => $path,
+        'mime_type' => 'application/pdf',
+        'size' => 8,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.documents.preview', $document->id))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    $this->actingAs($user)
+        ->get(route('student.documents.download', $document->id))
+        ->assertOk()
+        ->assertHeader('content-disposition', 'attachment; filename=titulo.pdf');
+});
+
+test('el estudiante no accede a documentos de otro expediente', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    [, $admission] = convertedStudent();
+
+    $path = 'admissions/12345678/cedula/cedula.pdf';
+
+    Storage::disk((string) config('admissions.documents.disk'))->put($path, '%PDF-1.4');
+
+    $document = $admission->documents()->create([
+        'type' => AdmissionDocumentType::Cedula->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'cedula.pdf',
+        'path' => $path,
+        'mime_type' => 'application/pdf',
+        'size' => 8,
+    ]);
+
+    [$otherStudent] = convertedStudent([], ['student_code' => 'EST-2027-002']);
+
+    $this->actingAs($otherStudent)
+        ->get(route('student.documents.preview', $document->id))
+        ->assertNotFound();
+
+    $this->actingAs($otherStudent)
+        ->get(route('student.documents.download', $document->id))
+        ->assertNotFound();
+});
+
+/**
+ * Estudiante con horario publicado y docentes asignados a sus materias.
+ *
+ * @return array{0: User, 1: User, 2: Schedule, 3: Collection<int, Subject>}
+ */
+function studentWithTeachingSchedule(): array
+{
+    $career = Career::factory()->create([
+        'code' => 'EDTEST',
+        'name' => 'Educación de Prueba',
+        'duration_semesters' => 8,
+    ]);
+
+    $student = User::factory()->create(['must_change_password' => false]);
+    $student->assignRole(Role::Estudiante->value);
+
+    StudentProfile::factory()->for($career)->for($student)->create([
+        'current_semester' => 1,
+    ]);
+
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $student->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+        'modality' => 'presencial',
+        'schedule' => 'sabatino',
+    ]);
+
+    $schedule = Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2026-I',
+        'study_schedule' => 'sabatino',
+        'modality' => 'presencial',
+    ]);
+
+    $subjects = Subject::factory()->count(2)->for($career)->create([
+        'semester' => 1,
+        'modality' => 'presencial',
+    ]);
+
+    $professor = User::factory()->create([
+        'name' => 'Ana Pérez',
+        'must_change_password' => false,
+    ]);
+    $professor->assignRole(Role::Profesor->value);
+
+    $professorProfile = ProfessorProfile::factory()->for($professor)->create([
+        'department' => 'Lengua y Literatura',
+        'academic_title' => 'Magíster en Educación',
+    ]);
+    $professorProfile->subjects()->attach($subjects->first());
+
+    $schedule->subjects()->attach($subjects->first(), [
+        'position' => 1,
+        'professor_id' => $professor->id,
+    ]);
+    $schedule->subjects()->attach($subjects->last(), ['position' => 2]);
+
+    return [$student, $professor, $schedule, $subjects];
+}
+
+test('mis materias muestra las materias del horario con el docente asignado', function () {
+    [$student, $professor, , $subjects] = studentWithTeachingSchedule();
+
+    $this->actingAs($student)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->has('subjects', 2)
+            ->where('subjects.0.code', $subjects->first()->code)
+            ->where('subjects.0.subject', $subjects->first()->name)
+            ->where('subjects.0.professor', 'Ana Pérez')
+            ->where('subjects.0.professor_id', $professor->id)
+            ->where('subjects.0.professor_url', '/estudiante/profesores/'.$professor->id)
+            ->where('subjects.0.status', 'cursando')
+            ->where('subjects.0.status_label', 'Cursando')
+            ->where('subjects.0.credits', $subjects->first()->credits)
+            ->where('subjects.0.modality', 'Presencial')
+            ->where('subjects.1.professor_url', null)
+            ->where('schedule.subjects.0.professor_id', $professor->id)
+            ->where('schedule.subjects.1.professor_id', null)
+        );
+});
+
+test('mis profesores lista los docentes del horario con su período', function () {
+    [$student, $professor, , $subjects] = studentWithTeachingSchedule();
+
+    $this->actingAs($student)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('teachers', 1)
+            ->where('teachers.0.id', $professor->id)
+            ->where('teachers.0.name', 'Ana Pérez')
+            ->where('teachers.0.email', $professor->email)
+            ->where('teachers.0.department', 'Lengua y Literatura')
+            ->where('teachers.0.academic_title', 'Magíster en Educación')
+            ->where('teachers.0.period', '2026-I')
+            ->where('teachers.0.semesters', [1])
+            ->where('teachers.0.subjects', [$subjects->first()->name])
+            ->where('teachers.0.profile_url', '/estudiante/profesores/'.$professor->id)
+        );
+});
+
+test('mis profesores separa al mismo docente por período académico', function () {
+    [$student, $professor, $schedule, $subjects] = studentWithTeachingSchedule();
+
+    $nextPeriod = AcademicPeriod::factory()->create(['name' => '2026-III']);
+    $nextSubject = Subject::factory()->create([
+        'career_id' => $subjects->first()->career_id,
+        'semester' => 1,
+        'modality' => 'presencial',
+    ]);
+
+    Enrollment::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => $nextSubject->id,
+        'academic_period_id' => $nextPeriod->id,
+        'professor_id' => $professor->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('teachers', 2)
+            ->where('teachers.0.id', $professor->id)
+            ->where('teachers.0.period', $schedule->cohort)
+            ->where('teachers.0.subjects', [$subjects->first()->name])
+            ->where('teachers.1.id', $professor->id)
+            ->where('teachers.1.period', '2026-III')
+            ->where('teachers.1.subjects', [$nextSubject->name])
+        );
+});
+
+test('el estudiante consulta el perfil del docente asignado en su horario', function () {
+    [$student, $professor, , $subjects] = studentWithTeachingSchedule();
+
+    $this->actingAs($student)
+        ->get(route('student.professors.show', $professor->id))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Professor/Show')
+            ->where('professor.name', 'Ana Pérez')
+            ->where('professor.email', $professor->email)
+            ->where('professor.department', 'Lengua y Literatura')
+            ->where('professor.academic_title', 'Magíster en Educación')
+            ->where('professor.assigned_in_schedule', true)
+            ->has('professor.subjects', 1)
+            ->where('professor.subjects.0.code', $subjects->first()->code)
+            ->where('professor.subjects.0.name', $subjects->first()->name)
+            ->where('professor.subjects.0.modality', 'Presencial')
+            ->where('subjects_url', '/dashboard?tab=materias')
+        );
+});
+
+test('el perfil del docente solo se expone a estudiantes y a docentes reales', function () {
+    [$student, $professor] = studentWithTeachingSchedule();
+
+    $this->actingAs($student)
+        ->get(route('student.professors.show', $student->id))
+        ->assertNotFound();
+
+    $this->actingAs($professor)
+        ->get(route('student.professors.show', $professor->id))
+        ->assertForbidden();
 });

@@ -6,6 +6,7 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/portal/page-header';
 import { generateSubjectCode } from '@/lib/subject-code';
 import { cn } from '@/lib/utils';
+import { show as pensumsShow } from '@/routes/admin/pensums';
 import {
     index as subjectsIndex,
     store as subjectsStore,
@@ -64,12 +65,14 @@ type SubjectFormData = {
     practice_hours: string;
     prerequisites: string;
     is_active: boolean;
+    return_to: string;
 };
 
 type Props = {
     subject: SubjectRecord | null;
     defaultCareerId?: number | null;
     defaultSemester?: number | null;
+    returnTo?: string | null;
     careers: CareerOption[];
     subjects: SubjectOption[];
     modalities: Option[];
@@ -91,6 +94,7 @@ export default function AdminSubjectForm({
     subject,
     defaultCareerId,
     defaultSemester,
+    returnTo,
     careers,
     subjects,
     modalities,
@@ -123,6 +127,7 @@ export default function AdminSubjectForm({
         practice_hours: subject ? String(subject.practice_hours) : '8',
         prerequisites: subject?.prerequisites ?? '',
         is_active: subject?.is_active ?? true,
+        return_to: returnTo === 'pensum' ? 'pensum' : '',
     });
 
     const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
@@ -140,6 +145,17 @@ export default function AdminSubjectForm({
     const selectedCareerId = Number(form.data.career_id);
     const selectedSemester = Number(form.data.semester);
     const showPrerequisites = selectedSemester > 1;
+
+    const selectedCareerCode =
+        careers.find((career) => career.id === selectedCareerId)?.code ?? null;
+
+    const backUrl =
+        returnTo === 'pensum' && selectedCareerCode !== null
+            ? pensumsShow.url({ career: selectedCareerCode })
+            : subjectsIndex();
+
+    const backLabel =
+        returnTo === 'pensum' ? 'Volver al pensum' : 'Volver al listado';
 
     const prerequisiteOptions = showPrerequisites
         ? subjects
@@ -241,11 +257,11 @@ export default function AdminSubjectForm({
                     }
                     actions={
                         <Link
-                            href={subjectsIndex()}
+                            href={backUrl}
                             className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-upel-navy shadow-sm transition-colors hover:bg-upel-cloud dark:bg-card dark:text-foreground"
                         >
                             <ArrowLeft className="h-3.5 w-3.5" />
-                            Volver al listado
+                            {backLabel}
                         </Link>
                     }
                 />
@@ -759,7 +775,7 @@ export default function AdminSubjectForm({
 
                     <div className="flex flex-wrap items-center justify-end gap-3">
                         <Link
-                            href={subjectsIndex()}
+                            href={backUrl}
                             className="inline-flex items-center justify-center rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-upel-navy transition-colors hover:bg-upel-cloud dark:bg-card dark:text-foreground dark:hover:bg-muted"
                         >
                             Cancelar

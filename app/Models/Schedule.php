@@ -92,6 +92,14 @@ class Schedule extends Model
                     ? $subject->professors->firstWhere('id', (int) $chosenProfessorId)
                     : null;
                 $chosenTeacherName = trim((string) ($subject->pivot->teacher_name ?? ''));
+                $matchedProfessor = $chosenProfessor;
+
+                if ($matchedProfessor === null && $chosenTeacherName !== '') {
+                    $matchedProfessor = $subject->professors->first(
+                        static fn (User $professor): bool => mb_strtolower($professor->name) === mb_strtolower($chosenTeacherName),
+                    );
+                }
+
                 $dates = $subject->pivot->dates;
 
                 if (is_string($dates)) {
@@ -108,9 +116,11 @@ class Schedule extends Model
                     'position' => (int) $subject->pivot->position,
                     'code' => $subject->code,
                     'name' => $subject->name,
-                    'teacher' => $chosenProfessor?->name
+                    'teacher' => $matchedProfessor?->name
                         ?? ($chosenTeacherName !== '' ? $chosenTeacherName : null)
                         ?? $subject->professors->first()?->name,
+                    'professor_id' => $matchedProfessor?->id
+                        ?? ($chosenTeacherName === '' ? $subject->professors->first()?->id : null),
                     'modality' => $subject->modality,
                     'dates' => is_array($dates) ? array_values($dates) : [],
                     'date_times' => is_array($dateTimes) ? $dateTimes : [],

@@ -19,6 +19,7 @@ use App\Models\CareerOffering;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Support\AcademicOptions;
+use App\Support\AdmissionTimeline;
 use App\Support\StudentCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -158,10 +159,16 @@ class AdminAdmissionController extends Controller
             return redirect()->route('admin.students.show', ['student' => $studentCode]);
         }
 
+        $user = $request->user();
+        $canReview = $user->can(Permission::AdmissionsManage->value)
+            || $user->can(Permission::AdmissionsReview->value);
+
         return Inertia::render('admin/admissions/show', [
             'admission' => $this->present($admission),
             'can_edit' => $request->user()?->can(Permission::AdmissionsEdit->value) ?? false,
             'can_delete' => $request->user()?->can(Permission::AdmissionsDelete->value) ?? false,
+            'can_update_status' => $canReview,
+            'can_review_documents' => $canReview,
             'transitions' => array_map(
                 static fn (AdmissionStatus $status): array => [
                     'value' => $status->value,
@@ -453,6 +460,7 @@ class AdminAdmissionController extends Controller
                 'notes' => $notes !== '' ? $notes : null,
                 'reviewed_by' => $request->user()?->id,
                 'reviewed_at' => now(),
+                'review_requested_at' => null,
             ]);
 
             $documentReviewNote = $status === AdmissionDocumentStatus::Validado
@@ -563,17 +571,7 @@ class AdminAdmissionController extends Controller
                     ]),
                 ],
             )->values(),
-            'history' => $admission->statusHistories->map(
-                static fn ($history): array => [
-                    'id' => $history->id,
-                    'from' => $history->fromLabel(),
-                    'to' => $history->toLabel(),
-                    'tone' => $history->toTone(),
-                    'note' => $history->note,
-                    'changed_by' => data_get($history->changedBy, 'name') ?? 'Sistema',
-                    'date' => $history->created_at?->format('d/m/Y h:i A'),
-                ],
-            )->values(),
+            'history' => AdmissionTimeline::present($admission->statusHistories),
         ];
     }
 }

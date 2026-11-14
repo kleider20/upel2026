@@ -25,9 +25,10 @@ const tabTitles: Record<StudentTab, string> = {
 };
 
 export function Topbar({ activeTab, onOpenMobile, onSelectTab }: TopbarProps) {
-    const { auth, studentNotifications } = usePage<{
+    const { auth, studentNotifications, photo_url } = usePage<{
         auth: Auth;
         studentNotifications: StudentNotificationsData;
+        photo_url?: string | null;
     }>().props;
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const notificationsRef = useRef<HTMLDivElement>(null);
@@ -180,9 +181,17 @@ export function Topbar({ activeTab, onOpenMobile, onSelectTab }: TopbarProps) {
                     onClick={() => onSelectTab('perfil')}
                     className="group flex items-center gap-2.5 rounded-2xl border border-border bg-upel-cloud/50 p-1.5 pr-3 transition-colors hover:bg-upel-cloud dark:bg-muted/50 dark:hover:bg-muted"
                 >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-upel-navy text-xs font-extrabold text-upel-gold shadow-sm">
-                        {initials}
-                    </div>
+                    {photo_url ? (
+                        <img
+                            src={photo_url}
+                            alt={`Fotografía tipo carnet de ${user?.name ?? 'el estudiante'}`}
+                            className="h-9 w-9 rounded-xl object-cover shadow-sm"
+                        />
+                    ) : (
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-upel-navy text-xs font-extrabold text-upel-gold shadow-sm">
+                            {initials}
+                        </div>
+                    )}
                     <div className="hidden text-left sm:block">
                         <p className="text-xs font-bold text-upel-navy dark:text-foreground">
                             {user?.name ?? 'Estudiante'}

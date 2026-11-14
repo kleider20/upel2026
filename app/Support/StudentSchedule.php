@@ -185,7 +185,7 @@ final class StudentSchedule
      * calendario (sábados o semanas de lunes a viernes). Si no, se conserva la
      * plantilla oficial de 16 sábados.
      *
-     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, date_times?: array<string, array{starts_at: string, ends_at: string}>, starts_at?: string|null, ends_at?: string|null}>|null  $subjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, professor_id?: int|null, modality?: string|null, dates?: array<int, string>, date_times?: array<string, array{starts_at: string, ends_at: string}>, starts_at?: string|null, ends_at?: string|null}>|null  $subjects
      * @return array<string, mixed>
      */
     public static function build(
@@ -274,7 +274,7 @@ final class StudentSchedule
      * Las materias de modalidad online se muestran siempre como virtuales.
      *
      * @param  array<int, array<string, mixed>>  $templateSubjects
-     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null}>  $selectedSubjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, professor_id?: int|null, modality?: string|null}>  $selectedSubjects
      * @return array<int, array<string, mixed>>
      */
     private static function applySubjects(array $templateSubjects, array $selectedSubjects): array
@@ -308,6 +308,7 @@ final class StudentSchedule
                 'code' => (string) $selected['code'],
                 'name' => (string) $selected['name'],
                 'teacher' => $teacher !== '' ? $teacher : (string) $slot['teacher'],
+                'professor_id' => isset($selected['professor_id']) ? (int) $selected['professor_id'] : null,
                 'hours' => $hours,
                 'virtual' => $isOnline,
             ];
@@ -321,7 +322,7 @@ final class StudentSchedule
     /**
      * Arma el horario a partir del rango de fechas elegido por la administración.
      *
-     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null, dates?: array<int, string>, date_times?: array<string, array{starts_at: string, ends_at: string}>, starts_at?: string|null, ends_at?: string|null}>  $selectedSubjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, professor_id?: int|null, modality?: string|null, dates?: array<int, string>, date_times?: array<string, array{starts_at: string, ends_at: string}>, starts_at?: string|null, ends_at?: string|null}>  $selectedSubjects
      * @return array<string, mixed>
      */
     private static function presentRange(
@@ -484,6 +485,7 @@ final class StudentSchedule
                 'teacher' => trim((string) ($selected['teacher'] ?? '')) !== ''
                     ? (string) $selected['teacher']
                     : (string) ($templateSubjects[((int) $selected['position']) - 1]['teacher'] ?? ''),
+                'professor_id' => isset($selected['professor_id']) ? (int) $selected['professor_id'] : null,
                 'hours' => $hours,
                 'pdf_hours' => $pdfHours,
             ];
@@ -523,7 +525,7 @@ final class StudentSchedule
      * Arma las cuadrículas y la leyenda del horario.
      *
      * @param  array<string, mixed>  $definition
-     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, modality?: string|null}>|null  $selectedSubjects
+     * @param  array<int, array{position: int, code: string, name: string, teacher: string|null, professor_id?: int|null, modality?: string|null}>|null  $selectedSubjects
      * @return array<string, mixed>|null
      */
     private static function present(
@@ -568,6 +570,7 @@ final class StudentSchedule
                     'code' => $subject['code'],
                     'name' => $subject['name'],
                     'teacher' => $subject['teacher'],
+                    'professor_id' => $subject['professor_id'] ?? null,
                     'hours' => $hours,
                 ];
             },

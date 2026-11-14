@@ -116,22 +116,37 @@ test('el coordinador académico puede consultar admisiones pero no gestionarlas 
     ])->assertForbidden();
 });
 
-test('el decano puede consultar admisiones sin cambiar su estado', function () {
+test('el decano puede consultar admisiones y actualizar su estado', function () {
+    Mail::fake();
+
     $dean = adminUserWithRole(Role::Decano->value);
     $admission = Admission::factory()->create();
+
+    expect($dean->can(Permission::AdmissionsReview->value))->toBeTrue()
+        ->and($dean->can(Permission::AdmissionsManage->value))->toBeFalse();
 
     $this->actingAs($dean)
         ->get(route('admin.admissions.index'))
         ->assertOk();
 
     $this->get(route('admin.admissions.show', ['admission' => $admission->code]))
-        ->assertOk();
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('can_update_status', true)
+            ->has('transitions', 4)
+        );
 
     $this->patch(route('admin.admissions.status', ['admission' => $admission->code]), [
         'status' => AdmissionStatus::EnRevision->value,
-    ])->assertForbidden();
+    ])->assertSessionHasNoErrors();
 
-    expect($admission->fresh()->status)->toBe(AdmissionStatus::Recibida->value);
+    $admission->refresh();
+
+    expect($admission->status)->toBe(AdmissionStatus::EnRevision->value)
+        ->and($admission->reviewed_by)->toBe($dean->id)
+        ->and($admission->statusHistories()->count())->toBe(1);
+
+    Mail::assertQueued(AdmissionStatusChanged::class);
 });
 
 test('el administrador tiene permisos para editar y eliminar solicitudes', function () {
@@ -349,7 +364,7 @@ test('las solicitudes convertidas no se pueden editar ni eliminar', function () 
     $this->assertDatabaseHas('admissions', ['id' => $admission->id]);
 });
 
-test('solo el administrador puede ver el perfil y la carpeta privada del estudiante', function () {
+test('el administrador y el decano ven el perfil completo del estudiante y su carpeta documental', function () {
     $admin = adminUserWithRole(Role::Admin->value);
     $dean = adminUserWithRole(Role::Decano->value);
     $student = User::factory()->create(['name' => 'Ana Estudiante']);
@@ -374,8 +389,10 @@ test('solo el administrador puede ver el perfil y la carpeta privada del estudia
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/students/show')
-            ->where('student.student_code', 'EST-2027-301')
             ->where('student.name', 'Ana Estudiante')
+            ->where('private.student_code', 'EST-2027-301')
+            ->where('can_view_private', true)
+            ->where('can_manage', true)
             ->where('can_view_documents', true)
             ->where('document_folder', 'V-12345678')
             ->has('documents', 1)
@@ -388,18 +405,76 @@ test('solo el administrador puede ver el perfil y la carpeta privada del estudia
 
     $this->actingAs($dean)
         ->get(route('admin.students.show', ['student' => $profile->student_code]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/students/show')
+            ->where('private.student_code', 'EST-2027-301')
+            ->where('can_view_private', true)
+            ->where('can_manage', false)
+            ->where('can_view_documents', true)
+        );
+});
+
+test('la fotografía del estudiante se sirve a los roles con permiso de estudiantes', function () {
+    Storage::fake((string) config('admissions.documents.disk'));
+
+    $admin = adminUserWithRole(Role::Admin->value);
+    $staff = adminUserWithRole(Role::PersonalAdministrativo->value);
+    $student = User::factory()->create();
+    $profile = StudentProfile::factory()->for($student)->create([
+        'student_code' => 'EST-2027-401',
+    ]);
+    $admission = Admission::factory()->create([
+        'id_number' => '12345678',
+        'converted_user_id' => $student->id,
+    ]);
+
+    $path = 'admissions/12345678/foto/foto.png';
+
+    Storage::disk((string) config('admissions.documents.disk'))->put(
+        $path,
+        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='),
+    );
+
+    $admission->documents()->create([
+        'type' => AdmissionDocumentType::Foto->value,
+        'status' => AdmissionDocumentStatus::Validado->value,
+        'original_name' => 'foto.png',
+        'path' => $path,
+        'mime_type' => 'image/png',
+        'size' => 1200,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.students.photo', ['student' => $profile->student_code]))
+        ->assertOk()
+        ->assertHeader('content-type', 'image/png');
+
+    $this->actingAs($staff)
+        ->get(route('admin.students.photo', ['student' => $profile->student_code]))
         ->assertForbidden();
 });
 
-test('el personal administrativo no puede ver perfiles estudiantiles aunque tenga permiso', function () {
+test('un rol con permiso de estudiantes pero sin permiso privado solo ve la información pública', function () {
     $staff = adminUserWithRole(Role::PersonalAdministrativo->value);
     $staff->givePermissionTo(Permission::StudentsView->value);
-    $student = User::factory()->create();
+    $student = User::factory()->create(['name' => 'Ana Estudiante', 'email' => 'privado@example.com']);
     $profile = StudentProfile::factory()->for($student)->create();
 
     $this->actingAs($staff)
         ->get(route('admin.students.show', ['student' => $profile->student_code]))
-        ->assertForbidden();
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/students/show')
+            ->where('student.name', 'Ana Estudiante')
+            ->where('can_view_private', false)
+            ->where('private', null)
+            ->where('can_view_documents', false)
+            ->where('documents', [])
+            ->where('edit_url', null)
+            ->where('delete_url', null)
+            ->missing('private.email')
+        );
 });
 
 test('el administrador ve y administra estudiantes desde el listado', function () {
@@ -428,7 +503,7 @@ test('el administrador ve y administra estudiantes desde el listado', function (
         );
 });
 
-test('el decano solo ve el listado estudiantil y no tiene acciones sobre perfiles', function () {
+test('el decano consulta el listado estudiantil y el perfil sin acciones de gestión', function () {
     $dean = adminUserWithRole(Role::Decano->value);
     $student = User::factory()->create();
     $profile = StudentProfile::factory()->for($student)->create();
@@ -438,11 +513,13 @@ test('el decano solo ve el listado estudiantil y no tiene acciones sobre perfile
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('rows.0.url', null)
-            ->where('rows.0.actions', null)
+            ->where('rows.0.actions.view_url', route('admin.students.show', ['student' => $profile->student_code]))
+            ->missing('rows.0.actions.edit_url')
+            ->missing('rows.0.actions.delete_url')
         );
 
     $this->get(route('admin.students.show', ['student' => $profile->student_code]))
-        ->assertForbidden();
+        ->assertOk();
 
     $this->get(route('admin.students.edit', ['student' => $profile->student_code]))
         ->assertForbidden();

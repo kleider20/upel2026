@@ -298,6 +298,81 @@ test('academic managers can update a subject', function () {
         ->and($subject->is_active)->toBeFalse();
 });
 
+test('subjects saved from the pensum return to that pensum', function () {
+    $career = Career::factory()->create(['code' => 'EDPRI']);
+    $subject = Subject::factory()->for($career)->create();
+
+    $this->actingAs(academicManager())
+        ->post(route('admin.subjects.store'), [
+            'career_id' => $career->id,
+            'code' => 'EDPRI-099',
+            'name' => 'Materia desde el pensum',
+            'semester' => 1,
+            'modality' => 'presencial',
+            'credits' => 3,
+            'theory_hours' => 2,
+            'practice_hours' => 4,
+            'is_active' => true,
+            'return_to' => 'pensum',
+        ])
+        ->assertRedirect(route('admin.pensums.show', ['career' => $career->code]));
+
+    $this->actingAs(academicManager())
+        ->put(route('admin.subjects.update', $subject), [
+            'career_id' => $career->id,
+            'code' => $subject->code,
+            'name' => 'Materia actualizada',
+            'semester' => 2,
+            'modality' => 'presencial',
+            'credits' => 3,
+            'theory_hours' => 2,
+            'practice_hours' => 4,
+            'is_active' => true,
+            'return_to' => 'pensum',
+        ])
+        ->assertRedirect(route('admin.pensums.show', ['career' => $career->code]));
+});
+
+test('subjects deleted from the pensum return to that pensum', function () {
+    $career = Career::factory()->create(['code' => 'EDPRI']);
+    $subject = Subject::factory()->for($career)->create();
+
+    $this->actingAs(academicManager())
+        ->delete(route('admin.subjects.destroy', [
+            'subject' => $subject,
+            'return_to' => 'pensum',
+        ]))
+        ->assertRedirect(route('admin.pensums.show', ['career' => $career->code]));
+
+    expect(Subject::query()->find($subject->id))->toBeNull();
+});
+
+test('subject forms keep the return to pensum flag', function () {
+    $career = Career::factory()->create();
+    $subject = Subject::factory()->for($career)->create();
+
+    $this->actingAs(academicManager())
+        ->get(route('admin.subjects.create', [
+            'career_id' => $career->id,
+            'return_to' => 'pensum',
+        ]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/subjects/form')
+            ->where('returnTo', 'pensum')
+            ->where('defaultCareerId', $career->id)
+        );
+
+    $this->actingAs(academicManager())
+        ->get(route('admin.subjects.edit', [
+            'subject' => $subject,
+            'return_to' => 'pensum',
+        ]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/subjects/form')
+            ->where('returnTo', 'pensum')
+        );
+});
+
 test('academic managers can delete a subject without enrollments', function () {
     $subject = Subject::factory()->create();
 

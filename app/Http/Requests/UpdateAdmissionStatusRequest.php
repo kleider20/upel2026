@@ -12,11 +12,13 @@ use Illuminate\Validation\Validator;
 class UpdateAdmissionStatusRequest extends FormRequest
 {
     /**
-     * Solo los roles con permiso de gestión de admisiones pueden cambiar el estado.
+     * Pueden cambiar el estado los roles con gestión de admisiones o con el
+     * permiso específico para actualizar el estado de una solicitud.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can(Permission::AdmissionsManage->value) ?? false;
+        return $this->user()?->can(Permission::AdmissionsManage->value) === true
+            || $this->user()?->can(Permission::AdmissionsReview->value) === true;
     }
 
     /**

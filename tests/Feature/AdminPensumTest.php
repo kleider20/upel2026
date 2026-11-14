@@ -119,7 +119,10 @@ test('academic managers can open a career pensum grouped by semester', function 
             ->where('pensum.0.subjects.0.component', 'CFPE')
             ->where('pensum.1.semester', 2)
             ->where('pensum.1.subjects.0.is_active', false)
-            ->where('pensum.1.subjects.0.edit_url', route('admin.subjects.edit', Subject::query()->where('code', 'CUR-201')->firstOrFail()))
+            ->where('pensum.1.subjects.0.edit_url', route('admin.subjects.edit', [
+                'subject' => Subject::query()->where('code', 'CUR-201')->firstOrFail(),
+                'return_to' => 'pensum',
+            ]))
         );
 });
 

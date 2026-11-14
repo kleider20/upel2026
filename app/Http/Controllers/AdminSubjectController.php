@@ -103,6 +103,7 @@ class AdminSubjectController extends Controller
             'subject' => null,
             'defaultCareerId' => $request->integer('career_id') ?: null,
             'defaultSemester' => $request->integer('semester') ?: null,
+            'returnTo' => $this->returnTo($request),
             ...$this->formOptions(),
         ]);
     }
@@ -114,9 +115,11 @@ class AdminSubjectController extends Controller
     {
         $subject = Subject::create($request->validated());
 
-        return redirect()
-            ->route('admin.subjects.index')
-            ->with('success', "La materia {$subject->name} fue registrada correctamente.");
+        return $this->redirectAfterChange(
+            $request,
+            $subject,
+            "La materia {$subject->name} fue registrada correctamente.",
+        );
     }
 
     /**
@@ -144,6 +147,7 @@ class AdminSubjectController extends Controller
                 'prerequisites' => $subject->prerequisites,
                 'is_active' => $subject->is_active,
             ],
+            'returnTo' => $this->returnTo($request),
             ...$this->formOptions(),
         ]);
     }
@@ -155,9 +159,11 @@ class AdminSubjectController extends Controller
     {
         $subject->update($request->validated());
 
-        return redirect()
-            ->route('admin.subjects.index')
-            ->with('success', "La materia {$subject->name} fue actualizada correctamente.");
+        return $this->redirectAfterChange(
+            $request,
+            $subject,
+            "La materia {$subject->name} fue actualizada correctamente.",
+        );
     }
 
     /**
@@ -177,9 +183,46 @@ class AdminSubjectController extends Controller
         $subject->professors()->detach();
         $subject->delete();
 
+        return $this->redirectAfterChange(
+            $request,
+            $subject,
+            "La materia {$subject->name} fue eliminada correctamente.",
+        );
+    }
+
+    /**
+     * Destino de retorno solicitado por el formulario.
+     */
+    private function returnTo(Request $request): ?string
+    {
+        return $request->string('return_to')->toString() === 'pensum'
+            ? 'pensum'
+            : null;
+    }
+
+    /**
+     * Redirige al pensum de la carrera o al listado de materias.
+     */
+    private function redirectAfterChange(
+        Request $request,
+        Subject $subject,
+        string $message,
+    ): RedirectResponse {
+        if ($this->returnTo($request) === 'pensum') {
+            $careerCode = Career::query()
+                ->whereKey($subject->career_id)
+                ->value('code');
+
+            if ($careerCode !== null) {
+                return redirect()
+                    ->route('admin.pensums.show', ['career' => $careerCode])
+                    ->with('success', $message);
+            }
+        }
+
         return redirect()
             ->route('admin.subjects.index')
-            ->with('success', "La materia {$subject->name} fue eliminada correctamente.");
+            ->with('success', $message);
     }
 
     /**

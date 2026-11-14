@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { BookOpen, Search, UserRound } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { BookOpen, ChevronRight, Search, UserRound } from 'lucide-react';
 import { ToneBadge, type Tone } from '@/components/portal/tone-badge';
 import type { StudentDashboardProps } from '@/types/student';
 
-export function MisMaterias({ enrollments }: StudentDashboardProps) {
+export function MisMaterias({ subjects }: StudentDashboardProps) {
     const [semesterFilter, setSemesterFilter] = useState<string>('todos');
     const [search, setSearch] = useState('');
 
     const semesters = Array.from(
-        new Set(enrollments.map((e) => e.semester).filter(Boolean)),
+        new Set(subjects.map((item) => item.semester).filter(Boolean)),
     ).sort((a, b) => (a as number) - (b as number));
 
-    const filtered = enrollments.filter((item) => {
+    const filtered = subjects.filter((item) => {
         const matchesSemester =
             semesterFilter === 'todos' ||
             String(item.semester) === semesterFilter;
@@ -36,8 +37,12 @@ export function MisMaterias({ enrollments }: StudentDashboardProps) {
                         Expediente académico
                     </p>
                     <h2 className="mt-1 font-display text-xl font-bold text-upel-navy dark:text-foreground">
-                        Mis Materias Inscritas ({enrollments.length})
+                        Mis Materias Inscritas ({subjects.length})
                     </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Materias de tu horario publicado con el docente asignado
+                        a cada una.
+                    </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -75,7 +80,8 @@ export function MisMaterias({ enrollments }: StudentDashboardProps) {
                             No se encontraron materias
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Intenta ajustar los filtros de búsqueda o semestre.
+                            Ajusta los filtros o espera a que tu horario esté
+                            publicado.
                         </p>
                     </div>
                 ) : (
@@ -127,16 +133,28 @@ export function MisMaterias({ enrollments }: StudentDashboardProps) {
                             </div>
 
                             <div className="mt-5 flex items-center gap-3 border-t border-border pt-4">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-upel-navy/10 text-upel-navy dark:bg-muted dark:text-foreground">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-upel-navy/10 text-upel-navy dark:bg-muted dark:text-foreground">
                                     <UserRound className="h-4 w-4" />
                                 </div>
-                                <div className="truncate">
+                                <div className="min-w-0 flex-1">
                                     <p className="text-[0.62rem] font-bold text-muted-foreground uppercase">
                                         Profesor
                                     </p>
-                                    <p className="truncate text-xs font-bold text-upel-navy dark:text-foreground">
-                                        {item.professor ?? 'Por asignar'}
-                                    </p>
+                                    {item.professor_url ? (
+                                        <Link
+                                            href={item.professor_url}
+                                            className="group/professor inline-flex max-w-full items-center gap-1 text-xs font-bold text-upel-blue hover:text-upel-navy hover:underline dark:hover:text-foreground"
+                                        >
+                                            <span className="truncate">
+                                                {item.professor}
+                                            </span>
+                                            <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform group-hover/professor:translate-x-0.5" />
+                                        </Link>
+                                    ) : (
+                                        <p className="truncate text-xs font-bold text-upel-navy dark:text-foreground">
+                                            {item.professor ?? 'Por asignar'}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>

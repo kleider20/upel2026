@@ -1,6 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowRight,
+    Bell,
     BookOpen,
     CalendarDays,
     CheckCircle2,
@@ -13,7 +14,9 @@ import { PageHeader } from '@/components/portal/page-header';
 import { RoleBadge } from '@/components/portal/role-badge';
 import { type Tone, toneClasses } from '@/components/portal/tone-badge';
 import { cn } from '@/lib/utils';
+import { module as adminModule } from '@/routes/admin';
 import { create as subjectsCreate } from '@/routes/admin/subjects';
+import type { AdminReviewRequestsData } from '@/types';
 
 type SummaryCard = {
     label: string;
@@ -66,6 +69,13 @@ export default function AdminDashboard({
     can_manage_pensums,
     active_period,
 }: Props) {
+    const { adminReviewRequests } = usePage<{
+        adminReviewRequests: AdminReviewRequestsData;
+    }>().props;
+    const reviewItems = adminReviewRequests?.items ?? [];
+    const pendingStudents = adminReviewRequests?.pending_students ?? 0;
+    const pendingTotal = adminReviewRequests?.pending_total ?? 0;
+
     return (
         <>
             <Head title="Panel administrativo" />
@@ -179,6 +189,64 @@ export default function AdminDashboard({
                     </section>
 
                     <aside className="space-y-4">
+                        {adminReviewRequests?.can_review ? (
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 dark:bg-amber-950/20">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                                        <Bell
+                                            className="h-4 w-4"
+                                            aria-hidden="true"
+                                        />
+                                        <p className="text-xs font-bold tracking-wide uppercase">
+                                            Solicitudes de revisión
+                                        </p>
+                                    </div>
+                                    <span className="rounded-full bg-white px-2.5 py-0.5 text-[0.65rem] font-extrabold text-amber-800 ring-1 ring-amber-200 dark:bg-card dark:text-amber-300 dark:ring-amber-900">
+                                        {pendingTotal}
+                                    </span>
+                                </div>
+
+                                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                                    {pendingStudents === 0
+                                        ? 'No hay solicitudes pendientes.'
+                                        : `${pendingStudents} ${
+                                              pendingStudents === 1
+                                                  ? 'estudiante'
+                                                  : 'estudiantes'
+                                          } con información pendiente de aprobación.`}
+                                </p>
+
+                                {reviewItems.length > 0 ? (
+                                    <ul className="mt-3 space-y-2 border-t border-amber-200/80 pt-3 dark:border-amber-900/60">
+                                        {reviewItems.slice(0, 3).map((item) => (
+                                            <li key={item.id}>
+                                                <Link
+                                                    href={
+                                                        item.url ??
+                                                        adminModule('students')
+                                                    }
+                                                    className="block text-[0.68rem] leading-relaxed font-semibold text-amber-900 hover:underline dark:text-amber-200"
+                                                >
+                                                    {item.message}
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : null}
+
+                                <Link
+                                    href={adminModule('students')}
+                                    className="mt-3 inline-flex items-center gap-1.5 text-[0.68rem] font-bold text-upel-blue hover:text-upel-navy dark:hover:text-foreground"
+                                >
+                                    Ver estudiantes
+                                    <ArrowRight
+                                        className="size-3.5"
+                                        aria-hidden="true"
+                                    />
+                                </Link>
+                            </div>
+                        ) : null}
+
                         <div className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
                             <div className="flex items-center gap-3">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-upel-gold/15 text-[#8a6c0d]">

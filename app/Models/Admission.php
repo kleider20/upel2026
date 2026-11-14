@@ -224,6 +224,32 @@ class Admission extends Model
     }
 
     /**
+     * Etiqueta legible de la nacionalidad de la cédula (V o E).
+     */
+    public function nationalityLabel(): ?string
+    {
+        return match ($this->nationality) {
+            'V' => 'Venezolano',
+            'E' => 'Extranjero',
+            default => $this->nationality,
+        };
+    }
+
+    /**
+     * Etiqueta legible del género declarado en la solicitud.
+     */
+    public function genderLabel(): ?string
+    {
+        return match ($this->gender) {
+            'masculino' => 'Masculino',
+            'femenino' => 'Femenino',
+            'otro' => 'Otro',
+            'prefiero_no_decir' => 'Prefiero no decir',
+            default => null,
+        };
+    }
+
+    /**
      * Documentos indexados por tipo.
      *
      * @return array<string, AdmissionDocument>

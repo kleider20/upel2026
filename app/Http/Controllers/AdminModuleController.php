@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Permission;
 use App\Enums\Role as RoleEnum;
 use App\Models\Career;
 use App\Models\Enrollment;
@@ -11,6 +12,7 @@ use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
 use App\Support\AdminModuleCatalog;
+use App\Support\StudentReviewRequests;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,10 +40,12 @@ class AdminModuleController extends Controller
             'No tienes permiso para acceder a este módulo.',
         );
 
-        $isAdmin = $request->user()?->hasRole(RoleEnum::Admin->value) ?? false;
+        $user = $request->user();
+        $isAdmin = $user->hasRole(RoleEnum::Admin->value);
+        $canReview = $user->can(Permission::StudentsViewPrivate->value);
 
         $data = match ($module) {
-            'students' => $this->students($isAdmin),
+            'students' => $this->students($isAdmin, $canReview),
             'careers' => $this->careers(),
             'subjects' => $this->subjects(),
             'grades' => $this->grades(),
@@ -65,7 +69,7 @@ class AdminModuleController extends Controller
     /**
      * @return array{columns: array<int, array{key: string, label: string}>, rows: mixed, stats: array<int, array<string, string>>}
      */
-    private function students(bool $isAdmin): array
+    private function students(bool $isAdmin, bool $canReview): array
     {
         $profiles = StudentProfile::query()
             ->with(['user', 'career'])
@@ -74,6 +78,7 @@ class AdminModuleController extends Controller
             ->get();
 
         $average = Enrollment::query()->whereNotNull('final_grade')->avg('final_grade');
+        $reviewRequests = $canReview ? StudentReviewRequests::groupedByStudent() : [];
 
         return [
             'columns' => [
@@ -83,17 +88,22 @@ class AdminModuleController extends Controller
                 ['key' => 'semester', 'label' => 'Semestre'],
                 ['key' => 'status', 'label' => 'Estado'],
                 ['key' => 'average', 'label' => 'Promedio'],
-                ...($isAdmin ? [['key' => 'actions', 'label' => 'Acciones']] : []),
+                ['key' => 'actions', 'label' => 'Acciones'],
             ],
             'rows' => $profiles->map(fn (StudentProfile $profile): array => [
                 'id' => $profile->id,
                 'url' => null,
-                'actions' => $isAdmin ? [
+                'review' => $canReview
+                    ? ($reviewRequests[$profile->user_id] ?? ['count' => 0, 'labels' => []])
+                    : null,
+                'actions' => [
                     'view_url' => route('admin.students.show', ['student' => $profile->student_code]),
-                    'edit_url' => route('admin.students.edit', ['student' => $profile->student_code]),
-                    'delete_url' => route('admin.students.destroy', ['student' => $profile->student_code]),
                     'student_name' => $profile->user->name,
-                ] : null,
+                    ...($isAdmin ? [
+                        'edit_url' => route('admin.students.edit', ['student' => $profile->student_code]),
+                        'delete_url' => route('admin.students.destroy', ['student' => $profile->student_code]),
+                    ] : []),
+                ],
                 'cells' => [
                     'student' => $profile->user->name,
                     'code' => $profile->student_code,

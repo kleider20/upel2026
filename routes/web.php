@@ -20,7 +20,10 @@ use App\Http\Controllers\LandingController;
 use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\ProfessorGradeController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+use App\Http\Controllers\Student\StudentDocumentController;
 use App\Http\Controllers\Student\StudentNotificationController;
+use App\Http\Controllers\Student\StudentPhotoController;
+use App\Http\Controllers\Student\StudentProfessorController;
 use App\Http\Controllers\Student\StudentScheduleController;
 use App\Http\Controllers\Student\TramiteController as StudentTramiteController;
 use App\Http\Middleware\EnsureAdminPortal;
@@ -98,6 +101,8 @@ Route::middleware(['auth', EnsureAdminPortal::class])
         Route::patch('admissions/{admission:code}/documents/{document}', [AdminAdmissionController::class, 'reviewDocument'])
             ->name('admissions.documents.review');
 
+        Route::get('students/{student:student_code}/foto', [AdminStudentProfileController::class, 'photo'])
+            ->name('students.photo');
         Route::get('students/{student:student_code}/edit', [AdminStudentProfileController::class, 'edit'])
             ->name('students.edit');
         Route::put('students/{student:student_code}', [AdminStudentProfileController::class, 'update'])
@@ -208,6 +213,11 @@ Route::middleware(['auth', 'verified', 'role:estudiante', 'password.defined'])
         Route::patch('/notificaciones/{notification}/leer', StudentNotificationController::class)
             ->name('notifications.read');
         Route::get('/horario/pdf', [StudentScheduleController::class, 'download'])->name('schedule.pdf');
+        Route::get('/profesores/{professor}', [StudentProfessorController::class, 'show'])->name('professors.show');
+        Route::get('/foto', StudentPhotoController::class)->name('photo');
+        Route::post('/documentos', [StudentDocumentController::class, 'store'])->name('documents.store');
+        Route::get('/documentos/{document}', [StudentDocumentController::class, 'preview'])->name('documents.preview');
+        Route::get('/documentos/{document}/descargar', [StudentDocumentController::class, 'download'])->name('documents.download');
         Route::put('/perfil', [StudentDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::post('/tramites', [StudentTramiteController::class, 'store'])->name('tramites.store');
     });

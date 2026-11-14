@@ -2,26 +2,72 @@
 
 namespace App\Support;
 
+/**
+ * Genera el plan curricular con el formato oficial de la UPEL.
+ *
+ * La planilla replica la estructura del documento institucional: cabecera con
+ * el logotipo, título del plan y una única tabla con los períodos agrupados y
+ * los niveles (FUND, INTEG, PROF) escritos en vertical.
+ */
 final class PensumPdf
 {
-    private const PAGE_WIDTH = 595.28;
+    private const PAGE_WIDTH = 612.0;
 
-    private const PAGE_HEIGHT = 841.89;
+    private const PAGE_HEIGHT = 792.0;
 
-    private const TABLE_LEFT = 26.0;
+    private const TABLE_LEFT = 154.94;
 
-    private const TABLE_WIDTH = 543.28;
+    private const TABLE_TOP = 110.18;
 
-    private const TABLE_TOP = 103.0;
+    private const HEADER_HEIGHT = 21.12;
 
-    private const TABLE_HEADER_HEIGHT = 22.0;
+    private const SUBHEADER_TOP = 123.38;
 
-    private const PAGE_CONTENT_BOTTOM = 807.0;
+    private const CONTENT_BOTTOM = 728.0;
+
+    private const BODY_FONT = 5.2;
+
+    private const LINE_HEIGHT = 6.4;
+
+    private const MIN_ROW_HEIGHT = 11.2;
 
     /**
      * @var array<int, float>
      */
-    private const COLUMN_WIDTHS = [23.0, 30.0, 181.0, 36.0, 31.0, 33.0, 25.0, 26.0, 27.0, 27.0, 59.0, 45.28];
+    private const COLUMN_WIDTHS = [
+        9.24,   // PA
+        19.8,   // CA/PA
+        36.0,   // CÓD
+        146.33, // NOMBRES
+        19.08,  // COMP
+        21.36,  // TIPO
+        18.12,  // AREA
+        18.72,  // NIVEL
+        11.04,  // CA
+        14.07,  // HAD
+        13.08,  // HLE
+        17.04,  // PREL
+        28.8,   // RE (AE / SC)
+    ];
+
+    /**
+     * @var array<int, string>
+     */
+    private const HEADERS = [
+        'PA',
+        'CA/PA',
+        'CÓD',
+        'NOMBRES',
+        'COMP',
+        'TIPO',
+        'AREA',
+        'NIVEL',
+        'CA',
+        'HAD',
+        'HLE',
+        'PREL',
+        'RE',
+    ];
 
     /**
      * @var array<int, array{0: int, 1: int, 2: int}>
@@ -32,11 +78,6 @@ final class PensumPdf
      * @var array<int, array{0: int, 1: int, 2: int}>
      */
     private const WHITE = [255, 255, 255];
-
-    /**
-     * @var array<int, array{0: int, 1: int, 2: int}>
-     */
-    private const HEADER_FILL = [232, 236, 240];
 
     private string $content = '';
 
@@ -64,23 +105,25 @@ final class PensumPdf
     {
         $this->startPage($career);
 
+        $totalCredits = 0;
+
         foreach ($pensum as $period) {
-            foreach ($period['subjects'] as $index => $subject) {
-                $row = $this->subjectRow($period, $subject, $index === 0);
-                $rowHeight = $this->rowHeight($row);
+            $rows = $this->periodRows($period);
+            $periodHeight = array_sum(array_column($rows, 'height'));
 
-                if ($this->cursorY + $rowHeight > self::PAGE_CONTENT_BOTTOM) {
-                    $this->startPage($career);
-                    $row = $this->subjectRow($period, $subject, true);
-                    $rowHeight = $this->rowHeight($row);
-                }
-
-                $this->drawRow($row, $rowHeight);
-                $this->cursorY += $rowHeight;
+            if (
+                $this->cursorY > self::TABLE_TOP + self::HEADER_HEIGHT
+                && $this->cursorY + $periodHeight > self::CONTENT_BOTTOM
+            ) {
+                $this->startPage($career);
             }
+
+            $this->drawPeriod($period, $rows, $periodHeight);
+
+            $totalCredits += (int) $period['credits'];
         }
 
-        $this->drawFooter($career, $pensum);
+        $this->drawTotals($totalCredits);
         $this->pages[] = $this->content;
 
         return $this->assemble();
@@ -98,7 +141,7 @@ final class PensumPdf
         $this->content = '';
         $this->drawHeader($career);
         $this->drawTableHeader();
-        $this->cursorY = self::TABLE_TOP + self::TABLE_HEADER_HEIGHT;
+        $this->cursorY = self::TABLE_TOP + self::HEADER_HEIGHT;
     }
 
     /**
@@ -110,127 +153,228 @@ final class PensumPdf
 
         if (is_file($logoPath)) {
             $this->content .= sprintf(
-                "q 42 0 0 34 %.2F %.2F cm /Im1 Do Q\n",
-                34.0,
-                self::PAGE_HEIGHT - 20 - 34,
+                "q 36 0 0 31 103 %.2F cm /Im1 Do Q\n",
+                self::PAGE_HEIGHT - 20 - 31,
             );
         }
 
         $center = self::PAGE_WIDTH / 2;
-        $this->centeredAt($center, 31, 'UNIVERSIDAD PEDAGÓGICA EXPERIMENTAL LIBERTADOR', 8, true);
-        $this->centeredAt($center, 42, 'VICERRECTORADO DE DOCENCIA', 7, false);
-        $this->centeredAt($center, 52, 'UNIDAD DE CURRÍCULO', 7, false);
-        $this->centeredAt($center, 75, 'PLAN CURRICULAR DE '.mb_strtoupper($career['name']), 10, true);
+        $this->centeredAt($center, 43.8, 'UNIVERSIDAD PEDAGÓGICA EXPERIMENTAL LIBERTADOR', 9, true);
+        $this->centeredAt($center, 54.12, 'VICERRECTORADO DE DOCENCIA', 9, false);
+        $this->centeredAt($center, 64.2, 'UNIDAD DE CURRÍCULO', 9, false);
 
-        $subtitle = trim(($career['degree'] ?? '').' · '.($career['code'] ?? ''));
+        $title = 'PLAN CURRICULAR DE '.mb_strtoupper($career['name']);
+        $titleSize = 12.0;
 
-        if ($subtitle !== '') {
-            $this->centeredAt($center, 88, $subtitle, 7, false);
+        while (mb_strlen($title) * $titleSize * 0.62 > 520 && $titleSize > 7.5) {
+            $titleSize -= 0.5;
         }
 
-        $this->line(self::TABLE_LEFT, 94, self::TABLE_LEFT + self::TABLE_WIDTH, 94, 0.8);
+        $this->centeredAt($center, 92.54, $title, $titleSize, true);
     }
 
     private function drawTableHeader(): void
     {
-        $headers = ['PA', 'CA/PA', 'NOMBRES', 'COMP', 'TIPO', 'ÁREA', 'NIVEL', 'CA', 'HAD', 'HLE', 'PREL', 'RE'];
         $x = self::TABLE_LEFT;
+        $bottom = self::TABLE_TOP + self::HEADER_HEIGHT;
 
-        foreach ($headers as $index => $header) {
-            $width = self::COLUMN_WIDTHS[$index];
-            $this->cell($x, self::TABLE_TOP, $width, self::TABLE_HEADER_HEIGHT, self::HEADER_FILL);
-            $this->centeredInCell($x, self::TABLE_TOP, $width, self::TABLE_HEADER_HEIGHT, $header, 5.2, true);
-            $x += $width;
-        }
-    }
+        foreach (self::COLUMN_WIDTHS as $index => $width) {
+            $this->cell($x, self::TABLE_TOP, $width, self::HEADER_HEIGHT, self::WHITE);
 
-    /**
-     * @param  array{label: string, credits: int, subjects: array<int, array<string, mixed>>}  $period
-     * @param  array<string, mixed>  $subject
-     * @return array<int, string>
-     */
-    private function subjectRow(array $period, array $subject, bool $showPeriodCredits): array
-    {
-        return [
-            $period['label'],
-            $showPeriodCredits ? (string) $period['credits'] : '',
-            (string) ($subject['name'] ?? ''),
-            (string) ($subject['component'] ?? '—'),
-            (string) ($subject['type'] ?? '—'),
-            (string) ($subject['area'] ?? '—'),
-            (string) ($subject['level'] ?? '—'),
-            (string) ($subject['credits'] ?? 0),
-            (string) ($subject['theory_hours'] ?? 0),
-            (string) ($subject['practice_hours'] ?? 0),
-            (string) ($subject['prerequisites'] ?? '—'),
-            (string) ($subject['modality_label'] ?? $subject['modality'] ?? '—'),
-        ];
-    }
-
-    /**
-     * @param  array<int, string>  $row
-     */
-    private function rowHeight(array $row): float
-    {
-        $fontSize = 5.1;
-        $lineHeight = 6.2;
-        $lineCount = 1;
-
-        foreach ($row as $index => $text) {
-            $lineCount = max(
-                $lineCount,
-                count($this->wrapText($text, self::COLUMN_WIDTHS[$index] - 4, $fontSize)),
-            );
-        }
-
-        return max(9.0, $lineCount * $lineHeight + 2.4);
-    }
-
-    /**
-     * @param  array<int, string>  $row
-     */
-    private function drawRow(array $row, float $height): void
-    {
-        $x = self::TABLE_LEFT;
-        $fontSize = 5.1;
-
-        foreach ($row as $index => $text) {
-            $width = self::COLUMN_WIDTHS[$index];
-            $this->cell($x, $this->cursorY, $width, $height, self::WHITE);
-
-            if ($text !== '') {
-                $lines = $this->wrapText($text, $width - 4, $fontSize);
-                $lineHeight = 6.2;
-                $startY = $this->cursorY + (($height - count($lines) * $lineHeight) / 2) + $fontSize;
-                $leftAligned = in_array($index, [2, 10], true);
-
-                foreach ($lines as $lineIndex => $line) {
-                    $lineX = $leftAligned
-                        ? $x + 2
-                        : $x + (($width - $this->textWidth($line, $fontSize)) / 2);
-
-                    $this->textAt($lineX, $startY + ($lineIndex * $lineHeight), $line, $fontSize);
-                }
+            if ($index === 12) {
+                $this->line($x, self::SUBHEADER_TOP, $x + $width, self::SUBHEADER_TOP, 0.5);
+                $this->line($x + 9.6, self::SUBHEADER_TOP, $x + 9.6, $bottom, 0.5);
+                $this->centeredInCell($x, self::TABLE_TOP, $width, self::SUBHEADER_TOP - self::TABLE_TOP, self::HEADERS[$index], 5.6, true);
+                $this->centeredInCell($x, self::SUBHEADER_TOP, 9.6, $bottom - self::SUBHEADER_TOP, 'AE', 5.2, true);
+                $this->centeredInCell($x + 9.6, self::SUBHEADER_TOP, $width - 9.6, $bottom - self::SUBHEADER_TOP, 'SC', 5.2, true);
+            } else {
+                $this->centeredInCell($x, self::TABLE_TOP, $width, self::HEADER_HEIGHT, self::HEADERS[$index], 5.6, true);
             }
 
             $x += $width;
         }
     }
 
-    private function drawFooter(array $career, array $pensum): void
+    /**
+     * @param  array{label: string, credits: int, subjects: array<int, array<string, mixed>>}  $period
+     * @return array<int, array{subject: array<string, mixed>, lines: array<int, string>, height: float}>
+     */
+    private function periodRows(array $period): array
     {
-        if ($this->cursorY + 28 > self::PAGE_HEIGHT - 6) {
-            $this->startPage($career);
+        return array_map(function (array $subject): array {
+            $nameLines = $this->wrapText(
+                (string) ($subject['name'] ?? ''),
+                self::COLUMN_WIDTHS[3] - 4,
+                self::BODY_FONT,
+            );
+
+            $lineCount = max(count($nameLines), 1);
+
+            return [
+                'subject' => $subject,
+                'lines' => $nameLines,
+                'height' => max(self::MIN_ROW_HEIGHT, ($lineCount * self::LINE_HEIGHT) + 2.6),
+            ];
+        }, $period['subjects']);
+    }
+
+    /**
+     * @param  array{label: string, credits: int, subjects: array<int, array<string, mixed>>}  $period
+     * @param  array<int, array{subject: array<string, mixed>, lines: array<int, string>, height: float}>  $rows
+     */
+    private function drawPeriod(array $period, array $rows, float $periodHeight): void
+    {
+        $top = $this->cursorY;
+
+        foreach ($rows as $row) {
+            $this->drawRow($row, $top);
+            $top += $row['height'];
         }
 
-        $credits = array_sum(array_column($pensum, 'credits'));
-        $this->line(self::TABLE_LEFT, $this->cursorY + 5, self::TABLE_LEFT + self::TABLE_WIDTH, $this->cursorY + 5, 0.6);
-        $this->textAt(self::TABLE_LEFT, $this->cursorY + 16, 'TOTAL DE CRÉDITOS: '.$credits, 6, true);
+        $this->cursorY += $periodHeight;
+
+        $this->mergedCell(self::TABLE_LEFT, $this->cursorY - $periodHeight, self::COLUMN_WIDTHS[0], $periodHeight, (string) $period['label'], 6, true);
+        $this->mergedCell(self::TABLE_LEFT + self::COLUMN_WIDTHS[0], $this->cursorY - $periodHeight, self::COLUMN_WIDTHS[1], $periodHeight, (string) $period['credits'], 6, true);
+
+        $level = trim((string) ($period['subjects'][0]['level'] ?? ''));
+
+        if ($level !== '') {
+            $this->levelCell(
+                self::TABLE_LEFT + array_sum(array_slice(self::COLUMN_WIDTHS, 0, 7)),
+                $this->cursorY - $periodHeight,
+                self::COLUMN_WIDTHS[7],
+                $periodHeight,
+                $level,
+            );
+        }
+    }
+
+    /**
+     * @param  array{subject: array<string, mixed>, lines: array<int, string>, height: float}  $row
+     */
+    private function drawRow(array $row, float $top): void
+    {
+        $subject = $row['subject'];
+        $height = $row['height'];
+        $x = self::TABLE_LEFT;
+
+        $values = [
+            '',
+            '',
+            (string) ($subject['code'] ?? ''),
+            '',
+            (string) ($subject['component'] ?? ''),
+            (string) ($subject['type'] ?? ''),
+            '',
+            '',
+            (string) ($subject['credits'] ?? ''),
+            (string) ($subject['theory_hours'] ?? ''),
+            (string) ($subject['practice_hours'] ?? ''),
+            '',
+            '',
+        ];
+
+        foreach (self::COLUMN_WIDTHS as $index => $width) {
+            $this->cell($x, $top, $width, $height, self::WHITE);
+
+            $text = $values[$index];
+
+            if ($text !== '') {
+                $this->cellText(
+                    $x,
+                    $top,
+                    $width,
+                    $height,
+                    $text,
+                    $index === 2 ? 4.2 : self::BODY_FONT,
+                    $index === 3,
+                );
+            }
+
+            $x += $width;
+        }
+
+        $lines = $row['lines'];
+
+        if ($lines !== [] && trim($lines[0]) !== '') {
+            $startY = $top + (($height - count($lines) * self::LINE_HEIGHT) / 2) + self::BODY_FONT;
+
+            foreach ($lines as $lineIndex => $line) {
+                $this->textAt(self::TABLE_LEFT + array_sum(array_slice(self::COLUMN_WIDTHS, 0, 3)) + 2, $startY + ($lineIndex * self::LINE_HEIGHT), $line, self::BODY_FONT);
+            }
+        }
+    }
+
+    private function mergedCell(float $x, float $top, float $width, float $height, string $text, float $size, bool $bold): void
+    {
+        $this->cell($x, $top, $width, $height, self::WHITE);
+        $this->centeredInCell($x, $top, $width, $height, $text, $size, $bold);
+    }
+
+    private function levelCell(float $x, float $top, float $width, float $height, string $level): void
+    {
+        $this->cell($x, $top, $width, $height, self::WHITE);
+
+        $characters = mb_str_split($level);
+
+        if (count($characters) * 6.2 > $height) {
+            $this->centeredInCell($x, $top, $width, $height, $level, 4.8, true);
+
+            return;
+        }
+
+        $step = $height / (count($characters) + 1);
+        $center = $x + ($width / 2);
+
+        foreach ($characters as $index => $character) {
+            $this->centeredAt($center, $top + ($step * ($index + 1)) + 2.4, $character, 5.6, true);
+        }
+    }
+
+    private function cellText(float $x, float $top, float $width, float $height, string $text, float $size, bool $leftAligned): void
+    {
+        $available = $width - 2.4;
+        $textWidth = $this->textWidth($text, $size);
+
+        if ($textWidth > $available) {
+            $size = max(3.0, $size * ($available / $textWidth));
+        }
+
+        if ($leftAligned) {
+            $this->textAt($x + 2, $top + ($height / 2) + ($size * 0.35), $text, $size);
+        } else {
+            $this->centeredInCell($x, $top, $width, $height, $text, $size);
+        }
+    }
+
+    private function drawTotals(int $credits): void
+    {
+        $height = 13.0;
+        $top = $this->cursorY;
+        $x = self::TABLE_LEFT;
+
+        foreach (self::COLUMN_WIDTHS as $width) {
+            $this->cell($x, $top, $width, $height, self::WHITE);
+            $x += $width;
+        }
+
+        $this->centeredInCell(
+            self::TABLE_LEFT + array_sum(array_slice(self::COLUMN_WIDTHS, 0, 8)),
+            $top,
+            self::COLUMN_WIDTHS[8],
+            $height,
+            (string) $credits,
+            5.6,
+            true,
+        );
+
+        $noteTop = $top + $height + 10;
         $this->textAt(
-            self::TABLE_LEFT,
-            $this->cursorY + 25,
-            'Nota: Las unidades curriculares de libre elección pueden variar según el período académico.',
-            5.5,
+            self::TABLE_LEFT - 55,
+            $noteTop,
+            'Nota: Las Unidades Curriculares de Libre Elección (UNCLE) serán variables según el período académico.',
+            6,
+            false,
         );
     }
 

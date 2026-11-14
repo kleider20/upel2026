@@ -105,7 +105,10 @@ con `App\Support\ScheduleCalendar`; la cuadrícula y el PDF se generan desde ese
 **Estado:** parcial. Las admisiones ya envían `AdmissionReceived`, `AdmissionStatusChanged`
 (que cubre la preinscripción aprobada) y `AdmissionConverted`, todos en cola. El portal
 estudiantil ya tiene una campana para el evento de horarios descrito en el módulo
-pendiente n.º 5.
+pendiente n.º 5. El portal administrativo ya tiene una campana, badges en el menú y en el
+listado de estudiantes y un panel en el dashboard para las solicitudes de revisión que los
+estudiantes envían desde su perfil (documentos recargados), sin persistir un historial de
+avisos leídos.
 **Falta:**
 
 - Plantillas institucionales para el resto de eventos (bienvenida, notas publicadas, pago

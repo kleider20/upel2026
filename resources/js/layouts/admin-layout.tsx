@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, LogOut, Menu, X } from 'lucide-react';
 import { ModuleIcon } from '@/components/admin/module-icon';
+import { ReviewNotifications } from '@/components/admin/review-notifications';
 import { FlashMessages } from '@/components/flash-messages';
 import { RoleBadge } from '@/components/portal/role-badge';
 import { UpelLogo } from '@/components/landing/brand';
@@ -27,7 +28,7 @@ import {
     dashboard as adminDashboard,
     module as adminModule,
 } from '@/routes/admin';
-import type { Auth, NavItem } from '@/types';
+import type { AdminReviewRequestsData, Auth, NavItem } from '@/types';
 
 type AdminNavItem = NavItem & {
     permission: string;
@@ -178,12 +179,16 @@ export default function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { auth } = usePage<{ auth: Auth }>().props;
+    const { auth, adminReviewRequests } = usePage<{
+        auth: Auth;
+        adminReviewRequests: AdminReviewRequestsData;
+    }>().props;
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const getInitials = useInitials();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const permissions = auth.user?.permissions ?? [];
+    const pendingStudents = adminReviewRequests?.pending_students ?? 0;
     const visibleGroups = navigation
         .map((group) => ({
             ...group,
@@ -258,6 +263,10 @@ export default function AdminLayout({
                                     const active = isCurrentOrParentUrl(
                                         item.href,
                                     );
+                                    const pendingBadge =
+                                        item.permission === 'students.view'
+                                            ? pendingStudents
+                                            : 0;
 
                                     return (
                                         <Link
@@ -276,6 +285,16 @@ export default function AdminLayout({
                                                 className="h-4 w-4 shrink-0"
                                             />
                                             <span>{item.title}</span>
+                                            {pendingBadge > 0 ? (
+                                                <span
+                                                    className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[0.62rem] font-extrabold text-white"
+                                                    aria-label={`${pendingBadge} estudiantes con solicitudes pendientes`}
+                                                >
+                                                    {pendingBadge > 99
+                                                        ? '99+'
+                                                        : pendingBadge}
+                                                </span>
+                                            ) : null}
                                         </Link>
                                     );
                                 })}
@@ -326,6 +345,7 @@ export default function AdminLayout({
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <ReviewNotifications requests={adminReviewRequests} />
                         <div className="hidden text-right sm:block">
                             <p className="text-sm font-bold text-upel-navy dark:text-foreground">
                                 {auth.user?.name}
