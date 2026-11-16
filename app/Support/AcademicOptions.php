@@ -22,6 +22,16 @@ final class AcademicOptions
     /**
      * @var array<string, string>
      */
+    public const COMPONENTS = [
+        'CFPE' => 'Formación profesional específica',
+        'CFD' => 'Formación docente',
+        'CFC' => 'Formación contextualizada',
+        'ECU' => 'Investigación y práctica',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
     public const SCHEDULES = [
         'lunes_viernes' => 'Lunes a viernes',
         'sabatino' => 'Sabatino',
@@ -41,6 +51,25 @@ final class AcademicOptions
     public static function modalityLabel(?string $modality): string
     {
         return self::MODALITIES[$modality ?? ''] ?? 'Semipresencial';
+    }
+
+    /**
+     * Etiqueta legible de un componente de formación.
+     */
+    public static function componentLabel(?string $component): string
+    {
+        return self::COMPONENTS[$component ?? ''] ?? 'Formación';
+    }
+
+    /**
+     * Palabra que describe el componente en los nombres genéricos de las
+     * unidades de libre elección (por ejemplo "Contextualizada").
+     */
+    public static function componentDescriptor(?string $component): string
+    {
+        $words = explode(' ', self::componentLabel($component));
+
+        return (string) end($words);
     }
 
     /**
@@ -65,6 +94,14 @@ final class AcademicOptions
     public static function modalityOptions(): array
     {
         return self::options(self::MODALITIES);
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    public static function componentOptions(): array
+    {
+        return self::options(self::COMPONENTS);
     }
 
     /**

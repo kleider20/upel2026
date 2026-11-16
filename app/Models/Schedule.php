@@ -85,11 +85,21 @@ class Schedule extends Model
     {
         $this->loadMissing(['career', 'subjects.professors']);
 
+        $professorIds = $this->subjects
+            ->pluck('pivot.professor_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $assignedProfessors = $professorIds->isEmpty()
+            ? new Collection
+            : User::query()->whereKey($professorIds->all())->get()->keyBy('id');
+
         $subjects = $this->subjects
-            ->map(static function (Subject $subject): array {
+            ->map(static function (Subject $subject) use ($assignedProfessors): array {
                 $chosenProfessorId = $subject->pivot->professor_id;
                 $chosenProfessor = $chosenProfessorId !== null
-                    ? $subject->professors->firstWhere('id', (int) $chosenProfessorId)
+                    ? $assignedProfessors->get((int) $chosenProfessorId)
                     : null;
                 $chosenTeacherName = trim((string) ($subject->pivot->teacher_name ?? ''));
                 $matchedProfessor = $chosenProfessor;

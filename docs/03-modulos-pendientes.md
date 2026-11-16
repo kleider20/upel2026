@@ -69,6 +69,9 @@ actualizar ese horario.
 La administración también define el rango de clases (fecha de inicio y fin), el tipo de
 horario (sabatino o lunes a viernes), la hora libre de cada materia y sus fechas exactas
 con `App\Support\ScheduleCalendar`; la cuadrícula y el PDF se generan desde ese rango.
+El portal del profesor toma carreras, materias, estudiantes y planes de evaluación solo de
+esos horarios (`App\Support\ProfessorAssignments`); si el docente no tiene materias
+asignadas, el portal muestra **Pendiente por asignación**.
 **Falta:**
 
 - Asignación de aula por materia y período desde la administración.

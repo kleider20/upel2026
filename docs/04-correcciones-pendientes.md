@@ -34,7 +34,9 @@ el esfuerzo de resolución.
   nacimiento, turno, período, carrera y solicitud) y `MiPerfil` ya no precarga valores
   inventados. Sigue pendiente:
     - Los cortes N1/N2/N3 se inventan con `rand()`, así que cambian en cada recarga y no
-      reflejan evaluaciones reales.
+      reflejan evaluaciones reales. Ya existen las tablas `evaluation_plans`,
+      `evaluation_plan_items` y `evaluation_plan_scores` (planes de evaluación del
+      docente), pero el dashboard del estudiante todavía no las consulta.
     - `tramites` de ejemplo se mezclan con los de sesión.
 - **Solución:** agregar una tabla `evaluations` (o `grade_items`) para los cortes y
   persistir los trámites; eliminar `rand()` y los trámites de ejemplo.

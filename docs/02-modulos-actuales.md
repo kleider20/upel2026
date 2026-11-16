@@ -261,14 +261,15 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 - **Materias y docentes del período:** `Student\DashboardController` arma el prop `subjects`
   con las materias del horario publicado (`Schedule::toScheduleArray()` agrega `professor_id`
-  desde el pivote `schedule_subjects` o por coincidencia con `professor_subjects` de la
-  materia) y las cruza con las inscripciones del estudiante para tomar notas y estado; las
-  inscripciones que no figuran en el horario se agregan al final. Cada entrada incluye
-  `professor`, `professor_id` y `professor_url`.
+  desde el pivote `schedule_subjects`, y recurre al nombre del profesor cuando el horario solo
+  guarda `teacher_name`) y las cruza con las inscripciones del estudiante para tomar notas y
+  estado; las inscripciones que no figuran en el horario se agregan al final. Cada entrada
+  incluye `professor`, `professor_id` y `professor_url`.
   `GET /estudiante/profesores/{professor}` (`student.professors.show`,
   `Student\StudentProfessorController`, página `Student/Professor/Show.tsx`) muestra el perfil
   del docente —departamento, título, código de empleado y correo institucional— con las
-  materias que dicta al estudiante; responde 404 para usuarios sin perfil de profesor y 403
+  materias que los horarios publicados le asignan (`ProfessorAssignments::subjects()`);
+  responde 404 para usuarios sin perfil de profesor y 403
   fuera del rol estudiante. El dashboard abre la pestaña indicada en `?tab=` para que el
   enlace «Volver a mis materias» regrese a ese módulo.
 - **Docentes por período:** el prop `teachers` se deriva de esas mismas materias, con una
@@ -291,19 +292,121 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 ## 5. Portal del profesor
 
-**Ruta:** `GET /dashboard` (mismo endpoint que graduado; el controlador decide)
-**Controlador:** `DashboardController::professorDashboard`
-**Página:** `resources/js/pages/dashboard/professor.tsx`
+**Rutas:** `GET /dashboard` (resumen, mismo endpoint que graduado; el controlador decide),
+`GET /dashboard/estudiantes`, `GET /dashboard/cargar-notas` y `GET /dashboard/mis-carreras`
+· **Nombres:** `professor.students`, `professor.grades.index`, `professor.careers`
+**Controladores:** `DashboardController::professorDashboard` y `ProfessorWorkspaceController`
+**Soporte:** `app/Support/ProfessorWorkspace.php`
+**Páginas:** `resources/js/pages/dashboard/professor.tsx` (resumen),
+`resources/js/pages/dashboard/professor/{students,grades,careers}.tsx`
+**Layout:** `resources/js/layouts/professor-layout.tsx` (registrado en `resources/js/app.tsx`)
 
-- Resumen: carreras, materias, estudiantes, notas pendientes, notas cargadas y promedio.
-- Estudiantes agrupados por carrera y materia.
-- Navegación “drill-down”: carrera → materias → estudiantes.
-- Botón de carga de nota por estudiante que abre `components/portal/grade-modal.tsx`.
-- Envío a `PUT /dashboard/notas/{enrollment}` con middleware `role:profesor`.
-- Validación en `UpdateGradeRequest`: nota numérica entre 0 y 10.
-- Al guardar, `ProfessorGradeController` redondea a 2 decimales y fija
-  `aprobado`/`reprobado` según `Subject::PASSING_GRADE` (5.0).
-- Solo puede calificar inscripciones de materias que imparte.
+- Shell propio del portal docente: barra lateral navy con logo UPEL, rol y navegación por
+  páginas independientes (Resumen, Estudiantes, Cargar notas, Mis carreras, Planes de
+  evaluación), topbar fija y área de contenido con el mismo ancho máximo y espaciado que los
+  portales de estudiante y administrativo.
+- **Resumen** (`GET /dashboard`): carreras, materias, estudiantes, notas pendientes, notas
+  cargadas y promedio, datos del profesor y accesos rápidos a las demás páginas.
+- Las carreras, materias y estudiantes salen **solo de los horarios publicados**
+  (`app/Support/ProfessorAssignments.php`): el decano elige carrera, materia y docente al
+  crear el horario, y de ahí se alimenta el portal. `professor_subjects` queda únicamente
+  como banco de materias para el formulario de horarios.
+- Si el docente no tiene materias en ningún horario, “Mis carreras” y las páginas de notas
+  muestran **Pendiente por asignación** y no listan carreras ni estudiantes.
+- Cada materia indica su código, semestre, cohorte, horario (Lunes a viernes / Sabatino) y
+  cantidad de estudiantes.
+- **Estudiantes** (`GET /dashboard/estudiantes`): selector de carrera y, por materia, la
+  tabla **Nota final del expediente** (estudiante, código, período, nota, estado). Es una
+  vista de consulta: la acción **Cargar nota / Editar nota** abre la página **Cargar notas**
+  con `?materia={subject_id}&estudiante={student_id}` para cargar las notas por evaluación de
+  ese estudiante. `PUT /dashboard/notas/{enrollment}` y `UpdateGradeRequest` siguen
+  disponibles en el backend, pero el portal ya no abre el modal de nota final.
+- **Cargar notas** (`GET /dashboard/cargar-notas`): selector de carrera y, por materia, la
+  planilla **Notas por estudiante** del plan de evaluación, sin la tabla de nota final. Cada
+  evaluación tiene su columna con porcentaje y fecha, la definitiva se calcula en vivo y
+  **Guardar notas** envía a `PUT /dashboard/planes-evaluacion/{plan}/notas`. La tabla y su
+  estado son compartidos (`components/professor/evaluation-grades-table.tsx` y
+  `components/professor/use-evaluation-grades.ts`); los datos llegan de
+  `ProfessorWorkspace::overview(..., withGradeSheets: true)` con el roster del plan
+  (`EvaluationPlanSheet::studentRows()`). Los parámetros `materia` y `estudiante` resaltan y
+  desplazan la vista hasta la fila indicada (prop `highlightStudentId`).
+- Cada materia indica el estado de su plan (**Plan 100 %** o **Faltan X %**) y enlaza a
+  **Ver plan**; si todavía no tiene plan muestra **Crear plan** con la materia y el cohorte
+  preseleccionados.
+- **Mis carreras** (`GET /dashboard/mis-carreras`): tarjetas por carrera con sus materias,
+  estado del plan y accesos directos a la planilla de notas y al plan de evaluación.
+
+### Planes de evaluación
+
+**Rutas:** `GET /dashboard/planes-evaluacion`, `GET /dashboard/planes-evaluacion/crear`,
+`POST /dashboard/planes-evaluacion`, `GET /dashboard/planes-evaluacion/{plan}`,
+`DELETE /dashboard/planes-evaluacion/{plan}`,
+`POST/PUT/DELETE /dashboard/planes-evaluacion/{plan}/evaluaciones[/{item}]` y
+`PUT /dashboard/planes-evaluacion/{plan}/notas` · **Nombre:** `professor.plans.*`
+**Controladores:** `ProfessorEvaluationPlanController`, `EvaluationPlanItemController`,
+`EvaluationPlanScoreController`
+**Páginas:** `resources/js/pages/professor/plans/{index,create,show}.tsx`
+**Soporte:** `app/Support/EvaluationPlanGrading.php`, `app/Support/EvaluationPlanSheet.php`,
+`app/Support/EvaluationPlanDates.php`, `resources/js/lib/evaluation-plan.ts`
+**Pruebas:** `tests/Feature/ProfessorEvaluationPlanTest.php`,
+`tests/Unit/EvaluationPlanGradingTest.php`
+
+- El listado muestra **todas las materias asignadas al docente según el horario** (no solo
+  las que ya tienen plan), con carrera, cohorte, período, ponderación acumulada, evaluaciones
+  y estudiantes. Cada fila abre la planilla del plan o, si la materia no tiene plan, el
+  formulario de creación con `?subject_id=&schedule_id=` preseleccionados
+  (`defaults.subject_id` y `defaults.schedule_id`).
+- Creación en cascada: **carrera → cohorte** (horarios publicados de la carrera), luego
+  materia y período académico. Solo aparecen las carreras, cohortes y materias que los
+  horarios le asignan al docente; si no tiene ninguna, el formulario muestra
+  **Pendiente por asignación**. La cabecera de la planilla toma Profesor, Cédula
+  (`professor_profiles.identity_document`), Programa (`careers.program_type`: pregrado,
+  postgrado, curso o taller), Sede/Extensión (`EvaluationPlanSheet::SEDE`), Especialidad
+  (carrera), Curso (`código - nombre`), Período Académico, Horario del cohorte (Lunes a
+  viernes / Sabatino) y Ambiente, que se toma siempre de la modalidad registrada en la
+  materia (Presencial, Online o Semipresencial) y no se edita en el plan.
+- Reglas de ponderación (`EvaluationPlanGrading`): cada evaluación vale entre 5 % y 20 %,
+  el plan no puede pasar del 100 %, y solo se permiten materias que el docente imparte
+  dentro de la carrera del cohorte. El servidor valida esa impartición con
+  `ProfessorAssignments::teachesSubject()`, es decir, contra los horarios publicados. Un
+  plan por docente, cohorte, materia y período.
+- Las fechas de evaluación se eligen entre los días de clase que el horario del cohorte
+  asigna a la materia (`schedule_subjects.dates`, ver `EvaluationPlanDates`); el servidor
+  rechaza cualquier otra fecha. Cada día de clase se usa en una sola evaluación: al
+  elegir una fecha deja de estar disponible para las demás (`EvaluationPlanDates::isUsed()`),
+  tanto al agregar como al editar. Si la materia no tiene días asignados en ese horario, el
+  formulario y la planilla muestran **Sin horario asignado** y no permiten programar
+  evaluaciones; si ya se usaron todos los días, muestran **Sin fechas disponibles**.
+- `fecha de inicio` y `fecha de fin` se recalculan solas desde las fechas de las
+  evaluaciones (`EvaluationPlan::syncScheduleWindow()`), también al agregar, editar o
+  eliminar una evaluación; al borrar se reordenan las posiciones restantes.
+- Las notas se cargan de 1 a 20 por evaluación desde la página **Cargar notas** del portal
+  docente. La definitiva se calcula en vivo como promedio ponderado de las evaluaciones ya
+  calificadas (se normaliza por el porcentaje calificado, así avanza mientras se cargan las
+  notas) y se muestra en la escala de 1 a 10, donde 6 aprueba. `enrollments.final_grade` no se
+  modifica desde este módulo.
+- El roster de la planilla (`EvaluationPlanSheet::studentRows()`) reúne a todos los
+  estudiantes activos de la carrera del plan más los ya inscritos en la materia, aunque no
+  tengan inscripción; se ordenan por nombre. Cada fila muestra el **cohorte actual** (el del
+  horario del plan) y, si el estudiante viene de otro cohorte, también su **cohorte propio**
+  (el del horario donde cursa sus materias y, si no tiene, su año de ingreso), de modo que
+  los rezagados se identifican a simple vista.
+- Si el docente califica a un estudiante del cohorte que todavía no tenía inscripción, el
+  servidor le crea la inscripción en la materia y período del plan
+  (`EvaluationPlanScoreController::createEnrollment()`) con el docente del plan y estado
+  `cursando`; las notas se guardan contra esa inscripción. Solo los estudiantes activos de
+  la carrera del plan pueden recibir una inscripción nueva.
+- La planilla tiene una **vista previa del documento** con el formato oficial de Control de
+  Estudios (`EvaluationPlanSheet` + `components/professor/evaluation-plan-sheet.tsx`):
+  logotipo UPEL en la cabecera, datos de identificación (profesor, cédula, programa, sede,
+  especialidad con su código, curso, período, horario, ambiente, cohorte y fechas), la tabla
+  de evaluaciones con fecha y ponderación, y la tabla de notas por estudiante con N°, Sec.,
+  Esp., Cohorte (actual y propio), Cédula, nombre, nota por evaluación y nota final. Se abre
+  desde **Vista previa** en la planilla y se imprime o guarda como PDF con el navegador; al
+  imprimir solo se muestra el documento (`body.evaluation-sheet-print` en
+  `resources/css/app.css`). La vista previa usa las notas guardadas del plan.
+- El detalle del plan ya **no incluye la planilla de carga**: administra sus evaluaciones,
+  muestra el aviso con el enlace a **Cargar notas** y la vista previa del documento.
 
 ## 6. Portal del graduado
 
@@ -524,7 +627,9 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 | `tests/Feature/AdminStudentReviewTest.php`          | Solicitudes de revisión: campana, badges, validación desde el perfil e historial.                                                                     |
 | `tests/Feature/AdminStudentAdmissionStatusTest.php` | Estado e historial desde el perfil: permisos, transiciones y solicitudes convertidas.                                                                 |
 | `tests/Feature/ProfessorGradeTest.php`              | Carga de notas, validación y redondeo.                                                                                                                |
+| `tests/Feature/ProfessorEvaluationPlanTest.php`     | Planes de evaluación: fechas del horario, ponderación, evaluaciones, notas, definitiva y permisos.                                                    |
+| `tests/Unit/EvaluationPlanGradingTest.php`          | Promedio ponderado, escala de 1 a 10 y nota mínima aprobatoria.                                                                                       |
 | `tests/Feature/DashboardTest.php`                   | Redirecciones por rol.                                                                                                                                |
 | `tests/Feature/Settings/*`                          | Perfil, contraseña y seguridad.                                                                                                                       |
 
-**Resultado actual:** 292 pruebas aprobadas, 2644 aserciones.
+**Resultado actual:** 326 pruebas aprobadas, 3007 aserciones.

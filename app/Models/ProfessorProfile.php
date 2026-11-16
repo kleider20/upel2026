@@ -13,10 +13,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property int $id
  * @property int $user_id
  * @property string $employee_code
+ * @property string|null $identity_document
  * @property string|null $department
  * @property string|null $academic_title
  */
-#[Fillable(['user_id', 'employee_code', 'department', 'academic_title'])]
+#[Fillable(['user_id', 'employee_code', 'identity_document', 'department', 'academic_title'])]
 class ProfessorProfile extends Model
 {
     /** @use HasFactory<ProfessorProfileFactory> */

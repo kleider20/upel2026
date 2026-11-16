@@ -271,12 +271,7 @@ class AdminSubjectController extends Controller
                 ])
                 ->all(),
             'modalities' => AcademicOptions::modalityOptions(),
-            'components' => [
-                ['value' => 'CFPE', 'label' => 'Formación profesional específica'],
-                ['value' => 'CFD', 'label' => 'Formación docente'],
-                ['value' => 'CFC', 'label' => 'Formación contextualizada'],
-                ['value' => 'ECU', 'label' => 'Investigación y práctica'],
-            ],
+            'components' => AcademicOptions::componentOptions(),
             'types' => [
                 ['value' => 'UNCO', 'label' => 'Unidad curricular obligatoria'],
                 ['value' => 'UNCLE', 'label' => 'Unidad curricular de libre elección'],

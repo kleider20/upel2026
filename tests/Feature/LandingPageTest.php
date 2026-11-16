@@ -197,6 +197,56 @@ test('la página pública de una carrera muestra su pensum agrupado por período
         );
 });
 
+test('la página pública de una carrera muestra los bloques de libre elección del plan base', function () {
+    $career = Career::factory()->create([
+        'code' => 'EDPRI',
+        'modality' => 'presencial',
+    ]);
+
+    Subject::factory()->for($career)->create([
+        'name' => 'Didáctica General',
+        'code' => 'DID-101',
+        'semester' => 1,
+        'component' => 'CFD',
+        'type' => 'UNCO',
+        'is_active' => true,
+    ]);
+    Subject::factory()->for($career)->create([
+        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'code' => 'EDPRI-UNCLE-101',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'is_elective_slot' => true,
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+    Subject::factory()->for($career)->create([
+        'name' => 'Educación Alimentaria y Nutrición',
+        'code' => 'EAN-PA1ONLINEUNCLE',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'credits' => 2,
+        'is_active' => true,
+    ]);
+
+    $this->get(route('careers.show', ['career' => 'EDPRI']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('landing/career')
+            ->has('pensum.0.subjects', 2)
+            ->where('pensum.0.subjects.0.name', 'Didáctica General')
+            ->where('pensum.0.subjects.0.code', 'DID-101')
+            ->where('pensum.0.subjects.0.is_elective_slot', false)
+            ->where('pensum.0.subjects.1.name', 'Uncle Del Componente De Formación CFC UNCLE Contextualizada')
+            ->where('pensum.0.subjects.1.code', '')
+            ->where('pensum.0.subjects.1.is_elective_slot', true)
+        );
+});
+
 test('la página pública de una carrera inactiva responde 404', function () {
     Career::factory()->create([
         'code' => 'INACT',

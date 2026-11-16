@@ -130,7 +130,9 @@ export function MiCarreraPensum({
                                                             tone="gold"
                                                             className="px-1.5 py-0.5 text-[0.55rem]"
                                                         >
-                                                            Libre elección
+                                                            {sub.is_assigned
+                                                                ? 'Libre elección'
+                                                                : 'Por asignar'}
                                                         </ToneBadge>
                                                     )}
                                                 </div>

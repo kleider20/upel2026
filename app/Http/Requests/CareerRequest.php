@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Permission;
+use App\Enums\ProgramType;
 use App\Models\Career;
 use App\Support\AcademicOptions;
 use Illuminate\Foundation\Http\FormRequest;
@@ -27,6 +28,7 @@ class CareerRequest extends FormRequest
         $description = trim((string) $this->input('description'));
         $degree = trim((string) $this->input('degree'));
         $icon = trim((string) $this->input('icon'));
+        $programType = trim((string) $this->input('program_type'));
 
         $offeringsInput = $this->input('offerings', []);
         $offerings = collect(is_array($offeringsInput) ? $offeringsInput : [])
@@ -48,6 +50,7 @@ class CareerRequest extends FormRequest
             'name' => trim((string) $this->input('name')),
             'description' => $description !== '' ? $description : null,
             'degree' => $degree !== '' ? $degree : 'Licenciatura',
+            'program_type' => $programType !== '' ? $programType : ProgramType::Pregrado->value,
             'icon' => $icon !== '' ? $icon : null,
             'offerings' => $offerings,
             'is_active' => $this->boolean('is_active'),
@@ -72,6 +75,7 @@ class CareerRequest extends FormRequest
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'degree' => ['required', 'string', 'max:100'],
+            'program_type' => ['required', Rule::in(ProgramType::values())],
             'icon' => ['nullable', 'string', 'max:16'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'remove_image' => ['boolean'],
@@ -132,6 +136,8 @@ class CareerRequest extends FormRequest
             'code.unique' => 'Ya existe una carrera con ese código.',
             'degree.required' => 'Indica el título que otorga la carrera.',
             'degree.max' => 'El título no puede superar los 100 caracteres.',
+            'program_type.required' => 'Selecciona el tipo de programa de la carrera.',
+            'program_type.in' => 'El tipo de programa seleccionado no es válido.',
             'icon.max' => 'El icono no puede superar los 16 caracteres.',
             'image.image' => 'La imagen debe ser un archivo de imagen válido.',
             'image.mimes' => 'La imagen debe ser JPG, PNG o WEBP.',

@@ -105,6 +105,16 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Planes de evaluación creados por el docente.
+     *
+     * @return HasMany<EvaluationPlan, $this>
+     */
+    public function evaluationPlans(): HasMany
+    {
+        return $this->hasMany(EvaluationPlan::class, 'professor_id');
+    }
+
+    /**
      * @return HasMany<Enrollment, $this>
      */
     public function enrollments(): HasMany

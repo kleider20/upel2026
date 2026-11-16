@@ -34,6 +34,7 @@ type ProfessorRecord = {
     name: string;
     email: string;
     employee_code: string;
+    identity_document: string | null;
     department: string | null;
     academic_title: string | null;
     subject_ids: number[];
@@ -43,6 +44,7 @@ type ProfessorFormData = {
     name: string;
     email: string;
     employee_code: string;
+    identity_document: string;
     department: string;
     academic_title: string;
     password: string;
@@ -106,6 +108,7 @@ export default function AdminProfessorForm({
         name: professor?.name ?? '',
         email: professor?.email ?? '',
         employee_code: professor?.employee_code ?? '',
+        identity_document: professor?.identity_document ?? '',
         department: professor?.department ?? '',
         academic_title: professor?.academic_title ?? '',
         password: '',
@@ -296,6 +299,40 @@ export default function AdminProfessorForm({
                                 />
                                 <InputError
                                     message={form.errors.employee_code}
+                                    className="mt-1 text-xs"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="identity_document"
+                                    className={labelClass}
+                                >
+                                    Cédula
+                                </label>
+                                <input
+                                    id="identity_document"
+                                    type="text"
+                                    value={form.data.identity_document}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'identity_document',
+                                            event.target.value,
+                                        )
+                                    }
+                                    maxLength={20}
+                                    aria-invalid={Boolean(
+                                        form.errors.identity_document,
+                                    )}
+                                    className={inputClass}
+                                    placeholder="V-12345678"
+                                />
+                                <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                                    Se muestra en la cabecera de las planillas
+                                    de evaluación.
+                                </p>
+                                <InputError
+                                    message={form.errors.identity_document}
                                     className="mt-1 text-xs"
                                 />
                             </div>

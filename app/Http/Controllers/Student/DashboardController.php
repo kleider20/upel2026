@@ -17,6 +17,7 @@ use App\Support\SubjectCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -64,22 +65,100 @@ class DashboardController extends Controller
             static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
 
+        // Horario de actividades presenciales según el horario elegido
+        $schedule = StudentSchedule::forStudent(
+            $profile?->career?->code,
+            $profile !== null ? $profile->current_semester : 1,
+            $admission?->schedule,
+            $admission?->modality,
+        );
+
+        // Materias de libre elección que el estudiante ya tiene en su horario
+        $scheduledSubjects = collect(data_get($schedule, 'subjects', []))
+            ->filter(static fn (mixed $subject): bool => is_array($subject) && isset($subject['name']))
+            ->values();
+
+        $normalize = static fn (string $value): string => Str::lower(Str::ascii($value));
+
+        $scheduledCodes = $scheduledSubjects->pluck('code')->filter()->all();
+        $scheduledNames = $scheduledSubjects
+            ->map(static fn (array $subject): string => $normalize((string) $subject['name']))
+            ->filter()
+            ->values()
+            ->all();
+
+        // Ofertas UNCLE que cubren un bloque: las inscritas o las incluidas en
+        // el horario del período que cursa el estudiante.
+        $offeredElectives = collect();
+
+        if ($profile && $profile->career_id) {
+            $offeredElectives = Subject::query()
+                ->where('career_id', $profile->career_id)
+                ->where('is_elective_slot', false)
+                ->orderBy('name')
+                ->get()
+                ->filter(static fn (Subject $subject): bool => $subject->isElective())
+                ->values();
+        }
+
+        $assignedElectives = $offeredElectives->filter(
+            static function (Subject $subject) use ($enrollments, $scheduledCodes, $scheduledNames, $normalize): bool {
+                if ($enrollments->contains('subject_id', $subject->id)) {
+                    return true;
+                }
+
+                if (in_array($subject->code, $scheduledCodes, true)) {
+                    return true;
+                }
+
+                $name = $normalize($subject->name);
+
+                foreach ($scheduledNames as $scheduledName) {
+                    similar_text($name, $scheduledName, $percent);
+
+                    if ($percent >= 85.0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            },
+        )->values();
+
         // Pénsum / Mapa curricular de la carrera
         $pensum = [];
         if ($profile && $profile->career_id) {
             $careerSubjects = Subject::query()
                 ->where('career_id', $profile->career_id)
+                ->pensumBase()
                 ->orderBy('semester')
                 ->orderBy('name')
                 ->get()
                 ->groupBy('semester');
 
+            $availableElectives = $assignedElectives;
+
             foreach ($careerSubjects as $semester => $subjects) {
                 $pensum[] = [
                     'semester' => (int) $semester,
-                    'subjects' => $subjects->map(function (Subject $subject) use ($enrollments) {
-                        $enrolled = $enrollments->firstWhere('subject_id', $subject->id);
-                        $status = 'pendiente';
+                    'subjects' => $subjects->map(function (Subject $subject) use (&$availableElectives, $enrollments): array {
+                        $isElective = $subject->isElective();
+                        $assigned = null;
+
+                        if ($subject->isElectiveSlot()) {
+                            $key = $availableElectives->search(
+                                static fn (Subject $candidate): bool => (int) $candidate->semester === (int) $subject->semester
+                                    && (string) $candidate->component === (string) $subject->component,
+                            );
+
+                            if ($key !== false) {
+                                $assigned = $availableElectives->pull($key);
+                            }
+                        }
+
+                        $enrolled = $enrollments->firstWhere('subject_id', $assigned?->id ?? $subject->id);
+                        $isAssigned = $assigned !== null;
+                        $status = $isAssigned ? 'cursando' : 'pendiente';
                         $grade = null;
 
                         if ($enrolled) {
@@ -89,12 +168,13 @@ class DashboardController extends Controller
 
                         return [
                             'id' => $subject->id,
-                            'name' => $subject->name,
-                            'code' => $subject->code,
+                            'name' => $assigned?->name ?? ($isElective ? $subject->electiveLabel() : $subject->name),
+                            'code' => $assigned?->code ?? ($isElective ? SubjectCode::ELECTIVE_TYPE : $subject->code),
                             'semester' => (int) $subject->semester,
-                            'credits' => (int) $subject->credits,
+                            'credits' => (int) ($assigned?->credits ?? $subject->credits),
                             'type' => $subject->type,
-                            'is_elective' => strtoupper(trim((string) $subject->type)) === SubjectCode::ELECTIVE_TYPE,
+                            'is_elective' => $isElective,
+                            'is_assigned' => $isElective && $isAssigned,
                             'status' => $status,
                             'grade' => $grade,
                         ];
@@ -105,14 +185,6 @@ class DashboardController extends Controller
 
         // Duración del pénsum en periodos (años = periodos / 2)
         $durationSemesters = $profile?->career?->duration_semesters ?: count($pensum);
-
-        // Horario de actividades presenciales según el horario elegido
-        $schedule = StudentSchedule::forStudent(
-            $profile?->career?->code,
-            $profile !== null ? $profile->current_semester : 1,
-            $admission?->schedule,
-            $admission?->modality,
-        );
 
         // Trámites de ejemplo del estudiante
         $tramites = session()->get('student_tramites', [

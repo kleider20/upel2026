@@ -42,6 +42,7 @@ class DemoUserSeeder extends Seeder
             ['user_id' => $professor->id],
             [
                 'employee_code' => 'PROF-001',
+                'identity_document' => 'V-11.245.830',
                 'department' => 'Pedagogía',
                 'academic_title' => 'Doctora en Educación',
             ],

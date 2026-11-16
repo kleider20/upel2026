@@ -28,6 +28,7 @@ type CareerRecord = {
     code: string;
     description: string | null;
     degree: string;
+    program_type: string;
     icon: string | null;
     image_url: string | null;
     duration_semesters: number;
@@ -40,6 +41,7 @@ type CareerFormData = {
     code: string;
     description: string;
     degree: string;
+    program_type: string;
     icon: string;
     image: File | null;
     remove_image: boolean;
@@ -53,6 +55,7 @@ type Props = {
     modalities: Option[];
     schedules: Option[];
     shifts: Option[];
+    program_types: Option[];
 };
 
 const labelClass =
@@ -76,6 +79,7 @@ export default function AdminCareerForm({
     modalities,
     schedules,
     shifts,
+    program_types,
 }: Props) {
     const isEditing = career !== null;
 
@@ -84,6 +88,7 @@ export default function AdminCareerForm({
         code: career?.code ?? '',
         description: career?.description ?? '',
         degree: career?.degree ?? 'Licenciatura',
+        program_type: career?.program_type ?? 'pregrado',
         icon: career?.icon ?? '',
         image: null,
         remove_image: false,
@@ -320,6 +325,46 @@ export default function AdminCareerForm({
                                 />
                                 <InputError
                                     message={form.errors.degree}
+                                    className="mt-1 text-xs"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="program_type"
+                                    className={labelClass}
+                                >
+                                    Tipo de programa
+                                </label>
+                                <select
+                                    id="program_type"
+                                    value={form.data.program_type}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'program_type',
+                                            event.target.value,
+                                        )
+                                    }
+                                    aria-invalid={Boolean(
+                                        form.errors.program_type,
+                                    )}
+                                    className={inputClass}
+                                >
+                                    {program_types.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-[0.65rem] text-muted-foreground">
+                                    Aparece como “Programa” en las planillas de
+                                    evaluación.
+                                </p>
+                                <InputError
+                                    message={form.errors.program_type}
                                     className="mt-1 text-xs"
                                 />
                             </div>

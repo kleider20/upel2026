@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProgramType;
 use App\Support\AcademicOptions;
 use Database\Factories\CareerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
  * @property int $id
  * @property string $name
  * @property string $code
+ * @property string $program_type
  * @property string|null $description
  * @property string $degree
  * @property string|null $icon
@@ -25,6 +27,7 @@ use Illuminate\Support\Facades\Storage;
 #[Fillable([
     'name',
     'code',
+    'program_type',
     'description',
     'degree',
     'icon',
@@ -79,6 +82,14 @@ class Career extends Model
     public function modalityLabel(): string
     {
         return AcademicOptions::modalityLabel($this->modality);
+    }
+
+    /**
+     * Etiqueta del programa académico al que pertenece la carrera.
+     */
+    public function programTypeLabel(): string
+    {
+        return ProgramType::labelFor($this->program_type);
     }
 
     /**

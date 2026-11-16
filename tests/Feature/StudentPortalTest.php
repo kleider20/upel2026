@@ -233,9 +233,14 @@ test('el dashboard expone la modalidad de preinscripción y la duración del pé
     ]);
     Subject::factory()->create([
         'career_id' => $career->id,
-        'name' => 'Educación Alimentaria y Nutrición',
+        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
         'semester' => 1,
+        'component' => 'CFC',
         'type' => 'UNCLE',
+        'is_elective_slot' => true,
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
     ]);
 
     $this->actingAs($user)
@@ -248,6 +253,233 @@ test('el dashboard expone la modalidad de preinscripción y la duración del pé
             ->where('pensum.0.semester', 1)
             ->where('pensum.0.subjects.0.is_elective', false)
             ->where('pensum.0.subjects.1.is_elective', true)
+        );
+});
+
+test('el pénsum del estudiante revela la materia de libre elección cuando se le asigna', function () {
+    $career = Career::factory()->create([
+        'code' => 'EDTEST',
+        'name' => 'Educación de Prueba',
+        'duration_semesters' => 8,
+    ]);
+
+    $user = User::factory()->create(['must_change_password' => false]);
+    $user->assignRole(Role::Estudiante->value);
+    StudentProfile::factory()->create([
+        'user_id' => $user->id,
+        'career_id' => $career->id,
+        'current_semester' => 1,
+    ]);
+
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $user->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+    ]);
+
+    Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'code' => 'EDTEST-UNCLE-101',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'is_elective_slot' => true,
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+    Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Uncle Del Componente De Formación Profesional CFPE UNCLE Específico',
+        'code' => 'EDTEST-UNCLE-201',
+        'semester' => 2,
+        'component' => 'CFPE',
+        'type' => 'UNCLE',
+        'is_elective_slot' => true,
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+
+    $elective = Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Educación Alimentaria y Nutrición',
+        'code' => 'EAN-PA1ONLINEUNCLE',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->has('pensum.0.subjects', 1)
+            ->where('pensum.0.subjects.0.name', 'Uncle Del Componente De Formación CFC UNCLE 2 2 4 Contextualizada')
+            ->where('pensum.0.subjects.0.code', 'UNCLE')
+            ->where('pensum.0.subjects.0.is_elective', true)
+            ->where('pensum.0.subjects.0.is_assigned', false)
+            ->where('pensum.1.subjects.0.name', 'Uncle Del Componente De Formación CFPE UNCLE 2 2 4 Específica')
+            ->where('pensum.1.subjects.0.is_assigned', false)
+        );
+
+    Enrollment::factory()->create([
+        'student_id' => $user->id,
+        'subject_id' => $elective->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->where('pensum.0.subjects.0.name', 'Educación Alimentaria y Nutrición')
+            ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
+            ->where('pensum.0.subjects.0.is_elective', true)
+            ->where('pensum.0.subjects.0.is_assigned', true)
+            ->where('pensum.1.subjects.0.name', 'Uncle Del Componente De Formación CFPE UNCLE 2 2 4 Específica')
+            ->where('pensum.1.subjects.0.is_assigned', false)
+        );
+});
+
+test('el pénsum del estudiante revela la materia de libre elección agregada a su horario', function () {
+    $career = Career::factory()->create([
+        'code' => 'EDTEST',
+        'name' => 'Educación de Prueba',
+        'duration_semesters' => 8,
+    ]);
+
+    $user = User::factory()->create(['must_change_password' => false]);
+    $user->assignRole(Role::Estudiante->value);
+    StudentProfile::factory()->create([
+        'user_id' => $user->id,
+        'career_id' => $career->id,
+        'current_semester' => 1,
+    ]);
+
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $user->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+        'modality' => 'presencial',
+        'schedule' => 'sabatino',
+    ]);
+
+    Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'code' => 'EDTEST-UNCLE-101',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'is_elective_slot' => true,
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+
+    $elective = Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Educación Alimentaria y Nutrición',
+        'code' => 'EAN-PA1ONLINEUNCLE',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+
+    $schedule = Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2026-I',
+        'study_schedule' => 'sabatino',
+        'modality' => 'presencial',
+    ]);
+    $schedule->subjects()->attach($elective->id, ['position' => 1]);
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->where('pensum.0.subjects.0.name', 'Educación Alimentaria y Nutrición')
+            ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
+            ->where('pensum.0.subjects.0.is_assigned', true)
+        );
+});
+
+test('el horario base del período sustituye el bloque de libre elección', function () {
+    $career = Career::factory()->create([
+        'code' => 'EDPRI',
+        'name' => 'Educación Primaria',
+        'duration_semesters' => 8,
+    ]);
+
+    $user = User::factory()->create(['must_change_password' => false]);
+    $user->assignRole(Role::Estudiante->value);
+    StudentProfile::factory()->create([
+        'user_id' => $user->id,
+        'career_id' => $career->id,
+        'current_semester' => 1,
+    ]);
+
+    Admission::factory()->create([
+        'status' => AdmissionStatus::Convertida->value,
+        'converted_user_id' => $user->id,
+        'converted_at' => now(),
+        'career_id' => $career->id,
+        'schedule' => 'sabatino',
+        'modality' => 'presencial',
+    ]);
+
+    Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'code' => 'EDPRI-UNCLE-101',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'is_elective_slot' => true,
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+    Subject::factory()->create([
+        'career_id' => $career->id,
+        'name' => 'Educación Alimentaria y Nutrición',
+        'code' => 'EAN-PA1ONLINEUNCLE',
+        'semester' => 1,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'credits' => 2,
+        'theory_hours' => 2,
+        'practice_hours' => 4,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Student/Dashboard/Index')
+            ->where('pensum.0.subjects.0.name', 'Educación Alimentaria y Nutrición')
+            ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
+            ->where('pensum.0.subjects.0.is_assigned', true)
+            ->where('pensum.0.subjects.0.status', 'cursando')
         );
 });
 
@@ -618,11 +850,10 @@ function studentWithTeachingSchedule(): array
     ]);
     $professor->assignRole(Role::Profesor->value);
 
-    $professorProfile = ProfessorProfile::factory()->for($professor)->create([
+    ProfessorProfile::factory()->for($professor)->create([
         'department' => 'Lengua y Literatura',
         'academic_title' => 'Magíster en Educación',
     ]);
-    $professorProfile->subjects()->attach($subjects->first());
 
     $schedule->subjects()->attach($subjects->first(), [
         'position' => 1,

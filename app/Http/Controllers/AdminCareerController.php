@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\Permission;
+use App\Enums\ProgramType;
 use App\Http\Requests\CareerRequest;
 use App\Models\Career;
 use App\Models\CareerOffering;
@@ -64,6 +65,8 @@ class AdminCareerController extends Controller
                 'code' => $career->code,
                 'description' => $career->description,
                 'degree' => $career->degree,
+                'program_type' => $career->program_type,
+                'program_label' => $career->programTypeLabel(),
                 'icon' => $career->icon,
                 'image_url' => $career->imageUrl(),
                 'duration_semesters' => $career->duration_semesters,
@@ -167,6 +170,7 @@ class AdminCareerController extends Controller
                 'code' => $career->code,
                 'description' => $career->description,
                 'degree' => $career->degree,
+                'program_type' => $career->program_type,
                 'icon' => $career->icon,
                 'image_url' => $career->imageUrl(),
                 'duration_semesters' => $career->duration_semesters,
@@ -294,6 +298,7 @@ class AdminCareerController extends Controller
             'modalities' => AcademicOptions::modalityOptions(),
             'schedules' => AcademicOptions::scheduleOptions(),
             'shifts' => AcademicOptions::shiftOptions(),
+            'program_types' => ProgramType::options(),
         ];
     }
 

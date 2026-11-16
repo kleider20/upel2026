@@ -52,6 +52,7 @@ class AdminProfessorController extends Controller
                 'name' => $professor->user->name,
                 'email' => $professor->user->email,
                 'employee_code' => $professor->employee_code,
+                'identity_document' => $professor->identity_document,
                 'department' => $professor->department,
                 'academic_title' => $professor->academic_title,
                 'subjects_count' => $professor->subjects_count,
@@ -108,6 +109,7 @@ class AdminProfessorController extends Controller
                 'name' => $professor->user->name,
                 'email' => $professor->user->email,
                 'employee_code' => $professor->employee_code,
+                'identity_document' => $professor->identity_document,
                 'department' => $professor->department,
                 'academic_title' => $professor->academic_title,
                 'must_change_password' => $professor->user->must_change_password,
@@ -174,6 +176,7 @@ class AdminProfessorController extends Controller
 
             $professor = $user->professorProfile()->create([
                 'employee_code' => $data['employee_code'],
+                'identity_document' => $data['identity_document'],
                 'department' => $data['department'],
                 'academic_title' => $data['academic_title'],
             ]);
@@ -200,6 +203,7 @@ class AdminProfessorController extends Controller
                 'name' => $professor->user->name,
                 'email' => $professor->user->email,
                 'employee_code' => $professor->employee_code,
+                'identity_document' => $professor->identity_document,
                 'department' => $professor->department,
                 'academic_title' => $professor->academic_title,
                 'subject_ids' => $professor->subjects->pluck('id')->map(
@@ -226,6 +230,7 @@ class AdminProfessorController extends Controller
             ]);
             $professor->update([
                 'employee_code' => $data['employee_code'],
+                'identity_document' => $data['identity_document'],
                 'department' => $data['department'],
                 'academic_title' => $data['academic_title'],
             ]);

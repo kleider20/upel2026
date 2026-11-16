@@ -12,7 +12,7 @@ import {
     Printer,
     Trash2,
 } from 'lucide-react';
-import { PensumPreview } from '@/components/admin/pensum-preview';
+import { PensumTable } from '@/components/pensum/pensum-table';
 import { EmptyState } from '@/components/portal/empty-state';
 import { PageHeader } from '@/components/portal/page-header';
 import { dashboard as adminDashboard } from '@/routes/admin';
@@ -212,7 +212,7 @@ export default function AdminPensumShow({ career, pensum, can_manage }: Props) {
                         </div>
                     </div>
 
-                    <PensumPreview career={career} pensum={pensum} />
+                    <PensumTable career={career} pensum={pensum} />
                 </section>
 
                 {pensum.length === 0 ? (

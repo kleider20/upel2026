@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateGradeRequest;
 use App\Models\Enrollment;
 use App\Models\Subject;
+use App\Support\ProfessorAssignments;
 use Illuminate\Http\RedirectResponse;
 
 class ProfessorGradeController extends Controller
@@ -16,11 +17,7 @@ class ProfessorGradeController extends Controller
     {
         $professor = $request->user();
 
-        $teachesSubject = $professor->taughtSubjects()
-            ->whereKey($enrollment->subject_id)
-            ->exists();
-
-        if (! $teachesSubject) {
+        if (! ProfessorAssignments::teachesSubject($professor, $enrollment->subject_id)) {
             abort(403, 'No tienes permiso para cargar notas en esta materia.');
         }
 

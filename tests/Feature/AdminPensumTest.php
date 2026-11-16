@@ -126,6 +126,52 @@ test('academic managers can open a career pensum grouped by semester', function 
         );
 });
 
+test('el pensum base incluye los bloques de libre elección y excluye las ofertas', function () {
+    $career = Career::factory()->create([
+        'name' => 'Educación Primaria',
+        'code' => 'EDPRI',
+    ]);
+
+    Subject::factory()->for($career)->create([
+        'name' => 'Didáctica General',
+        'code' => 'DID-101',
+        'semester' => 1,
+        'credits' => 4,
+        'component' => 'CFD',
+        'type' => 'UNCO',
+    ]);
+    Subject::factory()->for($career)->create([
+        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'code' => 'EDPRI-UNCLE-101',
+        'semester' => 1,
+        'credits' => 2,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+        'is_elective_slot' => true,
+    ]);
+    Subject::factory()->for($career)->create([
+        'name' => 'Educación Alimentaria y Nutrición',
+        'code' => 'EAN-PA1ONLINEUNCLE',
+        'semester' => 1,
+        'credits' => 2,
+        'component' => 'CFC',
+        'type' => 'UNCLE',
+    ]);
+
+    $this->actingAs(pensumManager())
+        ->get(route('admin.pensums.show', ['career' => 'EDPRI']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/pensums/show')
+            ->where('career.subjects_count', 2)
+            ->where('career.credits_total', 6)
+            ->has('pensum.0.subjects', 2)
+            ->where('pensum.0.subjects.1.code', 'EDPRI-UNCLE-101')
+            ->where('pensum.0.subjects.1.name', 'Uncle Del Componente De Formación CFC UNCLE Contextualizada')
+            ->where('pensum.0.subjects.1.is_elective_slot', true)
+        );
+});
+
 test('academic managers can view and download a career pensum as a PDF', function () {
     $career = Career::factory()->create([
         'name' => 'Educación Primaria',

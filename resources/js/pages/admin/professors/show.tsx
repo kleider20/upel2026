@@ -29,6 +29,7 @@ type Professor = {
     name: string;
     email: string;
     employee_code: string;
+    identity_document: string | null;
     department: string | null;
     academic_title: string | null;
     must_change_password: boolean;
@@ -241,6 +242,14 @@ export default function AdminProfessorShow({ professor }: Props) {
                             </dt>
                             <dd className="mt-1 font-semibold text-foreground">
                                 {professor.employee_code}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="font-bold text-muted-foreground">
+                                Cédula
+                            </dt>
+                            <dd className="mt-1 font-semibold text-foreground">
+                                {professor.identity_document ?? '—'}
                             </dd>
                         </div>
                         <div>

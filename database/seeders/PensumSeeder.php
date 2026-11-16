@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Career;
 use App\Models\Subject;
+use App\Support\ElectiveSlotCatalog;
 use App\Support\SubjectCode;
 use Illuminate\Database\Seeder;
 
@@ -15,7 +16,8 @@ class PensumSeeder extends Seeder
      * Los datos provienen de los planes curriculares del Vicerrectorado de
      * Docencia: Educación Primaria, Educación Especial, Lengua y Literatura y
      * Geografía e Historia. Las unidades de libre elección (UNCLE) se cargan
-     * aparte porque varían en cada período académico.
+     * aparte porque varían en cada período académico: el plan base conserva un
+     * bloque por cada una y las materias concretas se ofertan en el horario.
      */
     public function run(): void
     {
@@ -130,6 +132,25 @@ class PensumSeeder extends Seeder
                         $data['modality'],
                         SubjectCode::ELECTIVE_TYPE,
                     );
+                    $created++;
+                } else {
+                    $updated++;
+                }
+
+                $subject->save();
+            }
+        }
+
+        foreach ($careers as $career) {
+            foreach (ElectiveSlotCatalog::forCareer($career->code) as $slot) {
+                $subject = Subject::query()->firstOrNew([
+                    'career_id' => $career->id,
+                    'code' => $slot['code'],
+                ]);
+
+                $subject->fill(ElectiveSlotCatalog::attributes($slot));
+
+                if (! $subject->exists) {
                     $created++;
                 } else {
                     $updated++;

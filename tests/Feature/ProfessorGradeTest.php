@@ -4,6 +4,7 @@ use App\Enums\Role;
 use App\Models\AcademicPeriod;
 use App\Models\Career;
 use App\Models\Enrollment;
+use App\Models\Schedule;
 use App\Models\Subject;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
@@ -25,7 +26,17 @@ function gradeScenario(): array
 
     $professor = User::factory()->create();
     $professor->assignRole(Role::Profesor->value);
-    $professor->taughtSubjects()->attach($subject->id);
+
+    $schedule = Schedule::factory()->for($career)->create([
+        'period' => 1,
+        'cohort' => '2026-I',
+        'study_schedule' => 'sabatino',
+        'modality' => 'presencial',
+    ]);
+    $schedule->subjects()->attach($subject->id, [
+        'position' => 1,
+        'professor_id' => $professor->id,
+    ]);
 
     $student = User::factory()->create();
     $student->assignRole(Role::Estudiante->value);

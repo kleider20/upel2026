@@ -13,6 +13,7 @@ import { Footer } from '@/components/landing/footer';
 import { LandingErrorBoundary } from '@/components/landing/landing-error-boundary';
 import { Navbar } from '@/components/landing/navbar';
 import { Reveal } from '@/components/landing/reveal';
+import { PensumTable } from '@/components/pensum/pensum-table';
 import { cn } from '@/lib/utils';
 import { create as admissionCreate } from '@/routes/admissions';
 import {
@@ -345,96 +346,13 @@ export default function LandingCareer({
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="mt-8 space-y-5">
-                                        {pensum.map((period, index) => (
-                                            <Reveal
-                                                key={period.semester}
-                                                delay={Math.min(
-                                                    index * 40,
-                                                    240,
-                                                )}
-                                            >
-                                                <section className="overflow-hidden rounded-2xl border border-upel-mist bg-white shadow-sm">
-                                                    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-upel-mist bg-upel-cloud/60 px-5 py-3.5">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="flex size-9 items-center justify-center rounded-xl bg-upel-navy text-xs font-bold text-white">
-                                                                {period.label}
-                                                            </span>
-                                                            <div>
-                                                                <h3 className="text-sm font-bold text-upel-navy">
-                                                                    Período{' '}
-                                                                    {
-                                                                        period.label
-                                                                    }
-                                                                </h3>
-                                                                <p className="text-[0.65rem] text-muted-foreground">
-                                                                    {
-                                                                        period
-                                                                            .subjects
-                                                                            .length
-                                                                    }{' '}
-                                                                    materias
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <span className="rounded-full bg-white px-3 py-1 text-[0.62rem] font-bold text-upel-slate ring-1 ring-upel-mist">
-                                                            {period.credits}{' '}
-                                                            créditos
-                                                        </span>
-                                                    </header>
-
-                                                    <ul className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-                                                        {period.subjects.map(
-                                                            (subject) => (
-                                                                <li
-                                                                    key={
-                                                                        subject.id
-                                                                    }
-                                                                    className="rounded-xl border border-upel-mist/80 bg-white p-4 transition-colors hover:border-upel-blue/30"
-                                                                >
-                                                                    <p className="text-xs font-bold text-upel-navy">
-                                                                        {
-                                                                            subject.name
-                                                                        }
-                                                                    </p>
-                                                                    <p className="mt-1 text-[0.62rem] font-semibold text-muted-foreground">
-                                                                        {
-                                                                            subject.code
-                                                                        }{' '}
-                                                                        ·{' '}
-                                                                        {
-                                                                            subject.credits
-                                                                        }{' '}
-                                                                        créditos
-                                                                    </p>
-                                                                    <p className="mt-2 text-[0.62rem] text-upel-slate">
-                                                                        {
-                                                                            subject.theory_hours
-                                                                        }{' '}
-                                                                        h teoría
-                                                                        ·{' '}
-                                                                        {
-                                                                            subject.practice_hours
-                                                                        }{' '}
-                                                                        h
-                                                                        práctica
-                                                                    </p>
-                                                                    {subject.prerequisites ? (
-                                                                        <p className="mt-2 rounded-lg bg-upel-gold/10 px-2 py-1 text-[0.6rem] font-semibold text-[#8a6c0d]">
-                                                                            Requiere:{' '}
-                                                                            {
-                                                                                subject.prerequisites
-                                                                            }
-                                                                        </p>
-                                                                    ) : null}
-                                                                </li>
-                                                            ),
-                                                        )}
-                                                    </ul>
-                                                </section>
-                                            </Reveal>
-                                        ))}
-                                    </div>
+                                    <Reveal className="mt-8">
+                                        <PensumTable
+                                            id="pensum-preview"
+                                            career={career}
+                                            pensum={pensum}
+                                        />
+                                    </Reveal>
                                 )}
                             </div>
                         </section>

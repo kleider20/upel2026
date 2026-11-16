@@ -1,22 +1,49 @@
 import { cn } from '@/lib/utils';
-import type { PensumCareer, PensumPeriod } from '@/types/pensum';
+
+export type PensumTableCareer = {
+    name: string;
+    credits_total: number;
+};
+
+export type PensumTableSubject = {
+    id: number;
+    code: string;
+    name: string;
+    credits: number;
+    theory_hours: number;
+    practice_hours: number;
+    component?: string | null;
+    type?: string | null;
+    area?: string | null;
+    level?: string | null;
+    is_elective_slot?: boolean;
+};
+
+export type PensumTablePeriod = {
+    semester: number;
+    label: string;
+    credits: number;
+    subjects: PensumTableSubject[];
+};
 
 type Props = {
-    career: PensumCareer;
-    pensum: PensumPeriod[];
+    career: PensumTableCareer;
+    pensum: PensumTablePeriod[];
+    id?: string;
 };
 
 /**
- * Vista previa del pensum con el formato oficial de la planilla UPEL.
+ * Plan curricular con el formato oficial de la planilla UPEL.
  *
  * Replica la tabla del documento institucional: períodos agrupados, niveles
  * escritos en vertical y las columnas PA, CA/PA, CÓD, NOMBRES, COMP, TIPO,
- * AREA, NIVEL, CA, HAD, HLE, PREL y RE (AE/SC).
+ * AREA, NIVEL, CA, HAD, HLE, PREL y RE (AE/SC). Los bloques de libre elección
+ * no llevan código en la planilla, por eso su celda se deja en blanco.
  */
-export function PensumPreview({ career, pensum }: Props) {
+export function PensumTable({ career, pensum, id = 'pensum-preview' }: Props) {
     return (
         <article
-            id="pensum-preview"
+            id={id}
             className="pensum-print-document overflow-hidden rounded-2xl border border-border/70 bg-white p-5 shadow-sm sm:p-8 dark:bg-card"
         >
             <header className="relative pb-3 text-center text-black">
@@ -42,7 +69,7 @@ export function PensumPreview({ career, pensum }: Props) {
             <div className="overflow-x-auto">
                 <table className="pensum-print-table w-full min-w-[880px] table-fixed border-collapse text-[0.55rem] leading-[1.15] text-black">
                     <caption className="sr-only">
-                        Vista previa del plan curricular de {career.name}
+                        Plan curricular de {career.name}
                     </caption>
                     <colgroup>
                         <col style={{ width: '2.48%' }} />
@@ -152,86 +179,96 @@ export function PensumPreview({ career, pensum }: Props) {
                     </thead>
                     <tbody>
                         {pensum.map((period) =>
-                            period.subjects.map((subject, index) => (
-                                <tr key={subject.id}>
-                                    {index === 0 ? (
-                                        <>
-                                            <td
-                                                rowSpan={period.subjects.length}
-                                                className="border border-black text-center align-middle font-semibold"
-                                            >
-                                                {period.label}
-                                            </td>
-                                            <td
-                                                rowSpan={period.subjects.length}
-                                                className="border border-black text-center align-middle font-semibold"
-                                            >
-                                                {period.credits}
-                                            </td>
-                                        </>
-                                    ) : null}
-                                    <td
-                                        className={cn(
-                                            'border border-black px-1 py-[0.18rem] text-center break-words',
-                                            subject.code.length > 12
-                                                ? 'text-[0.42rem]'
-                                                : 'text-[0.5rem]',
-                                        )}
-                                    >
-                                        {subject.code}
-                                    </td>
-                                    <td className="border border-black px-1 py-[0.18rem]">
-                                        {subject.name}
-                                    </td>
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center">
-                                        {subject.component ?? ''}
-                                    </td>
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center">
-                                        {subject.type ?? ''}
-                                    </td>
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center" />
-                                    {index === 0 ? (
+                            period.subjects.map((subject, index) => {
+                                const code = subject.is_elective_slot
+                                    ? ''
+                                    : subject.code;
+
+                                return (
+                                    <tr key={subject.id}>
+                                        {index === 0 ? (
+                                            <>
+                                                <td
+                                                    rowSpan={
+                                                        period.subjects.length
+                                                    }
+                                                    className="border border-black text-center align-middle font-semibold"
+                                                >
+                                                    {period.label}
+                                                </td>
+                                                <td
+                                                    rowSpan={
+                                                        period.subjects.length
+                                                    }
+                                                    className="border border-black text-center align-middle font-semibold"
+                                                >
+                                                    {period.credits}
+                                                </td>
+                                            </>
+                                        ) : null}
                                         <td
-                                            rowSpan={period.subjects.length}
-                                            className="border border-black px-0.5 py-1 text-center align-middle"
+                                            className={cn(
+                                                'border border-black px-1 py-[0.18rem] text-center break-words',
+                                                code.length > 12
+                                                    ? 'text-[0.42rem]'
+                                                    : 'text-[0.5rem]',
+                                            )}
                                         >
-                                            <span className="flex flex-col items-center justify-center gap-0.5 text-[0.5rem] leading-none font-semibold">
-                                                {(
-                                                    period.subjects[0].level ??
-                                                    ''
-                                                )
-                                                    .split('')
-                                                    .map(
-                                                        (
-                                                            letter,
-                                                            letterIndex,
-                                                        ) => (
-                                                            <span
-                                                                key={`${letter}-${letterIndex}`}
-                                                            >
-                                                                {letter}
-                                                            </span>
-                                                        ),
-                                                    )}
-                                            </span>
+                                            {code}
                                         </td>
-                                    ) : null}
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center">
-                                        {subject.credits}
-                                    </td>
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center">
-                                        {subject.theory_hours}
-                                    </td>
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center">
-                                        {subject.practice_hours}
-                                    </td>
-                                    <td className="border border-black px-0.5 py-[0.18rem] text-center" />
-                                    <td
-                                        colSpan={2}
-                                        className="border border-black px-0.5 py-[0.18rem]"
-                                    />
-                                </tr>
-                            )),
+                                        <td className="border border-black px-1 py-[0.18rem]">
+                                            {subject.name}
+                                        </td>
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center">
+                                            {subject.component ?? ''}
+                                        </td>
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center">
+                                            {subject.type ?? ''}
+                                        </td>
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center" />
+                                        {index === 0 ? (
+                                            <td
+                                                rowSpan={period.subjects.length}
+                                                className="border border-black px-0.5 py-1 text-center align-middle"
+                                            >
+                                                <span className="flex flex-col items-center justify-center gap-0.5 text-[0.5rem] leading-none font-semibold">
+                                                    {(
+                                                        period.subjects[0]
+                                                            .level ?? ''
+                                                    )
+                                                        .split('')
+                                                        .map(
+                                                            (
+                                                                letter,
+                                                                letterIndex,
+                                                            ) => (
+                                                                <span
+                                                                    key={`${letter}-${letterIndex}`}
+                                                                >
+                                                                    {letter}
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                </span>
+                                            </td>
+                                        ) : null}
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center">
+                                            {subject.credits}
+                                        </td>
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center">
+                                            {subject.theory_hours}
+                                        </td>
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center">
+                                            {subject.practice_hours}
+                                        </td>
+                                        <td className="border border-black px-0.5 py-[0.18rem] text-center" />
+                                        <td
+                                            colSpan={2}
+                                            className="border border-black px-0.5 py-[0.18rem]"
+                                        />
+                                    </tr>
+                                );
+                            }),
                         )}
                         {pensum.length === 0 ? (
                             <tr>

@@ -98,6 +98,7 @@ export type StudentPensumSubject = {
     credits: number;
     type?: string | null;
     is_elective?: boolean;
+    is_assigned?: boolean;
     status: 'aprobado' | 'cursando' | 'pendiente';
     grade: number | null;
 };

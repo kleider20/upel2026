@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AcademicPeriod;
 use App\Models\Enrollment;
 use App\Models\Program;
-use App\Models\Subject;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\ProfessorWorkspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -47,108 +45,21 @@ class DashboardController extends Controller
     }
 
     /**
-     * Panel del profesor: carreras, materias y estudiantes para cargar notas.
+     * Resumen del docente: carreras, materias y estudiantes a su cargo.
+     *
+     * La carga académica sale de los horarios publicados: si ninguna materia
+     * lo tiene como titular, el panel queda "pendiente por asignación".
      */
     private function professorDashboard(User $user): Response
     {
-        $profile = $user->professorProfile()->first();
-
-        $subjects = $user->taughtSubjects()
-            ->with([
-                'career',
-                'enrollments' => static function ($query): void {
-                    $query
-                        ->with(['student.studentProfile', 'academicPeriod'])
-                        ->orderBy('id');
-                },
-            ])
-            ->orderBy('career_id')
-            ->orderBy('semester')
-            ->get();
-
-        $careers = $subjects
-            ->groupBy('career_id')
-            ->map(
-                /** @param Collection<int, Subject> $careerSubjects */
-                static function (Collection $careerSubjects): array {
-                    $career = $careerSubjects->first()->career;
-                    $students = $careerSubjects
-                        ->flatMap(static fn (Subject $subject) => $subject->enrollments->pluck('student'))
-                        ->filter()
-                        ->unique('id');
-
-                    return [
-                        'id' => $career->id,
-                        'name' => $career->name,
-                        'code' => $career->code,
-                        'students_count' => $students->count(),
-                        'subjects' => $careerSubjects->map(
-                            static fn (Subject $subject): array => [
-                                'id' => $subject->id,
-                                'name' => $subject->name,
-                                'code' => $subject->code,
-                                'semester' => $subject->semester,
-                                'students' => $subject->enrollments
-                                    ->map(self::professorEnrollmentData(...))
-                                    ->values(),
-                            ],
-                        )->values(),
-                    ];
-                },
-            )
-            ->values();
-
-        $allEnrollments = $subjects->flatMap(
-            static fn (Subject $subject) => $subject->enrollments,
-        );
-        $graded = $allEnrollments->whereNotNull('final_grade');
-        $average = $graded->avg('final_grade');
+        $data = ProfessorWorkspace::overview($user);
 
         return Inertia::render('dashboard/professor', [
-            'profile' => $profile !== null ? [
-                'employee_code' => $profile->employee_code,
-                'department' => $profile->department,
-                'academic_title' => $profile->academic_title,
-            ] : null,
-            'summary' => [
-                'careers_count' => $careers->count(),
-                'subjects_count' => $subjects->count(),
-                'students_count' => $careers->sum('students_count'),
-                'pending_count' => $allEnrollments->whereNull('final_grade')->count(),
-                'graded_count' => $graded->count(),
-                'average' => $average !== null ? round((float) $average, 1) : null,
-            ],
-            'careers' => $careers,
-            'active_period' => AcademicPeriod::query()->where('is_active', true)->value('name'),
+            'profile' => $data['profile'],
+            'summary' => $data['summary'],
+            'careers' => $data['careers'],
+            'active_period' => $data['active_period'],
         ]);
-    }
-
-    /**
-     * @return array{
-     *     enrollment_id: int,
-     *     student_name: string,
-     *     student_code: string|null,
-     *     period: string,
-     *     grade: float|null,
-     *     status: string,
-     *     status_label: string,
-     *     status_tone: string
-     * }
-     */
-    private static function professorEnrollmentData(Enrollment $enrollment): array
-    {
-        return [
-            'enrollment_id' => $enrollment->id,
-            'student_name' => $enrollment->student->name,
-            'student_code' => $enrollment->student->studentProfile?->student_code,
-            'period' => $enrollment->academicPeriod->name,
-            'grade' => $enrollment->final_grade !== null
-                ? (float) $enrollment->final_grade
-                : null,
-            'status' => $enrollment->status,
-            'status_label' => $enrollment->statusLabel(),
-            'status_tone' => $enrollment->statusTone(),
-        ];
     }
 
     /**

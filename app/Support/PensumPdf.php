@@ -261,7 +261,7 @@ final class PensumPdf
         $values = [
             '',
             '',
-            (string) ($subject['code'] ?? ''),
+            ($subject['is_elective_slot'] ?? false) ? '' : (string) ($subject['code'] ?? ''),
             '',
             (string) ($subject['component'] ?? ''),
             (string) ($subject['type'] ?? ''),

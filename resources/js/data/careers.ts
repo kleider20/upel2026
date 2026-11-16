@@ -25,6 +25,11 @@ export type LandingCareerSubject = {
     credits: number;
     theory_hours: number;
     practice_hours: number;
+    component: string | null;
+    type: string | null;
+    area: string | null;
+    level: string | null;
+    is_elective_slot: boolean;
     modality: string;
     modality_label: string;
     prerequisites: string | null;

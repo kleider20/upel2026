@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Subject;
 use App\Models\User;
+use App\Support\ProfessorAssignments;
 use App\Support\StudentSchedule;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -48,11 +49,7 @@ class StudentProfessorController extends Controller
             ->values()
             ->all();
 
-        $taught = $professor->taughtSubjects()
-            ->with('career:id,name,code')
-            ->orderBy('semester')
-            ->orderBy('name')
-            ->get();
+        $taught = ProfessorAssignments::subjects($professor);
 
         // Materias que el profesor dicta al estudiante: primero las que tiene
         // asignadas en su horario y, si el horario no registra docentes, las de

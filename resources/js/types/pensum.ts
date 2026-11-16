@@ -18,6 +18,7 @@ export type PensumSubject = {
     practice_hours: number;
     component: string | null;
     type: string | null;
+    is_elective_slot?: boolean;
     area: string | null;
     level: string | null;
     modality: string;

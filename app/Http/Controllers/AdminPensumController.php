@@ -23,7 +23,10 @@ class AdminPensumController extends Controller
     {
         $this->authorizeView($request);
 
-        $career->load(['subjects' => static fn ($query) => $query->orderBy('semester')->orderBy('name')]);
+        $career->load(['subjects' => static fn ($query) => $query
+            ->pensumBase()
+            ->orderBy('semester')
+            ->orderBy('name')]);
 
         $pdfContent = PensumPdf::make([
             'name' => $career->name,
@@ -48,7 +51,9 @@ class AdminPensumController extends Controller
         $this->authorizeView($request);
 
         $careers = Career::query()
-            ->with(['subjects:id,career_id,semester,credits'])
+            ->with(['subjects' => static fn ($query) => $query
+                ->pensumBase()
+                ->select('id', 'career_id', 'semester', 'credits')])
             ->orderBy('name')
             ->get()
             ->map(static function (Career $career): array {
@@ -87,12 +92,12 @@ class AdminPensumController extends Controller
                 ],
                 [
                     'label' => 'Materias',
-                    'value' => (string) Subject::query()->count(),
+                    'value' => (string) Subject::query()->pensumBase()->count(),
                     'tone' => 'navy',
                 ],
                 [
                     'label' => 'Créditos',
-                    'value' => (string) Subject::query()->sum('credits'),
+                    'value' => (string) Subject::query()->pensumBase()->sum('credits'),
                     'tone' => 'gold',
                 ],
             ],
@@ -109,6 +114,7 @@ class AdminPensumController extends Controller
 
         $career->load([
             'subjects' => static fn ($query) => $query
+                ->pensumBase()
                 ->orderBy('semester')
                 ->orderBy('name'),
         ]);
@@ -154,6 +160,7 @@ class AdminPensumController extends Controller
                         'practice_hours' => $subject->practice_hours,
                         'component' => $subject->component,
                         'type' => $subject->type,
+                        'is_elective_slot' => $subject->isElectiveSlot(),
                         'area' => $subject->area,
                         'level' => $subject->level,
                         'modality' => $subject->modality,

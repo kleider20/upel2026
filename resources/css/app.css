@@ -393,4 +393,49 @@
     .pensum-print-table tr {
         break-inside: avoid;
     }
+
+    body.evaluation-sheet-print > * {
+        display: none !important;
+    }
+
+    body.evaluation-sheet-print > .evaluation-sheet-modal {
+        display: block !important;
+        position: static !important;
+        inset: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        background: #fff !important;
+        backdrop-filter: none !important;
+    }
+
+    .evaluation-sheet-modal .evaluation-sheet-modal-card {
+        max-width: none !important;
+        overflow: visible !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .evaluation-sheet-modal .evaluation-sheet-scroll {
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    .evaluation-sheet-document {
+        width: 100% !important;
+        max-width: none !important;
+        border: 0 !important;
+        padding: 0 !important;
+        font-size: 7pt !important;
+    }
+
+    .evaluation-sheet-table thead {
+        display: table-header-group;
+    }
+
+    .evaluation-sheet-table tr {
+        break-inside: avoid;
+    }
 }

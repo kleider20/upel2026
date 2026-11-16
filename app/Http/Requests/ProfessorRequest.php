@@ -28,6 +28,9 @@ class ProfessorRequest extends FormRequest
             'name' => trim((string) $this->input('name')),
             'email' => Str::lower(trim((string) $this->input('email'))),
             'employee_code' => Str::upper(trim((string) $this->input('employee_code'))),
+            'identity_document' => $this->filled('identity_document')
+                ? Str::upper(trim((string) $this->input('identity_document')))
+                : null,
             'department' => $this->filled('department')
                 ? trim((string) $this->input('department'))
                 : null,
@@ -56,6 +59,7 @@ class ProfessorRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', $emailRule],
             'employee_code' => ['required', 'string', 'max:255', $employeeCodeRule],
+            'identity_document' => ['nullable', 'string', 'max:20'],
             'department' => ['nullable', 'string', 'max:255'],
             'academic_title' => ['nullable', 'string', 'max:255'],
             'password' => $professor === null
@@ -77,6 +81,7 @@ class ProfessorRequest extends FormRequest
         return [
             'employee_code.required' => 'Indica el código del profesor.',
             'employee_code.unique' => 'Ya existe un profesor con ese código.',
+            'identity_document.max' => 'La cédula no puede superar los 20 caracteres.',
             'password.required' => 'Define una contraseña temporal para el profesor.',
             'password.confirmed' => 'La confirmación de la contraseña no coincide.',
             'subject_ids.present' => 'Indica las materias asignadas, aunque no se seleccione ninguna.',

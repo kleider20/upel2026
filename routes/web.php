@@ -16,9 +16,13 @@ use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\AdmissionLookupController;
 use App\Http\Controllers\Auth\PasswordDefinitionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EvaluationPlanItemController;
+use App\Http\Controllers\EvaluationPlanScoreController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\NewsletterSubscriptionController;
+use App\Http\Controllers\ProfessorEvaluationPlanController;
 use App\Http\Controllers\ProfessorGradeController;
+use App\Http\Controllers\ProfessorWorkspaceController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\StudentDocumentController;
 use App\Http\Controllers\Student\StudentNotificationController;
@@ -203,6 +207,39 @@ Route::middleware(['auth', 'verified', 'password.defined'])->group(function () {
     Route::put('dashboard/notas/{enrollment}', [ProfessorGradeController::class, 'update'])
         ->middleware('role:profesor')
         ->name('professor.grades.update');
+
+    Route::middleware('role:profesor')->group(function () {
+        Route::get('dashboard/estudiantes', [ProfessorWorkspaceController::class, 'students'])
+            ->name('professor.students');
+        Route::get('dashboard/cargar-notas', [ProfessorWorkspaceController::class, 'grades'])
+            ->name('professor.grades.index');
+        Route::get('dashboard/mis-carreras', [ProfessorWorkspaceController::class, 'careers'])
+            ->name('professor.careers');
+    });
+
+    Route::middleware('role:profesor')
+        ->prefix('dashboard/planes-evaluacion')
+        ->name('professor.plans.')
+        ->group(function () {
+            Route::get('/', [ProfessorEvaluationPlanController::class, 'index'])
+                ->name('index');
+            Route::get('crear', [ProfessorEvaluationPlanController::class, 'create'])
+                ->name('create');
+            Route::post('/', [ProfessorEvaluationPlanController::class, 'store'])
+                ->name('store');
+            Route::delete('{plan}', [ProfessorEvaluationPlanController::class, 'destroy'])
+                ->name('destroy');
+            Route::post('{plan}/evaluaciones', [EvaluationPlanItemController::class, 'store'])
+                ->name('items.store');
+            Route::put('{plan}/evaluaciones/{item}', [EvaluationPlanItemController::class, 'update'])
+                ->name('items.update');
+            Route::delete('{plan}/evaluaciones/{item}', [EvaluationPlanItemController::class, 'destroy'])
+                ->name('items.destroy');
+            Route::put('{plan}/notas', [EvaluationPlanScoreController::class, 'update'])
+                ->name('scores.update');
+            Route::get('{plan}', [ProfessorEvaluationPlanController::class, 'show'])
+                ->name('show');
+        });
 });
 
 Route::middleware(['auth', 'verified', 'role:estudiante', 'password.defined'])

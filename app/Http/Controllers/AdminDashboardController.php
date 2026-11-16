@@ -68,7 +68,7 @@ class AdminDashboardController extends Controller
         }
 
         return Career::query()
-            ->withCount('subjects')
+            ->withCount(['subjects as subjects_count' => static fn ($query) => $query->pensumBase()])
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'icon'])
             ->map(static fn (Career $career): array => [

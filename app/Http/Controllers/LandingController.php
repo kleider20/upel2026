@@ -47,6 +47,7 @@ class LandingController extends Controller
                 ->orderBy('schedule')
                 ->orderBy('shift'),
             'subjects' => static fn ($query) => $query
+                ->pensumBase()
                 ->where('is_active', true)
                 ->orderBy('semester')
                 ->orderBy('name'),
@@ -139,17 +140,26 @@ class LandingController extends Controller
                 'label' => StudentSchedule::roman($semester),
                 'credits' => $group->sum('credits'),
                 'subjects' => $group
-                    ->map(static fn (Subject $subject): array => [
-                        'id' => $subject->id,
-                        'code' => $subject->code,
-                        'name' => $subject->name,
-                        'credits' => $subject->credits,
-                        'theory_hours' => $subject->theory_hours,
-                        'practice_hours' => $subject->practice_hours,
-                        'modality' => $subject->modality,
-                        'modality_label' => $subject->modalityLabel(),
-                        'prerequisites' => $subject->prerequisites,
-                    ])
+                    ->map(static function (Subject $subject): array {
+                        $label = $subject->pensumLabel();
+
+                        return [
+                            'id' => $subject->id,
+                            'code' => $label['code'],
+                            'name' => $label['name'],
+                            'credits' => $subject->credits,
+                            'theory_hours' => $subject->theory_hours,
+                            'practice_hours' => $subject->practice_hours,
+                            'component' => $subject->component,
+                            'type' => $subject->type,
+                            'area' => $subject->area,
+                            'level' => $subject->level,
+                            'is_elective_slot' => $subject->isElectiveSlot(),
+                            'modality' => $subject->modality,
+                            'modality_label' => $subject->modalityLabel(),
+                            'prerequisites' => $subject->prerequisites,
+                        ];
+                    })
                     ->values()
                     ->all(),
             ])

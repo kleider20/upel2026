@@ -188,6 +188,25 @@ administrador puede abrir, editar o eliminar perfiles estudiantiles.
 > semestre). El profesor es **Dra. Carmen Alicia Rojas**. El graduado es **Pedro José
 > González** (Lengua y Literatura).
 
+### Docentes de demostración (horario de Educación Primaria)
+
+`DemoProfessorSeeder` crea siete docentes con acceso al portal de profesores. Todos entran
+con la contraseña **`test123`** y el sistema les exige cambiarla en el primer inicio de
+sesión (`must_change_password`).
+
+| Docente            | Correo                              |
+| ------------------ | ----------------------------------- |
+| Edilia Díaz        | `edilia.diaz.demo@upel.test`        |
+| María De Abreu     | `maria.deabreu.demo@upel.test`      |
+| Amada Prim         | `amada.prim.demo@upel.test`         |
+| Benilde Figueroa   | `benilde.figueroa.demo@upel.test`   |
+| Leonardo Díaz      | `leonardo.diaz.demo@upel.test`      |
+| José Peñaloza      | `jose.penaloza.demo@upel.test`      |
+| Christian Alviarez | `christian.alviarez.demo@upel.test` |
+
+> Volver a ejecutar `php artisan db:seed --class=DemoProfessorSeeder` restablece la
+> contraseña `test123` y vuelve a pedir el cambio en el próximo acceso.
+
 ## 8. Modelo de datos
 
 | Tabla                                     | Propósito                                                                            |

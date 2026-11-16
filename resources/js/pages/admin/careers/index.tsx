@@ -42,6 +42,7 @@ type CareerRow = {
     code: string;
     description: string | null;
     degree: string;
+    program_label: string;
     icon: string | null;
     image_url: string | null;
     duration_semesters: number;
@@ -410,7 +411,8 @@ export default function AdminCareersIndex({
                                                         </p>
                                                         <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
                                                             {row.code} ·{' '}
-                                                            {row.degree}
+                                                            {row.degree} ·{' '}
+                                                            {row.program_label}
                                                         </p>
                                                     </div>
                                                 </div>

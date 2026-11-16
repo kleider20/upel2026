@@ -19,6 +19,12 @@ class ProfessorProfileFactory extends Factory
         return [
             'user_id' => User::factory(),
             'employee_code' => strtoupper(fake()->unique()->bothify('PROF-####')),
+            'identity_document' => sprintf(
+                'V-%s.%s.%s',
+                fake()->numberBetween(5, 19),
+                fake()->numberBetween(100, 999),
+                fake()->numberBetween(100, 999),
+            ),
             'department' => fake()->randomElement([
                 'Pedagogía',
                 'Lengua y Literatura',
