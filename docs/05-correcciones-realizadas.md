@@ -172,11 +172,76 @@ corrección.
 - **Verificación:** `tests/Feature/StudentPortalTest.php` y revisión visual de la pestaña
   “Mi Perfil”.
 
+### P-01 · Ruta de página con mayúsculas (`Student/Dashboard/Index`)
+
+- **Síntoma:** el controlador renderizaba `Student/Dashboard/Index`; en Linux la
+  resolución de archivos distingue mayúsculas y la página no se encontraría.
+- **Corrección (16/11/2026):** cada sección del portal tiene su propia página en
+  `resources/js/pages/student/<sección>/index.tsx` (`dashboard`, `solicitud`, `materias`,
+  `calificaciones`, `profesores`, `pensum`, `horario`, `perfil`, `tramites`) y el
+  controlador renderiza `student/<sección>/index`. El perfil del docente pasó de
+  `Student/Professor/Show.tsx` a `student/professor/show.tsx`.
+- **Archivos:** `app/Http/Controllers/Student/DashboardController.php`,
+  `app/Http/Controllers/Student/StudentProfessorController.php`,
+  `resources/js/pages/student/**`, `routes/web.php`
+- **Verificación:** `tests/Feature/StudentPortalTest.php` valida el nombre de componente
+  de las nueve páginas.
+
+### P-02 · Escala de notas inconsistente en el portal del estudiante
+
+- **Síntoma:** la interfaz mostraba “Escala 1–20 · Mín. aprobatoria 10” mientras el resto
+  de la plataforma usa la escala sobre 10 con mínima 6 en los planes de evaluación.
+- **Corrección (16/11/2026):** los cortes, el promedio por materia y el promedio general
+  se calculan sobre 10 con `App\Support\StudentGrades`; `MisCalificaciones` e `Inicio`
+  muestran la escala 1–10 y cada evaluación del plan se lista con su nota sobre 20 y su
+  aporte sobre 10.
+- **Archivos:** `app/Support/StudentGrades.php`,
+  `app/Http/Controllers/Student/DashboardController.php`,
+  `resources/js/components/student/modules/MisCalificaciones.tsx`,
+  `resources/js/components/student/modules/Inicio.tsx`
+- **Verificación:** `tests/Feature/StudentPortalTest.php` (cortes, promedio, condición y
+  detalle de evaluaciones).
+
+### P-12 · Datos no deterministas por `rand()`
+
+- **Síntoma:** los cortes N1/N2/N3 cambiaban en cada recarga porque se generaban con
+  `rand()`.
+- **Corrección (16/11/2026):** se eliminaron los `rand()`; los cortes salen de
+  `evaluation_plan_scores` del plan del docente.
+- **Archivos:** `app/Http/Controllers/Student/DashboardController.php`,
+  `app/Support/StudentGrades.php`
+- **Verificación:** pruebas de notas por corte en `tests/Feature/StudentPortalTest.php`.
+
+### P-19 · Dashboard del estudiante con datos de ejemplo y doble layout
+
+- **Síntoma:** `/estudiante/dashboard` montaba un segundo dashboard alrededor de la página
+  (el resolvedor de layouts no reconocía la ruta `student/...`), “Mis materias en curso”
+  mostraba siempre “Cursando” y “Actividad reciente” / “Próximas evaluaciones” eran textos
+  fijos que no existían en la base de datos. Además, “Mis calificaciones” mostraba cortes
+  semestrales en lugar de las evaluaciones cargadas por el docente y el pénsum mantenía la
+  materia en “Cursando” aunque el plan ya estuviera completo.
+- **Corrección (16/11/2026):** `app.tsx` devuelve `null` como layout para `student/*`;
+  `App\Support\StudentGrades` lista las evaluaciones del plan y calcula la **definitiva**
+  sobre 10 (`EvaluationPlanGrading::accumulatedTen`), que alimenta la condición
+  Aprobado/Reprobado/Faltan notas/Plan incompleto/Cursando; `MisCalificaciones` usa
+  acordeones Período → Materia → evaluaciones, con definitiva y condición por materia;
+  la actividad reciente y las próximas evaluaciones se arman con `evaluation_plan_scores`,
+  las notificaciones de horario y el historial de admisión; el pénsum marca
+  Aprobada/Reprobada según esa definitiva.
+- **Archivos:** `resources/js/app.tsx`, `app/Support/StudentGrades.php`,
+  `app/Http/Controllers/Student/DashboardController.php`,
+  `resources/js/components/student/modules/Inicio.tsx`,
+  `resources/js/components/student/modules/MisCalificaciones.tsx`,
+  `resources/js/components/student/modules/MiCarreraPensum.tsx`,
+  `resources/js/types/student.ts`, `tests/Feature/StudentPortalTest.php`
+- **Verificación:** `tests/Feature/StudentPortalTest.php` (definitiva, condición, pénsum,
+  actividad reciente y próximas evaluaciones).
+
 ## Resumen de verificación final
 
 | Comprobación                             | Resultado                                                                                                                    |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `php artisan test --compact`             | 163 pruebas · 163 aprobadas · 887 aserciones                                                                                 |
+| `php artisan test --compact`             | 373 pruebas · 373 aprobadas · 3712 aserciones                                                                                |
 | `npm run types:check`                    | Sin errores                                                                                                                  |
 | `vendor/bin/pint --dirty --format agent` | Sin cambios pendientes                                                                                                       |
 | `npm run build`                          | Compilación correcta                                                                                                         |

@@ -313,7 +313,7 @@ test('el historial registra la carga y la revisión del documento para el estudi
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->has('admission.history', 2)
             ->where('admission.history.0.title', $reviewTitle)
             ->where('admission.history.0.changed_by', $admin->name)

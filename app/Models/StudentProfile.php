@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property-read Career|null $career
  * @property-read User $user
  * @property int $user_id
+ * @property string|null $identity_document
  * @property int|null $career_id
  * @property string $student_code
  * @property int $current_semester
@@ -29,10 +30,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $shift
  * @property string|null $advisor
  * @property int|null $admission_year
+ * @property string|null $cohort
  * @property int|null $graduation_year
  */
 #[Fillable([
     'user_id',
+    'identity_document',
     'career_id',
     'student_code',
     'current_semester',
@@ -46,6 +49,7 @@ use Illuminate\Support\Carbon;
     'shift',
     'advisor',
     'admission_year',
+    'cohort',
     'graduation_year',
 ])]
 class StudentProfile extends Model

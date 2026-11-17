@@ -64,7 +64,9 @@ final class StudentProfilePrivacy
             'emergency_contact' => $profile->emergency_contact,
             'birth_date' => ($profile->birth_date ?? $admission?->birth_date)?->format('d/m/Y'),
             'birth_place' => $profile->birth_place,
-            'id_number' => $admission?->formattedIdNumber(),
+            'id_number' => $profile->identity_document !== null
+                ? 'V-'.$profile->identity_document
+                : $admission?->formattedIdNumber(),
             'nationality' => $admission?->nationalityLabel(),
             'gender' => $admission?->genderLabel(),
             'status' => $profile->statusLabel(),
@@ -82,6 +84,7 @@ final class StudentProfilePrivacy
                 : null,
             'review_notes' => $admission?->review_notes,
             'admission_year' => $profile->admission_year,
+            'cohort' => $profile->cohort,
             'graduation_year' => $profile->graduation_year,
         ];
     }

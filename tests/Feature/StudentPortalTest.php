@@ -8,6 +8,9 @@ use App\Models\AcademicPeriod;
 use App\Models\Admission;
 use App\Models\Career;
 use App\Models\Enrollment;
+use App\Models\EvaluationPlan;
+use App\Models\EvaluationPlanItem;
+use App\Models\EvaluationPlanScore;
 use App\Models\ProfessorProfile;
 use App\Models\Schedule;
 use App\Models\StudentProfile;
@@ -69,7 +72,7 @@ test('el dashboard expone el expediente de admisión del estudiante', function (
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('admission.code', $admission->code)
             ->where('admission.status', AdmissionStatus::Convertida->value)
             ->where('admission.status_label', 'Estudiante')
@@ -110,7 +113,7 @@ test('el dashboard expone la fotografía tipo carnet del expediente como avatar'
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('photo_url', route('student.photo', absolute: false))
             ->where('admission.documents.0.type', AdmissionDocumentType::Foto->value)
         );
@@ -123,7 +126,7 @@ test('el dashboard no expone avatar cuando el expediente no tiene fotografía', 
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('photo_url', null)
         );
 });
@@ -196,7 +199,7 @@ test('el dashboard no inventa datos cuando no hay solicitud de admisión', funct
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('admission', null)
             ->where('profile.id_number', null)
         );
@@ -247,7 +250,7 @@ test('el dashboard expone la modalidad de preinscripción y la duración del pé
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('profile.modality', 'Presencial')
             ->where('profile.duration_semesters', 8)
             ->where('pensum.0.semester', 1)
@@ -322,7 +325,7 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->has('pensum.0.subjects', 1)
             ->where('pensum.0.subjects.0.name', 'Uncle Del Componente De Formación CFC UNCLE 2 2 4 Contextualizada')
             ->where('pensum.0.subjects.0.code', 'UNCLE')
@@ -341,7 +344,7 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('pensum.0.subjects.0.name', 'Educación Alimentaria y Nutrición')
             ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
             ->where('pensum.0.subjects.0.is_elective', true)
@@ -414,7 +417,7 @@ test('el pénsum del estudiante revela la materia de libre elección agregada a 
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('pensum.0.subjects.0.name', 'Educación Alimentaria y Nutrición')
             ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
             ->where('pensum.0.subjects.0.is_assigned', true)
@@ -475,7 +478,7 @@ test('el horario base del período sustituye el bloque de libre elección', func
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('pensum.0.subjects.0.name', 'Educación Alimentaria y Nutrición')
             ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
             ->where('pensum.0.subjects.0.is_assigned', true)
@@ -511,7 +514,7 @@ test('el horario del estudiante sabatino muestra las 16 semanas del documento of
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('schedule.schedule_label', 'Sabatino')
             ->has('schedule.weeks', 16)
             ->where('schedule.weeks.0.day', '18')
@@ -871,7 +874,7 @@ test('mis materias muestra las materias del horario con el docente asignado', fu
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->has('subjects', 2)
             ->where('subjects.0.code', $subjects->first()->code)
             ->where('subjects.0.subject', $subjects->first()->name)
@@ -946,7 +949,7 @@ test('el estudiante consulta el perfil del docente asignado en su horario', func
         ->get(route('student.professors.show', $professor->id))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Professor/Show')
+            ->component('student/professor/show')
             ->where('professor.name', 'Ana Pérez')
             ->where('professor.email', $professor->email)
             ->where('professor.department', 'Lengua y Literatura')
@@ -956,7 +959,7 @@ test('el estudiante consulta el perfil del docente asignado en su horario', func
             ->where('professor.subjects.0.code', $subjects->first()->code)
             ->where('professor.subjects.0.name', $subjects->first()->name)
             ->where('professor.subjects.0.modality', 'Presencial')
-            ->where('subjects_url', '/dashboard?tab=materias')
+            ->where('subjects_url', '/estudiante/materias')
         );
 });
 
@@ -970,4 +973,279 @@ test('el perfil del docente solo se expone a estudiantes y a docentes reales', f
     $this->actingAs($professor)
         ->get(route('student.professors.show', $professor->id))
         ->assertForbidden();
+});
+
+/**
+ * Inscribe al estudiante en una materia y crea el plan del docente con las
+ * notas indicadas (null deja la evaluación sin calificar).
+ *
+ * @param  array<int, float|null>  $scores
+ */
+function enrollmentWithEvaluationPlan(
+    User $student,
+    User $professor,
+    Schedule $schedule,
+    Subject $subject,
+    array $scores,
+): Enrollment {
+    $period = AcademicPeriod::factory()->create([
+        'name' => '2026-II',
+        'is_active' => true,
+    ]);
+
+    $enrollment = Enrollment::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => $subject->id,
+        'academic_period_id' => $period->id,
+        'professor_id' => $professor->id,
+    ]);
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $professor->id,
+        'schedule_id' => $schedule->id,
+        'subject_id' => $subject->id,
+        'academic_period_id' => $period->id,
+    ]);
+
+    foreach (array_values($scores) as $index => $score) {
+        $item = EvaluationPlanItem::factory()->create([
+            'evaluation_plan_id' => $plan->id,
+            'position' => $index + 1,
+            'title' => 'Evaluación '.($index + 1),
+            'weight' => 20,
+            'scheduled_on' => now()->addDays($index + 1)->toDateString(),
+        ]);
+
+        if ($score === null) {
+            continue;
+        }
+
+        EvaluationPlanScore::factory()->create([
+            'evaluation_plan_item_id' => $item->id,
+            'enrollment_id' => $enrollment->id,
+            'score' => $score,
+        ]);
+    }
+
+    return $enrollment;
+}
+
+test('cada elemento de la sidebar del portal del estudiante es una página independiente', function (
+    string $routeName,
+    string $component,
+) {
+    [$user] = convertedStudent();
+
+    $this->actingAs($user)
+        ->get(route($routeName))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component($component));
+})->with([
+    ['student.dashboard', 'student/dashboard/index'],
+    ['student.solicitud', 'student/solicitud/index'],
+    ['student.materias', 'student/materias/index'],
+    ['student.calificaciones', 'student/calificaciones/index'],
+    ['student.profesores', 'student/profesores/index'],
+    ['student.pensum', 'student/pensum/index'],
+    ['student.horario', 'student/horario/index'],
+    ['student.perfil', 'student/perfil/index'],
+    ['student.tramites', 'student/tramites/index'],
+]);
+
+test('las notas del docente se reflejan en las evaluaciones y la definitiva del estudiante', function () {
+    [$student, $professor, $schedule, $subjects] = studentWithTeachingSchedule();
+    $subject = $subjects->first();
+
+    enrollmentWithEvaluationPlan(
+        $student,
+        $professor,
+        $schedule,
+        $subject,
+        [20, 16, 14, 10, 18],
+    );
+
+    $this->actingAs($student)
+        ->get(route('student.calificaciones'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/calificaciones/index')
+            ->has('enrollments', 1)
+            ->where('enrollments.0.period', '2026-II')
+            ->where('enrollments.0.items_count', 5)
+            ->where('enrollments.0.graded_count', 5)
+            ->where('enrollments.0.definitive', 7.8)
+            ->where('enrollments.0.status', 'aprobado')
+            ->where('enrollments.0.status_label', 'Aprobado')
+            ->has('enrollments.0.evaluations', 5)
+            ->where('enrollments.0.evaluations.0.title', 'Evaluación 1')
+            ->where('enrollments.0.evaluations.0.score', 20)
+            ->where('enrollments.0.evaluations.0.contribution', 2)
+            ->where('enrollments.0.evaluations.4.contribution', 1.8)
+            ->where('recent_activity', function (Collection $activity) use ($subject): bool {
+                return $activity->contains(
+                    static fn (array $item): bool => $item['title'] === 'Notas de '.$subject->name.' publicadas'
+                        && $item['detail'] === '5 de 5 evaluaciones calificadas',
+                );
+            })
+            ->has('upcoming_evaluations', 0)
+            ->where('summary.average', 7.8)
+            ->where('summary.approved_count', 1)
+            ->where('summary.pending_count', 0)
+        );
+});
+
+test('el estudiante con notas pendientes aparece con la condición faltan notas', function () {
+    [$student, $professor, $schedule, $subjects] = studentWithTeachingSchedule();
+
+    enrollmentWithEvaluationPlan(
+        $student,
+        $professor,
+        $schedule,
+        $subjects->first(),
+        [20, 16, null, null, null],
+    );
+
+    $this->actingAs($student)
+        ->get(route('student.calificaciones'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('enrollments.0.graded_count', 2)
+            ->where('enrollments.0.definitive', 3.6)
+            ->where('enrollments.0.status', 'faltan_notas')
+            ->where('enrollments.0.status_label', 'Faltan notas')
+            ->where('enrollments.0.evaluations.2.score', null)
+            ->has('upcoming_evaluations', 3)
+            ->where('upcoming_evaluations.0.title', 'Evaluación 3')
+            ->where('summary.pending_count', 1)
+            ->where('summary.approved_count', 0)
+        );
+});
+
+test('el estudiante con el plan completo y definitiva menor a 6 queda reprobado', function () {
+    [$student, $professor, $schedule, $subjects] = studentWithTeachingSchedule();
+
+    enrollmentWithEvaluationPlan(
+        $student,
+        $professor,
+        $schedule,
+        $subjects->first(),
+        [6, 6, 6, 6, 6],
+    );
+
+    $this->actingAs($student)
+        ->get(route('student.calificaciones'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('enrollments.0.graded_count', 5)
+            ->where('enrollments.0.definitive', 3)
+            ->where('enrollments.0.status', 'reprobado')
+            ->where('enrollments.0.status_label', 'Reprobado')
+            ->where('summary.average', 3)
+        );
+});
+
+test('la materia sin plan de evaluación se mantiene en condición cursando', function () {
+    [$student, $professor, , $subjects] = studentWithTeachingSchedule();
+
+    Enrollment::factory()->create([
+        'student_id' => $student->id,
+        'subject_id' => $subjects->first()->id,
+        'professor_id' => $professor->id,
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.calificaciones'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('enrollments.0.items_count', 0)
+            ->where('enrollments.0.definitive', null)
+            ->where('enrollments.0.status', 'cursando')
+            ->where('enrollments.0.status_label', 'Cursando')
+            ->where('summary.average', null)
+        );
+});
+
+test('la actividad reciente solo refleja eventos guardados en la base de datos', function () {
+    [$student] = convertedStudent();
+
+    $this->actingAs($student)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/dashboard/index')
+            ->has('recent_activity', 0)
+            ->has('upcoming_evaluations', 0)
+        );
+});
+
+test('la actividad reciente muestra el horario publicado al estudiante', function () {
+    [$student] = convertedStudent();
+    $schedule = Schedule::factory()->create();
+
+    $student->notify(new SchedulePublishedNotification($schedule));
+
+    $this->actingAs($student)
+        ->get(route('student.dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('recent_activity', 1)
+            ->where('recent_activity.0.title', 'Horario de clases')
+            ->where('recent_activity.0.detail', 'Se ha publicado tu horario de clases.')
+            ->where('recent_activity.0.tone', 'blue')
+        );
+});
+
+test('el pénsum marca la materia como aprobada cuando el plan del docente está completo', function () {
+    [$student, $professor, $schedule, $subjects] = studentWithTeachingSchedule();
+    $subject = $subjects->first();
+
+    enrollmentWithEvaluationPlan(
+        $student,
+        $professor,
+        $schedule,
+        $subject,
+        [20, 16, 14, 10, 18],
+    );
+
+    $this->actingAs($student)
+        ->get(route('student.pensum'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/pensum/index')
+            ->where('pensum', function (Collection $pensum) use ($subject): bool {
+                $row = $pensum
+                    ->flatMap(static fn (array $group): Collection => collect($group['subjects']))
+                    ->firstWhere('code', $subject->code);
+
+                return $row !== null
+                    && $row['status'] === 'aprobado'
+                    && abs((float) $row['grade'] - 7.8) < 0.001;
+            })
+        );
+});
+
+test('el pénsum marca la materia como reprobada cuando la definitiva no aprueba', function () {
+    [$student, $professor, $schedule, $subjects] = studentWithTeachingSchedule();
+    $subject = $subjects->first();
+
+    enrollmentWithEvaluationPlan(
+        $student,
+        $professor,
+        $schedule,
+        $subject,
+        [6, 6, 6, 6, 6],
+    );
+
+    $this->actingAs($student)
+        ->get(route('student.pensum'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('pensum', function (Collection $pensum) use ($subject): bool {
+                $row = $pensum
+                    ->flatMap(static fn (array $group): Collection => collect($group['subjects']))
+                    ->firstWhere('code', $subject->code);
+
+                return $row !== null && $row['status'] === 'reprobado';
+            })
+        );
 });

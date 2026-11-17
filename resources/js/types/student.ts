@@ -36,6 +36,14 @@ export type StudentSummary = {
     progress: number;
 };
 
+export type StudentEvaluation = {
+    title: string;
+    scheduled_on: string;
+    weight: number;
+    score: number | null;
+    contribution: number | null;
+};
+
 export type StudentEnrollment = {
     id: number;
     subject: string | null;
@@ -45,14 +53,13 @@ export type StudentEnrollment = {
     career: string | null;
     period: string | null;
     professor: string | null;
-    n1: number | null;
-    n2: number | null;
-    n3: number | null;
-    final: number | null;
-    grade: number | null;
+    definitive: number | null;
     status: string;
     status_label: string;
     status_tone: string;
+    graded_count: number;
+    items_count: number;
+    evaluations: StudentEvaluation[];
     modality?: string;
 };
 
@@ -67,15 +74,12 @@ export type StudentSubject = {
     professor: string | null;
     professor_id: number | null;
     professor_url: string | null;
-    n1: number | null;
-    n2: number | null;
-    n3: number | null;
-    final: number | null;
     grade: number | null;
     status: string;
     status_label: string;
     status_tone: string;
     modality: string | null;
+    attempts: number;
 };
 
 export type StudentTeacher = {
@@ -99,7 +103,7 @@ export type StudentPensumSubject = {
     type?: string | null;
     is_elective?: boolean;
     is_assigned?: boolean;
-    status: 'aprobado' | 'cursando' | 'pendiente';
+    status: 'aprobado' | 'reprobado' | 'cursando' | 'pendiente';
     grade: number | null;
 };
 
@@ -231,6 +235,24 @@ export type StudentAdmission = {
     history: StudentAdmissionHistory[];
 };
 
+export type StudentActivity = {
+    id: string;
+    title: string;
+    detail: string | null;
+    date: string;
+    when: string;
+    tone: string;
+};
+
+export type StudentUpcomingEvaluation = {
+    id: string;
+    title: string;
+    subject: string | null;
+    code: string | null;
+    date: string;
+    scheduled_on: string;
+};
+
 export type StudentDashboardProps = {
     profile: StudentProfileData | null;
     admission: StudentAdmission | null;
@@ -238,6 +260,8 @@ export type StudentDashboardProps = {
     document_types: StudentDocumentTypeOption[];
     documents_upload_url: string;
     summary: StudentSummary;
+    recent_activity: StudentActivity[];
+    upcoming_evaluations: StudentUpcomingEvaluation[];
     enrollments: StudentEnrollment[];
     subjects: StudentSubject[];
     teachers: StudentTeacher[];
@@ -272,4 +296,119 @@ export type StudentProfessorPageProps = {
     professor: StudentProfessorProfile;
     dashboard_url: string;
     subjects_url: string;
+};
+
+export type StudentEnrollmentNotice = {
+    is_open: boolean;
+    submitted: boolean;
+    url: string;
+    opens_at: string;
+    closes_at: string;
+    reason: 'manual' | 'before' | 'after' | '';
+};
+
+export type StudentEnrollmentWindow = {
+    is_open: boolean;
+    opens_at: string;
+    closes_at: string;
+    reason: 'manual' | 'before' | 'after' | '';
+};
+
+export type StudentEnrollmentPeriod = {
+    id: number;
+    name: string;
+    starts_at: string;
+    ends_at: string;
+};
+
+export type StudentEnrollmentStudent = {
+    name: string;
+    identity_document: string | null;
+    student_code: string | null;
+    career: string | null;
+    career_code: string | null;
+    current_semester: number | null;
+    next_semester: number;
+    cohort: string | null;
+    modality: string | null;
+    shift: string | null;
+};
+
+export type StudentEnrollmentCredits = {
+    budget: number;
+    required: number;
+    available: number;
+    selected: number;
+    approved: number;
+    total: number;
+};
+
+export type StudentEnrollmentSubjectOption = {
+    subject_id: number;
+    code: string;
+    name: string;
+    credits: number;
+    semester: number;
+    professor: string | null;
+    kind: 'failed' | 'next';
+    is_locked: boolean;
+    is_selected: boolean;
+    has_enrollment: boolean;
+    definitive: number | null;
+    previous_period: string | null;
+    attempts: number;
+};
+
+export type StudentEnrollmentSuspension = {
+    is_suspended: boolean;
+    subjects: string[];
+    message: string | null;
+};
+
+export type StudentEnrollmentSheetRow = {
+    pa: number;
+    name: string;
+    component: string;
+    type: string;
+    credits: number;
+    enrolled: boolean;
+};
+
+export type StudentEnrollmentSheet = {
+    student: {
+        identity_document: string | null;
+        period: string | null;
+        cohort: string | null;
+        specialty: string;
+        entity: string;
+        first_surname: string;
+        second_surname: string;
+        first_name: string;
+        second_name: string;
+        birth_date: string | null;
+        civil_status: string;
+        sex: string;
+        phone: string | null;
+        email: string | null;
+        address: string | null;
+    };
+    period: string;
+    rows: StudentEnrollmentSheetRow[];
+    total_credits: number;
+};
+
+export type StudentEnrollmentPayload = {
+    window: StudentEnrollmentWindow;
+    period: StudentEnrollmentPeriod | null;
+    student: StudentEnrollmentStudent;
+    semester: number;
+    credits: StudentEnrollmentCredits;
+    subjects: StudentEnrollmentSubjectOption[];
+    suspension: StudentEnrollmentSuspension;
+    submitted: boolean;
+    sheet: StudentEnrollmentSheet | null;
+    urls: {
+        store: string;
+        sheet: string;
+    };
 };

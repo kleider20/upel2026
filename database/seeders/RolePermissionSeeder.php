@@ -46,6 +46,7 @@ class RolePermissionSeeder extends Seeder
                 PermissionEnum::StudentsViewPrivate->value,
                 PermissionEnum::AdmissionsView->value,
                 PermissionEnum::AdmissionsReview->value,
+                PermissionEnum::AdmissionsWindow->value,
                 PermissionEnum::RolesManage->value,
             ])),
             RoleEnum::CoordinadorAcademico->value => $academicPermissions,

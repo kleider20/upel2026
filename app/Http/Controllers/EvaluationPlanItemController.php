@@ -31,6 +31,8 @@ class EvaluationPlanItemController extends Controller
 
     /**
      * Actualiza la fecha, el porcentaje o el contenido de una evaluación.
+     *
+     * Las evaluaciones con la fecha cumplida quedan cerradas y no se editan.
      */
     public function update(
         EvaluationPlanItemRequest $request,
@@ -38,6 +40,13 @@ class EvaluationPlanItemController extends Controller
         EvaluationPlanItem $item,
     ): RedirectResponse {
         abort_unless($item->evaluation_plan_id === $plan->id, 404);
+
+        if ($item->isPastDue()) {
+            return back()->with(
+                'error',
+                'La evaluación ya pasó: su fecha quedó cerrada y no puede editarse.',
+            );
+        }
 
         $item->update($request->validated());
 
@@ -48,6 +57,8 @@ class EvaluationPlanItemController extends Controller
 
     /**
      * Elimina la evaluación y reordena las restantes.
+     *
+     * Las evaluaciones con la fecha cumplida quedan cerradas y no se eliminan.
      */
     public function destroy(
         EvaluationPlanItemRequest $request,
@@ -55,6 +66,13 @@ class EvaluationPlanItemController extends Controller
         EvaluationPlanItem $item,
     ): RedirectResponse {
         abort_unless($item->evaluation_plan_id === $plan->id, 404);
+
+        if ($item->isPastDue()) {
+            return back()->with(
+                'error',
+                'La evaluación ya pasó: su fecha quedó cerrada y no puede eliminarse.',
+            );
+        }
 
         DB::transaction(function () use ($plan, $item): void {
             $item->scores()->delete();

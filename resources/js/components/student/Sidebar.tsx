@@ -1,7 +1,8 @@
-import { router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     Calendar,
+    ClipboardCheck,
     ClipboardList,
     FileSearch,
     FileText,
@@ -10,12 +11,16 @@ import {
     LogOut,
     User,
     Users,
+    type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logout } from '@/routes';
+import studentRoutes from '@/routes/student';
+import type { StudentEnrollmentNotice } from '@/types/student';
 
 export type StudentTab =
     | 'inicio'
+    | 'inscripciones'
     | 'solicitud'
     | 'materias'
     | 'calificaciones'
@@ -25,52 +30,61 @@ export type StudentTab =
     | 'perfil'
     | 'tramites';
 
+/**
+ * URL de cada módulo del portal. Cada elemento de la barra lateral es una
+ * página independiente, no una pestaña dentro del mismo componente.
+ */
+export const studentTabHrefs: Record<StudentTab, string> = {
+    inicio: studentRoutes.dashboard.url(),
+    inscripciones: studentRoutes.enrollment.index.url(),
+    solicitud: studentRoutes.solicitud.url(),
+    materias: studentRoutes.materias.url(),
+    calificaciones: studentRoutes.calificaciones.url(),
+    profesores: studentRoutes.profesores.url(),
+    pensum: studentRoutes.pensum.url(),
+    horario: studentRoutes.horario.url(),
+    perfil: studentRoutes.perfil.url(),
+    tramites: studentRoutes.tramites.url(),
+};
+
 type SidebarProps = {
     activeTab: StudentTab;
-    onSelectTab: (tab: StudentTab) => void;
     mobileOpen: boolean;
     onCloseMobile: () => void;
 };
 
-const mainMenuItems = [
+const mainMenuItems: { id: StudentTab; label: string; icon: LucideIcon }[] = [
+    { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
     {
-        id: 'inicio' as StudentTab,
-        label: 'Inicio',
-        icon: LayoutDashboard,
-        section: 'Mi vida académica',
+        id: 'inscripciones',
+        label: 'Inscripción de Materias',
+        icon: ClipboardCheck,
     },
-    { id: 'solicitud' as StudentTab, label: 'Mi Solicitud', icon: FileSearch },
-    { id: 'materias' as StudentTab, label: 'Mis Materias', icon: BookOpen },
-    {
-        id: 'calificaciones' as StudentTab,
-        label: 'Mis Calificaciones',
-        icon: ClipboardList,
-    },
-    { id: 'profesores' as StudentTab, label: 'Mis Profesores', icon: Users },
-    {
-        id: 'pensum' as StudentTab,
-        label: 'Mi Carrera y Pénsum',
-        icon: GraduationCap,
-    },
-    { id: 'horario' as StudentTab, label: 'Mi Horario', icon: Calendar },
+    { id: 'solicitud', label: 'Mi Solicitud', icon: FileSearch },
+    { id: 'materias', label: 'Mis Materias', icon: BookOpen },
+    { id: 'calificaciones', label: 'Mis Calificaciones', icon: ClipboardList },
+    { id: 'profesores', label: 'Mis Profesores', icon: Users },
+    { id: 'pensum', label: 'Mi Carrera y Pénsum', icon: GraduationCap },
+    { id: 'horario', label: 'Mi Horario', icon: Calendar },
 ];
 
-const accountMenuItems = [
-    {
-        id: 'perfil' as StudentTab,
-        label: 'Mi Perfil',
-        icon: User,
-        section: 'Cuenta',
-    },
-    { id: 'tramites' as StudentTab, label: 'Mis Trámites', icon: FileText },
-];
+const accountMenuItems: { id: StudentTab; label: string; icon: LucideIcon }[] =
+    [
+        { id: 'perfil', label: 'Mi Perfil', icon: User },
+        { id: 'tramites', label: 'Mis Trámites', icon: FileText },
+    ];
 
 export function Sidebar({
     activeTab,
-    onSelectTab,
     mobileOpen,
     onCloseMobile,
 }: SidebarProps) {
+    const { studentEnrollment } = usePage<{
+        studentEnrollment: StudentEnrollmentNotice;
+    }>().props;
+    const enrollmentVisible =
+        studentEnrollment.is_open || studentEnrollment.submitted;
+
     const handleLogout = () => {
         router.post(logout.url());
     };
@@ -118,17 +132,21 @@ export function Sidebar({
                             Mi vida académica
                         </p>
                         {mainMenuItems.map((item) => {
+                            if (
+                                item.id === 'inscripciones' &&
+                                !enrollmentVisible
+                            ) {
+                                return null;
+                            }
+
                             const isActive = activeTab === item.id;
                             const Icon = item.icon;
 
                             return (
-                                <button
+                                <Link
                                     key={item.id}
-                                    type="button"
-                                    onClick={() => {
-                                        onSelectTab(item.id);
-                                        onCloseMobile();
-                                    }}
+                                    href={studentTabHrefs[item.id]}
+                                    onClick={onCloseMobile}
                                     className={cn(
                                         'group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-xs font-bold transition-all duration-200',
                                         isActive
@@ -145,7 +163,14 @@ export function Sidebar({
                                         )}
                                     />
                                     <span>{item.label}</span>
-                                </button>
+                                    {item.id === 'inscripciones' &&
+                                    studentEnrollment.is_open ? (
+                                        <span
+                                            className="ml-auto h-1.5 w-1.5 rounded-full bg-upel-gold"
+                                            aria-hidden="true"
+                                        />
+                                    ) : null}
+                                </Link>
                             );
                         })}
                     </div>
@@ -159,13 +184,10 @@ export function Sidebar({
                             const Icon = item.icon;
 
                             return (
-                                <button
+                                <Link
                                     key={item.id}
-                                    type="button"
-                                    onClick={() => {
-                                        onSelectTab(item.id);
-                                        onCloseMobile();
-                                    }}
+                                    href={studentTabHrefs[item.id]}
+                                    onClick={onCloseMobile}
                                     className={cn(
                                         'group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-xs font-bold transition-all duration-200',
                                         isActive
@@ -182,7 +204,14 @@ export function Sidebar({
                                         )}
                                     />
                                     <span>{item.label}</span>
-                                </button>
+                                    {item.id === 'inscripciones' &&
+                                    studentEnrollment.is_open ? (
+                                        <span
+                                            className="ml-auto h-1.5 w-1.5 rounded-full bg-upel-gold"
+                                            aria-hidden="true"
+                                        />
+                                    ) : null}
+                                </Link>
                             );
                         })}
                     </div>

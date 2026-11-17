@@ -207,5 +207,6 @@ ejecuta `vp check`, `npm run types:check` y Pest en cada push a `main` y en cada
 1. Completar **CRUD administrativo** antes de los reportes (necesitan datos confiables).
 2. Persistir **trámites** antes de generar documentos oficiales.
 3. Implementar **períodos académicos** antes del cierre de notas y del índice académico.
-4. Implementar la **inscripción formal / matrícula en línea** (único pendiente del módulo
-   de admisión) sobre las solicitudes ya convertidas en estudiantes.
+4. Completar el **pago de la inscripción** (único pendiente del módulo de admisión): la
+   matrícula en línea ya selecciona las materias del siguiente período y emite la planilla
+   sobre las solicitudes convertidas en estudiantes.

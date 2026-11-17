@@ -130,6 +130,18 @@ class EvaluationPlan extends Model
     }
 
     /**
+     * Indica si todas las evaluaciones del plan tienen la fecha cumplida, es
+     * decir, si el plan ya terminó y queda solo de consulta.
+     */
+    public function isFinished(): bool
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
+        return $items->isNotEmpty()
+            && $items->every(static fn (EvaluationPlanItem $item): bool => $item->isPastDue());
+    }
+
+    /**
      * Etiqueta del ambiente de aprendizaje.
      */
     public function modalityLabel(): string

@@ -1093,7 +1093,7 @@ test('the student schedule prefers the schedule published by the administration'
         ->get(route('student.dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index')
+            ->component('student/dashboard/index')
             ->where('schedule.cohort', '2026-I')
             ->where('schedule.period', 'I')
             ->where('schedule.career', 'Educación Primaria')

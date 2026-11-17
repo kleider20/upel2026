@@ -61,6 +61,7 @@ type StudentPrivate = {
     high_school_average: string | null;
     review_notes: string | null;
     admission_year: number | null;
+    cohort: string | null;
     graduation_year: number | null;
 };
 
@@ -461,6 +462,10 @@ export default function StudentProfilePage({
                                         privateData.admission_year ??
                                         student.period_year
                                     }
+                                />
+                                <DataItem
+                                    label="Cohorte"
+                                    value={privateData.cohort}
                                 />
                                 <DataItem
                                     label="Año de graduación"

@@ -5,6 +5,8 @@ import {
     ArrowLeft,
     CalendarDays,
     Eye,
+    ListChecks,
+    Lock,
     PencilLine,
     Plus,
     Printer,
@@ -16,8 +18,10 @@ import InputError from '@/components/input-error';
 import { EmptyState } from '@/components/portal/empty-state';
 import { PageHeader } from '@/components/portal/page-header';
 import { ToneBadge } from '@/components/portal/tone-badge';
+import { EvaluationItemScoresDialog } from '@/components/professor/evaluation-item-scores-dialog';
 import { EvaluationPlanSheet } from '@/components/professor/evaluation-plan-sheet';
 import type { GradingLimits } from '@/lib/evaluation-plan';
+import { cn } from '@/lib/utils';
 import professorRoutes from '@/routes/professor';
 import planRoutes from '@/routes/professor/plans';
 
@@ -29,6 +33,7 @@ type PlanItem = {
     weight: number;
     scheduled_on: string;
     scheduled_on_input: string;
+    is_past: boolean;
 };
 
 type DateOption = {
@@ -115,6 +120,7 @@ export default function EvaluationPlanShow({
     const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
     const [creating, setCreating] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [scoresItemId, setScoresItemId] = useState<number | null>(null);
 
     useEffect(() => {
         if (!previewOpen) {
@@ -130,6 +136,7 @@ export default function EvaluationPlanShow({
         () => new Set(items.map((item) => item.scheduled_on_input)),
         [items],
     );
+    const scoresItem = items.find((item) => item.id === scoresItemId) ?? null;
     const availableDates = useMemo(
         () => date_options.filter((option) => !usedDates.has(option.value)),
         [date_options, usedDates],
@@ -399,7 +406,12 @@ export default function EvaluationPlanShow({
                             items.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="rounded-xl border border-border/70 px-4 py-3"
+                                    className={cn(
+                                        'rounded-xl border px-4 py-3',
+                                        item.is_past
+                                            ? 'border-amber-500/40 bg-amber-50/70 dark:border-amber-500/25 dark:bg-amber-500/10'
+                                            : 'border-border/70',
+                                    )}
                                 >
                                     {editingId === item.id ? (
                                         <div className="space-y-3">
@@ -545,10 +557,17 @@ export default function EvaluationPlanShow({
                                     ) : (
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div className="min-w-0">
-                                                <p className="text-sm font-bold text-upel-navy dark:text-foreground">
-                                                    {item.position}.{' '}
-                                                    {item.title}
-                                                </p>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-sm font-bold text-upel-navy dark:text-foreground">
+                                                        {item.position}.{' '}
+                                                        {item.title}
+                                                    </p>
+                                                    {item.is_past ? (
+                                                        <ToneBadge tone="amber">
+                                                            Fecha cumplida
+                                                        </ToneBadge>
+                                                    ) : null}
+                                                </div>
                                                 <p className="mt-0.5 text-[0.7rem] font-semibold text-muted-foreground">
                                                     {item.scheduled_on} ·{' '}
                                                     {item.weight} % de la nota
@@ -558,29 +577,51 @@ export default function EvaluationPlanShow({
                                                         {item.content}
                                                     </p>
                                                 ) : null}
+                                                {item.is_past ? (
+                                                    <p className="mt-1.5 inline-flex items-center gap-1.5 text-[0.66rem] font-bold text-amber-700 dark:text-amber-300">
+                                                        <Lock className="h-3 w-3" />
+                                                        La fecha ya pasó: la
+                                                        evaluación quedó cerrada
+                                                        y no se puede editar.
+                                                    </p>
+                                                ) : null}
                                             </div>
 
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex flex-wrap items-center gap-1">
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        startEditing(item)
+                                                        setScoresItemId(item.id)
                                                     }
                                                     className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.66rem] font-bold text-upel-navy hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
                                                 >
-                                                    <PencilLine className="h-3.5 w-3.5" />
-                                                    Editar
+                                                    <ListChecks className="h-3.5 w-3.5" />
+                                                    Ver notas
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        removeItem(item)
-                                                    }
-                                                    className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[0.66rem] font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Eliminar
-                                                </button>
+                                                {item.is_past ? null : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            startEditing(item)
+                                                        }
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.66rem] font-bold text-upel-navy hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                                    >
+                                                        <PencilLine className="h-3.5 w-3.5" />
+                                                        Editar
+                                                    </button>
+                                                )}
+                                                {item.is_past ? null : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            removeItem(item)
+                                                        }
+                                                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[0.66rem] font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        Eliminar
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -782,6 +823,18 @@ export default function EvaluationPlanShow({
                       document.body,
                   )
                 : null}
+
+            <EvaluationItemScoresDialog
+                open={scoresItemId !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setScoresItemId(null);
+                    }
+                }}
+                item={scoresItem}
+                students={students}
+                maxScore={limits.max_item_score}
+            />
         </>
     );
 }

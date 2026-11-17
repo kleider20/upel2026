@@ -36,8 +36,12 @@ class AdmissionController extends Controller
     public function create(): Response
     {
         if (! $this->window->isOpen()) {
+            $closure = $this->window->closureContext();
+
             return Inertia::render('admissions/closed', [
-                'opensAt' => $this->window->opensAt()->toIso8601String(),
+                'opensAt' => $closure['opens_at'],
+                'closesAt' => $closure['closes_at'],
+                'reason' => $closure['reason'],
                 'remainingDays' => $this->window->daysUntilOpen(),
                 'periodYear' => $this->window->periodYear(),
             ]);

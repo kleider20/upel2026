@@ -551,7 +551,9 @@ test('el administrador puede editar los datos de un estudiante y no duplicar su 
             'name' => 'Ana María Estudiante',
             'email' => 'ana@example.com',
             'student_code' => 'EST-2027-302',
+            'identity_document' => ' v-18.534.451 ',
             'career_id' => $profile->career_id,
+            'cohort' => '2025 - ii',
             'current_semester' => 3,
             'status' => 'activo',
             'phone' => '04149876543',
@@ -569,6 +571,8 @@ test('el administrador puede editar los datos de un estudiante y no duplicar su 
         ->assertSessionHasNoErrors();
 
     expect($student->fresh()->name)->toBe('Ana María Estudiante')
+        ->and($profile->fresh()->identity_document)->toBe('V-18.534.451')
+        ->and($profile->fresh()->cohort)->toBe('2025-II')
         ->and($profile->fresh()->current_semester)->toBe(3)
         ->and($profile->fresh()->address)->toBe('Valencia');
 

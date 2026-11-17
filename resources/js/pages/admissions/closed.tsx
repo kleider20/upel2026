@@ -9,15 +9,19 @@ import { lookup as admissionLookup } from '@/routes/admissions';
 
 type Props = {
     opensAt: string;
+    closesAt: string;
+    reason: 'before' | 'after' | 'manual';
     remainingDays: number;
     periodYear: number;
 };
 
 /**
- * Pantalla que se muestra cuando la ventana de preinscripción aún no abre.
+ * Pantalla que se muestra cuando la ventana de preinscripción está cerrada.
  */
 export default function AdmissionClosed({
     opensAt,
+    closesAt,
+    reason,
     remainingDays,
     periodYear,
 }: Props) {
@@ -26,6 +30,18 @@ export default function AdmissionClosed({
         timeStyle: 'short',
         timeZone: 'America/Caracas',
     }).format(new Date(opensAt));
+
+    const formattedClose = new Intl.DateTimeFormat('es-VE', {
+        dateStyle: 'long',
+        timeZone: 'America/Caracas',
+    }).format(new Date(closesAt));
+
+    const heading =
+        reason === 'before'
+            ? 'La preinscripción abre pronto'
+            : reason === 'after'
+              ? 'La preinscripción está cerrada'
+              : 'La preinscripción está cerrada temporalmente';
 
     return (
         <>
@@ -46,31 +62,63 @@ export default function AdmissionClosed({
                                 />
                             </span>
                             <h1 className="mt-5 font-display text-3xl leading-tight font-bold text-white sm:text-4xl">
-                                La preinscripción abre pronto
+                                {heading}
                             </h1>
-                            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">
-                                El formulario en línea para la convocatoria{' '}
-                                {periodYear} se habilitará automáticamente el{' '}
-                                <strong className="font-bold text-upel-gold-light">
-                                    {formattedDate}
-                                </strong>{' '}
-                                (hora de Venezuela, GMT-4).
-                            </p>
+                            {reason === 'before' ? (
+                                <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">
+                                    El formulario en línea para la convocatoria{' '}
+                                    {periodYear} se habilitará automáticamente
+                                    el{' '}
+                                    <strong className="font-bold text-upel-gold-light">
+                                        {formattedDate}
+                                    </strong>{' '}
+                                    (hora de Venezuela, GMT-4).
+                                </p>
+                            ) : reason === 'after' ? (
+                                <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">
+                                    La ventana de preinscripción de la
+                                    convocatoria {periodYear} cerró el{' '}
+                                    <strong className="font-bold text-upel-gold-light">
+                                        {formattedClose}
+                                    </strong>
+                                    . Si ya registraste tu solicitud puedes
+                                    consultar su estado.
+                                </p>
+                            ) : (
+                                <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">
+                                    El equipo de admisión pausó temporalmente el
+                                    formulario en línea. Vuelve a intentarlo más
+                                    tarde o consulta una solicitud existente.
+                                </p>
+                            )}
                         </div>
                     </div>
 
                     <div className="space-y-6 px-6 py-8 sm:px-10">
                         <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-2xl border border-upel-navy/10 bg-upel-cloud/60 p-5 text-center">
-                                <p className="font-display text-4xl leading-none font-bold text-upel-navy">
-                                    {remainingDays}
-                                </p>
-                                <p className="mt-1 text-[0.65rem] font-bold tracking-[0.14em] text-upel-slate uppercase">
-                                    {remainingDays === 1
-                                        ? 'día restante'
-                                        : 'días restantes'}
-                                </p>
-                            </div>
+                            {reason === 'before' ? (
+                                <div className="rounded-2xl border border-upel-navy/10 bg-upel-cloud/60 p-5 text-center">
+                                    <p className="font-display text-4xl leading-none font-bold text-upel-navy">
+                                        {remainingDays}
+                                    </p>
+                                    <p className="mt-1 text-[0.65rem] font-bold tracking-[0.14em] text-upel-slate uppercase">
+                                        {remainingDays === 1
+                                            ? 'día restante'
+                                            : 'días restantes'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="rounded-2xl border border-upel-navy/10 bg-upel-cloud/60 p-5 text-center">
+                                    <p className="font-display text-lg leading-tight font-bold text-upel-navy">
+                                        {formattedClose}
+                                    </p>
+                                    <p className="mt-1 text-[0.65rem] font-bold tracking-[0.14em] text-upel-slate uppercase">
+                                        {reason === 'after'
+                                            ? 'fecha de cierre'
+                                            : 'ventana pausada'}
+                                    </p>
+                                </div>
+                            )}
                             <div className="rounded-2xl border border-upel-navy/10 bg-upel-cloud/60 p-5 text-center">
                                 <p className="font-display text-4xl leading-none font-bold text-upel-navy">
                                     {periodYear}

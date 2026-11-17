@@ -6,13 +6,11 @@ import { FlashMessages } from '@/components/flash-messages';
 
 type StudentLayoutProps = {
     activeTab: StudentTab;
-    onSelectTab: (tab: StudentTab) => void;
     children: React.ReactNode;
 };
 
 export default function StudentLayout({
     activeTab,
-    onSelectTab,
     children,
 }: StudentLayoutProps) {
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,7 +22,6 @@ export default function StudentLayout({
             <FlashMessages />
             <Sidebar
                 activeTab={activeTab}
-                onSelectTab={onSelectTab}
                 mobileOpen={mobileOpen}
                 onCloseMobile={() => setMobileOpen(false)}
             />
@@ -33,7 +30,6 @@ export default function StudentLayout({
                 <Topbar
                     activeTab={activeTab}
                     onOpenMobile={() => setMobileOpen(true)}
-                    onSelectTab={onSelectTab}
                 />
 
                 <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8 print:max-w-none print:p-0">

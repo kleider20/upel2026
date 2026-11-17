@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { BookOpen, ChevronRight, Search, UserRound } from 'lucide-react';
+import {
+    AlertTriangle,
+    BookOpen,
+    ChevronRight,
+    Search,
+    UserRound,
+} from 'lucide-react';
 import { ToneBadge, type Tone } from '@/components/portal/tone-badge';
 import type { StudentDashboardProps } from '@/types/student';
 
@@ -11,6 +17,10 @@ export function MisMaterias({ subjects }: StudentDashboardProps) {
     const semesters = Array.from(
         new Set(subjects.map((item) => item.semester).filter(Boolean)),
     ).sort((a, b) => (a as number) - (b as number));
+
+    const suspendedSubjects = subjects.filter(
+        (item) => item.status === 'reprobado' && item.attempts >= 3,
+    );
 
     const filtered = subjects.filter((item) => {
         const matchesSemester =
@@ -31,6 +41,27 @@ export function MisMaterias({ subjects }: StudentDashboardProps) {
 
     return (
         <div className="space-y-6">
+            {suspendedSubjects.length > 0 ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 dark:border-red-500/25 dark:bg-red-500/10">
+                    <AlertTriangle
+                        className="mt-0.5 h-5 w-5 shrink-0 text-red-600"
+                        aria-hidden="true"
+                    />
+                    <div>
+                        <p className="text-sm font-extrabold text-red-800 dark:text-red-200">
+                            Inscripciones suspendidas
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-red-700 dark:text-red-200">
+                            Has reprobado la o las materias:{' '}
+                            {suspendedSubjects
+                                .map((item) => item.subject)
+                                .join(', ')}
+                            . Debes dirigirte a control de estudios.
+                        </p>
+                    </div>
+                </div>
+            ) : null}
+
             <div className="flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-white p-6 shadow-sm sm:flex-row sm:items-center dark:bg-card">
                 <div>
                     <p className="text-[0.66rem] font-extrabold tracking-[0.16em] text-upel-blue uppercase">
@@ -104,6 +135,13 @@ export function MisMaterias({ subjects }: StudentDashboardProps) {
                                     {item.subject}
                                 </h3>
 
+                                {item.status === 'reprobado' &&
+                                item.attempts >= 2 ? (
+                                    <span className="mt-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[0.6rem] font-extrabold text-red-700 uppercase ring-1 ring-red-200 ring-inset dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/25">
+                                        Reprobada {item.attempts}.ª vez
+                                    </span>
+                                ) : null}
+
                                 <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
                                     <div className="flex items-center justify-between">
                                         <span>Semestre:</span>
@@ -129,6 +167,14 @@ export function MisMaterias({ subjects }: StudentDashboardProps) {
                                             {item.period ?? '2026-II'}
                                         </span>
                                     </div>
+                                    {item.attempts > 0 ? (
+                                        <div className="flex items-center justify-between">
+                                            <span>Veces reprobada:</span>
+                                            <span className="font-bold text-red-600">
+                                                {item.attempts}
+                                            </span>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
 

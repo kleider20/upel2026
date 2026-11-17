@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Enums\Permission;
+use App\Models\Enrollment;
 use App\Models\User;
+use App\Support\AdmissionWindow;
 use App\Support\StudentReviewRequests;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -80,7 +82,43 @@ class HandleInertiaRequests extends Middleware
                 ]
                 : ['unread_count' => 0, 'items' => []],
             'adminReviewRequests' => fn (): array => $this->adminReviewRequests($user),
+            'studentEnrollment' => fn (): array => $this->studentEnrollment($user),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * Ventana de inscripción que ven los estudiantes en su portal.
+     *
+     * @return array{is_open: bool, submitted: bool, url: string, opens_at: string, closes_at: string, reason: string}
+     */
+    private function studentEnrollment(?User $user): array
+    {
+        $empty = [
+            'is_open' => false,
+            'submitted' => false,
+            'url' => '',
+            'opens_at' => '',
+            'closes_at' => '',
+            'reason' => '',
+        ];
+
+        if ($user === null || ! $user->isStudent()) {
+            return $empty;
+        }
+
+        $window = new AdmissionWindow;
+
+        return [
+            'is_open' => $window->isOpen(),
+            'submitted' => Enrollment::query()
+                ->where('student_id', $user->id)
+                ->whereHas('academicPeriod', static fn ($query) => $query->where('ends_at', '>=', now()))
+                ->exists(),
+            'url' => route('student.enrollment.index', absolute: false),
+            'opens_at' => $window->opensAt()->format('d/m/Y'),
+            'closes_at' => $window->closesAt()->format('d/m/Y'),
+            'reason' => $window->closureContext()['reason'],
         ];
     }
 

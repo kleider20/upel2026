@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft,
     BookOpen,
@@ -7,13 +7,11 @@ import {
     Mail,
 } from 'lucide-react';
 import StudentLayout from '@/layouts/student-layout';
-import { type StudentTab } from '@/components/student/Sidebar';
 import type { StudentProfessorPageProps } from '@/types/student';
 
 export default function StudentProfessorShow({
     professor,
     subjects_url,
-    dashboard_url,
 }: StudentProfessorPageProps) {
     const initials = professor.name
         .split(' ')
@@ -22,15 +20,11 @@ export default function StudentProfessorShow({
         .slice(0, 2)
         .toUpperCase();
 
-    const navigate = (tab: StudentTab) => {
-        router.visit(`${dashboard_url}?tab=${tab}`);
-    };
-
     return (
         <>
             <Head title={`${professor.name} · UPEL`} />
 
-            <StudentLayout activeTab="profesores" onSelectTab={navigate}>
+            <StudentLayout activeTab="profesores">
                 <div className="space-y-6">
                     <Link
                         href={subjects_url}

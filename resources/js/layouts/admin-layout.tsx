@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, LogOut, Menu, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, LogOut, Menu, X } from 'lucide-react';
 import { ModuleIcon } from '@/components/admin/module-icon';
 import { ReviewNotifications } from '@/components/admin/review-notifications';
 import { FlashMessages } from '@/components/flash-messages';
@@ -186,6 +186,7 @@ export default function AdminLayout({
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const getInitials = useInitials();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
     const permissions = auth.user?.permissions ?? [];
     const pendingStudents = adminReviewRequests?.pending_students ?? 0;
@@ -199,6 +200,10 @@ export default function AdminLayout({
         .filter((group) => group.items.length > 0);
 
     const closeSidebar = () => setSidebarOpen(false);
+
+    const toggleGroup = (label: string, isOpen: boolean) => {
+        setOpenGroups((groups) => ({ ...groups, [label]: !isOpen }));
+    };
 
     return (
         <div className="min-h-screen bg-upel-cloud text-foreground dark:bg-background">
@@ -252,55 +257,103 @@ export default function AdminLayout({
                     />
                 </div>
 
-                <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-                    {visibleGroups.map((group) => (
-                        <div key={group.label}>
-                            <p className="px-3 text-[0.6rem] font-bold tracking-[0.18em] text-white/40 uppercase">
-                                {group.label}
-                            </p>
-                            <div className="mt-2 space-y-1">
-                                {group.items.map((item) => {
-                                    const active = isCurrentOrParentUrl(
-                                        item.href,
-                                    );
-                                    const pendingBadge =
-                                        item.permission === 'students.view'
-                                            ? pendingStudents
-                                            : 0;
+                <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-5">
+                    {visibleGroups.map((group, groupIndex) => {
+                        const panelId = `admin-nav-group-${groupIndex}`;
+                        const pendingInGroup = group.items.some(
+                            (item) => item.permission === 'students.view',
+                        )
+                            ? pendingStudents
+                            : 0;
+                        const isGroupOpen =
+                            openGroups[group.label] ??
+                            group.items.some((item) =>
+                                isCurrentOrParentUrl(item.href),
+                            );
 
-                                    return (
-                                        <Link
-                                            key={item.title}
-                                            href={item.href}
-                                            onClick={closeSidebar}
-                                            className={cn(
-                                                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
-                                                active
-                                                    ? 'bg-white text-upel-navy shadow-sm'
-                                                    : 'text-white/70 hover:bg-white/10 hover:text-white',
-                                            )}
-                                        >
-                                            <ModuleIcon
-                                                name={item.iconName}
-                                                className="h-4 w-4 shrink-0"
-                                            />
-                                            <span>{item.title}</span>
-                                            {pendingBadge > 0 ? (
-                                                <span
-                                                    className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[0.62rem] font-extrabold text-white"
-                                                    aria-label={`${pendingBadge} estudiantes con solicitudes pendientes`}
+                        return (
+                            <div key={group.label}>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        toggleGroup(group.label, isGroupOpen)
+                                    }
+                                    aria-expanded={isGroupOpen}
+                                    aria-controls={panelId}
+                                    className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-[0.6rem] font-bold tracking-[0.18em] text-white/40 uppercase transition-colors hover:bg-white/5 hover:text-white/70"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        {group.label}
+                                        {!isGroupOpen && pendingInGroup > 0 ? (
+                                            <span
+                                                className="inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.55rem] font-extrabold text-white normal-case"
+                                                aria-label={`${pendingInGroup} estudiantes con solicitudes pendientes`}
+                                            >
+                                                {pendingInGroup > 99
+                                                    ? '99+'
+                                                    : pendingInGroup}
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                    <ChevronDown
+                                        className={cn(
+                                            'h-3.5 w-3.5 shrink-0 transition-transform',
+                                            isGroupOpen && 'rotate-180',
+                                        )}
+                                        aria-hidden="true"
+                                    />
+                                </button>
+
+                                {isGroupOpen ? (
+                                    <div
+                                        id={panelId}
+                                        className="mt-1 space-y-1"
+                                    >
+                                        {group.items.map((item) => {
+                                            const active = isCurrentOrParentUrl(
+                                                item.href,
+                                            );
+                                            const pendingBadge =
+                                                item.permission ===
+                                                'students.view'
+                                                    ? pendingStudents
+                                                    : 0;
+
+                                            return (
+                                                <Link
+                                                    key={item.title}
+                                                    href={item.href}
+                                                    onClick={closeSidebar}
+                                                    className={cn(
+                                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
+                                                        active
+                                                            ? 'bg-white text-upel-navy shadow-sm'
+                                                            : 'text-white/70 hover:bg-white/10 hover:text-white',
+                                                    )}
                                                 >
-                                                    {pendingBadge > 99
-                                                        ? '99+'
-                                                        : pendingBadge}
-                                                </span>
-                                            ) : null}
-                                        </Link>
-                                    );
-                                })}
+                                                    <ModuleIcon
+                                                        name={item.iconName}
+                                                        className="h-4 w-4 shrink-0"
+                                                    />
+                                                    <span>{item.title}</span>
+                                                    {pendingBadge > 0 ? (
+                                                        <span
+                                                            className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[0.62rem] font-extrabold text-white"
+                                                            aria-label={`${pendingBadge} estudiantes con solicitudes pendientes`}
+                                                        >
+                                                            {pendingBadge > 99
+                                                                ? '99+'
+                                                                : pendingBadge}
+                                                        </span>
+                                                    ) : null}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                ) : null}
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </nav>
 
                 <div className="border-t border-white/10 p-4">

@@ -33,6 +33,8 @@ type SubjectRow = {
     remaining_weight: number;
     is_complete: boolean;
     students_count: number;
+    is_finished: boolean;
+    can_delete: boolean;
 };
 
 type Props = {
@@ -234,6 +236,13 @@ export default function EvaluationPlansIndex({
                                                                 </ToneBadge>
                                                             )}
                                                         </div>
+                                                        {row.is_finished ? (
+                                                            <div className="mt-2">
+                                                                <ToneBadge tone="slate">
+                                                                    Finalizado
+                                                                </ToneBadge>
+                                                            </div>
+                                                        ) : null}
                                                     </>
                                                 )}
                                             </td>
@@ -255,7 +264,8 @@ export default function EvaluationPlansIndex({
                                                             ? 'Abrir planilla'
                                                             : 'Crear plan'}
                                                     </Link>
-                                                    {row.plan_id !== null ? (
+                                                    {row.plan_id !== null &&
+                                                    row.can_delete ? (
                                                         <button
                                                             type="button"
                                                             onClick={() =>

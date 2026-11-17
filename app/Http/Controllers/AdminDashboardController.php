@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Permission as PermissionEnum;
 use App\Enums\Role as RoleEnum;
 use App\Models\AcademicPeriod;
+use App\Models\AdmissionWindowSetting;
 use App\Models\Career;
 use App\Models\Enrollment;
 use App\Models\Payment;
@@ -13,7 +14,9 @@ use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
 use App\Support\AdminModuleCatalog;
+use App\Support\AdmissionWindow;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,7 +25,7 @@ class AdminDashboardController extends Controller
     /**
      * Panel principal del portal administrativo.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, AdmissionWindow $window): Response
     {
         $user = $request->user();
         $role = $user->portalRole();
@@ -53,7 +56,38 @@ class AdminDashboardController extends Controller
             'pensums' => $this->pensums($user),
             'can_manage_pensums' => $user->can(PermissionEnum::SubjectsManage->value),
             'active_period' => AcademicPeriod::query()->where('is_active', true)->value('name'),
+            'admission_window' => $this->admissionWindow($window, $user),
         ]);
+    }
+
+    /**
+     * Estado actual de la ventana de inscripciones para las tarjetas del panel.
+     *
+     * @return array{opens_on: string, closes_on: string, mode: string, is_open: bool, status_label: string, status_tone: string, detail: string, can_manage: bool}
+     */
+    private function admissionWindow(AdmissionWindow $window, User $user): array
+    {
+        $settings = $window->settings();
+        $isOpen = $window->isOpen();
+
+        $detail = match (true) {
+            $settings->mode === AdmissionWindowSetting::MODE_CLOSED => 'Cerrada manualmente: el formulario permanece deshabilitado sin importar las fechas.',
+            $settings->mode === AdmissionWindowSetting::MODE_OPEN => 'Abierta manualmente: el formulario permanece habilitado sin importar las fechas.',
+            $isOpen => 'Se cierra automáticamente al finalizar el '.$settings->closes_on->format('d/m/Y').'.',
+            Date::now()->lessThan($window->opensAt()) => 'Se abrirá automáticamente el '.$settings->opens_on->format('d/m/Y').' a las 8:00 a. m.',
+            default => 'La fecha de cierre ya pasó; ajusta el rango o habilítalas manualmente.',
+        };
+
+        return [
+            'opens_on' => $settings->opens_on->format('Y-m-d'),
+            'closes_on' => $settings->closes_on->format('Y-m-d'),
+            'mode' => $settings->mode,
+            'is_open' => $isOpen,
+            'status_label' => $isOpen ? 'Inscripciones abiertas' : 'Inscripciones cerradas',
+            'status_tone' => $isOpen ? 'green' : 'red',
+            'detail' => $detail,
+            'can_manage' => $user->can(PermissionEnum::AdmissionsWindow->value),
+        ];
     }
 
     /**

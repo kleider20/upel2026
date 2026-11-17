@@ -29,12 +29,14 @@ enum Permission: string
 
     case GradesView = 'grades.view';
     case GradesManage = 'grades.manage';
+    case EvaluationPlansDelete = 'plans.delete';
 
     case AdmissionsView = 'admissions.view';
     case AdmissionsManage = 'admissions.manage';
     case AdmissionsEdit = 'admissions.edit';
     case AdmissionsDelete = 'admissions.delete';
     case AdmissionsReview = 'admissions.review';
+    case AdmissionsWindow = 'admissions.window';
 
     case FinanceView = 'finance.view';
     case FinanceManage = 'finance.manage';
@@ -72,11 +74,13 @@ enum Permission: string
             self::SchedulesManage => 'Gestionar horarios',
             self::GradesView => 'Ver notas',
             self::GradesManage => 'Gestionar notas',
+            self::EvaluationPlansDelete => 'Eliminar planes de evaluación finalizados',
             self::AdmissionsView => 'Ver admisiones',
             self::AdmissionsManage => 'Gestionar admisiones',
             self::AdmissionsEdit => 'Editar solicitudes de admisión',
             self::AdmissionsDelete => 'Eliminar solicitudes de admisión',
             self::AdmissionsReview => 'Revisar solicitudes de admisión',
+            self::AdmissionsWindow => 'Habilitar o deshabilitar las inscripciones',
             self::FinanceView => 'Ver finanzas',
             self::FinanceManage => 'Gestionar finanzas',
             self::ProgramsView => 'Ver postgrados y cursos',
@@ -107,6 +111,7 @@ enum Permission: string
             self::SchedulesManage,
             self::GradesView,
             self::GradesManage,
+            self::EvaluationPlansDelete,
             self::ProgramsView,
             self::ProgramsManage,
         ];

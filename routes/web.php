@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminAdmissionController;
+use App\Http\Controllers\AdminAdmissionWindowController;
 use App\Http\Controllers\AdminCareerController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminEntryController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\ProfessorGradeController;
 use App\Http\Controllers\ProfessorWorkspaceController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\StudentDocumentController;
+use App\Http\Controllers\Student\StudentEnrollmentController;
 use App\Http\Controllers\Student\StudentNotificationController;
 use App\Http\Controllers\Student\StudentPhotoController;
 use App\Http\Controllers\Student\StudentProfessorController;
@@ -198,6 +200,9 @@ Route::middleware(['auth', EnsureAdminPortal::class])
         Route::put('users/{user}/access', [AdminRoleController::class, 'updateUser'])
             ->name('roles.users.update');
 
+        Route::put('inscripciones', [AdminAdmissionWindowController::class, 'update'])
+            ->name('inscripciones.update');
+
         Route::get('{module}', [AdminModuleController::class, 'index'])->name('module');
     });
 
@@ -247,6 +252,17 @@ Route::middleware(['auth', 'verified', 'role:estudiante', 'password.defined'])
     ->name('student.')
     ->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/solicitud', [StudentDashboardController::class, 'solicitud'])->name('solicitud');
+        Route::get('/materias', [StudentDashboardController::class, 'materias'])->name('materias');
+        Route::get('/inscripciones', [StudentEnrollmentController::class, 'index'])->name('enrollment.index');
+        Route::post('/inscripciones', [StudentEnrollmentController::class, 'store'])->name('enrollment.store');
+        Route::get('/inscripciones/planilla', [StudentEnrollmentController::class, 'sheet'])->name('enrollment.sheet');
+        Route::get('/calificaciones', [StudentDashboardController::class, 'calificaciones'])->name('calificaciones');
+        Route::get('/profesores', [StudentDashboardController::class, 'profesores'])->name('profesores');
+        Route::get('/pensum', [StudentDashboardController::class, 'pensum'])->name('pensum');
+        Route::get('/horario', [StudentDashboardController::class, 'horario'])->name('horario');
+        Route::get('/perfil', [StudentDashboardController::class, 'perfil'])->name('perfil');
+        Route::get('/tramites', [StudentDashboardController::class, 'tramites'])->name('tramites');
         Route::patch('/notificaciones/{notification}/leer', StudentNotificationController::class)
             ->name('notifications.read');
         Route::get('/horario/pdf', [StudentScheduleController::class, 'download'])->name('schedule.pdf');

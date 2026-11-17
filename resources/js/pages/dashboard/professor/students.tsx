@@ -27,9 +27,8 @@ function formatGrade(grade: number | null): string {
 }
 
 /**
- * Página "Estudiantes": muestra únicamente la nota final del expediente de
- * cada estudiante y enlaza a la planilla de evaluación donde se cargan las
- * notas por evaluación.
+ * Página "Estudiantes": lista a los estudiantes que cursan cada materia con la
+ * nota definitiva del plan de evaluación (o "Sin nota" mientras no se carga).
  */
 export default function ProfessorStudentsPage({
     careers,
@@ -58,7 +57,7 @@ export default function ProfessorStudentsPage({
                 <PageHeader
                     eyebrow="Expediente académico"
                     title="Estudiantes"
-                    description={`Nota final del expediente de tus materias${active_period ? ` en el período ${active_period}` : ''}. Las notas por evaluación se cargan en la página Cargar notas.`}
+                    description={`Estudiantes que cursan tus materias${active_period ? ` en el período ${active_period}` : ''} con la nota definitiva del plan de evaluación. Mientras no haya notas cargadas la columna Nota indica «Sin nota».`}
                     actions={
                         <Link
                             href={professorRoutes.grades.index.url()}
@@ -80,7 +79,7 @@ export default function ProfessorStudentsPage({
 
                         <div className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
                             <p className="text-[0.65rem] font-bold tracking-[0.14em] text-muted-foreground uppercase">
-                                Notas del expediente
+                                Avance de notas
                             </p>
                             <dl className="mt-3 space-y-3 text-xs">
                                 <div className="flex items-center justify-between gap-3">
@@ -93,7 +92,7 @@ export default function ProfessorStudentsPage({
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                     <dt className="text-muted-foreground">
-                                        Con nota
+                                        Con definitiva
                                     </dt>
                                     <dd className="font-bold text-upel-green">
                                         {summary.graded_count}
@@ -101,7 +100,7 @@ export default function ProfessorStudentsPage({
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                     <dt className="text-muted-foreground">
-                                        Pendientes
+                                        Sin nota
                                     </dt>
                                     <dd className="font-bold text-amber-600">
                                         {summary.pending_count}
@@ -114,16 +113,18 @@ export default function ProfessorStudentsPage({
                     <section className="space-y-5">
                         <div>
                             <p className="text-[0.66rem] font-bold tracking-[0.16em] text-upel-blue uppercase">
-                                Nota final del expediente
+                                Nota definitiva del plan
                             </p>
                             <h2 className="mt-1 font-display text-2xl font-bold text-upel-navy dark:text-foreground">
                                 {selectedCareer?.name ??
                                     'Pendiente por asignación'}
                             </h2>
                             <p className="mt-1 text-[0.68rem] font-semibold text-muted-foreground">
-                                El botón «Editar nota» abre la planilla de
+                                El botón «Cargar nota» abre la planilla de
                                 evaluación del estudiante en la página Cargar
-                                notas.
+                                notas. La definitiva aparece a medida que se
+                                cargan las evaluaciones; con notas parciales el
+                                estado indica «Faltan notas».
                             </p>
                         </div>
 
@@ -199,7 +200,7 @@ export default function ProfessorStudentsPage({
                                             <EmptyState
                                                 icon={Users}
                                                 title="Sin estudiantes"
-                                                description="Aún no hay estudiantes inscritos en esta materia."
+                                                description="No hay estudiantes activos en la carrera de esta materia."
                                             />
                                         </div>
                                     ) : (
@@ -230,7 +231,7 @@ export default function ProfessorStudentsPage({
                                                         (student) => (
                                                             <tr
                                                                 key={
-                                                                    student.enrollment_id
+                                                                    student.student_id
                                                                 }
                                                                 className="transition-colors hover:bg-upel-cloud/50 dark:hover:bg-muted/30"
                                                             >
@@ -282,10 +283,10 @@ export default function ProfessorStudentsPage({
                                                                         className="inline-flex items-center gap-1.5 rounded-lg bg-upel-navy px-3 py-1.5 text-[0.65rem] font-bold text-white transition-colors hover:bg-upel-navy-800"
                                                                     >
                                                                         <PencilLine className="h-3 w-3" />
-                                                                        {student.grade ===
-                                                                        null
-                                                                            ? 'Cargar nota'
-                                                                            : 'Editar nota'}
+                                                                        {student.graded_items >
+                                                                        0
+                                                                            ? 'Editar nota'
+                                                                            : 'Cargar nota'}
                                                                     </Link>
                                                                 </td>
                                                             </tr>

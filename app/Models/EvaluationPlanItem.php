@@ -47,6 +47,17 @@ class EvaluationPlanItem extends Model
     }
 
     /**
+     * Indica si la fecha de la evaluación ya pasó.
+     *
+     * Una evaluación con la fecha cumplida queda cerrada: conserva sus notas
+     * y ya no puede editarse desde la planilla del plan.
+     */
+    public function isPastDue(): bool
+    {
+        return $this->scheduled_on->lt(now()->startOfDay());
+    }
+
+    /**
      * @return BelongsTo<EvaluationPlan, $this>
      */
     public function plan(): BelongsTo

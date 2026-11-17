@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  * Planilla oficial de evaluación de una unidad curricular.
  *
  * Reúne los datos de la cabecera del formato UPEL y las filas de estudiantes
- * con sus notas por evaluación y la nota definitiva calculada en vivo.
+ * con sus notas por evaluación y la nota definitiva acumulada en vivo.
  */
 final class EvaluationPlanSheet
 {
@@ -139,8 +139,10 @@ final class EvaluationPlanSheet
             ->get()
             ->groupBy('enrollment_id');
 
+        $planComplete = $plan->isComplete();
+
         return $students
-            ->map(static function (User $student) use ($career, $cohorts, $currentCohort, $enrollments, $items, $scores): array {
+            ->map(static function (User $student) use ($career, $cohorts, $currentCohort, $enrollments, $items, $planComplete, $scores): array {
                 /** @var Enrollment|null $enrollment */
                 $enrollment = $enrollments->get($student->id);
                 $profile = $student->studentProfile;
@@ -158,10 +160,16 @@ final class EvaluationPlanSheet
                     $entries[] = ['score' => $score, 'weight' => $item->weight];
                 }
 
-                $definitive = $enrollment === null
+                $graded = count(array_filter($scoresByItem, static fn ($score): bool => $score !== null));
+                $complete = $enrollment !== null
+                    && $items->isNotEmpty()
+                    && $graded === $items->count()
+                    && $planComplete;
+
+                $definitiveTen = $enrollment === null
                     ? null
-                    : EvaluationPlanGrading::weightedScore($entries);
-                $definitiveTen = EvaluationPlanGrading::toScaleTen($definitive);
+                    : EvaluationPlanGrading::accumulatedTen($entries);
+                $definitive = $definitiveTen === null ? null : round($definitiveTen * 2, 2);
 
                 return [
                     'student_id' => $student->id,
@@ -169,15 +177,15 @@ final class EvaluationPlanSheet
                     'enrolled' => $enrollment !== null,
                     'student_name' => $student->name,
                     'student_code' => $profile?->student_code,
-                    'id_number' => $student->admission?->id_number,
+                    'id_number' => $profile?->identity_document ?? $student->admission?->id_number,
                     'semester' => $profile?->current_semester,
-                    'cohort' => self::studentCohort($cohorts->get($student->id, collect())->pluck('cohort'), $currentCohort, $profile?->admission_year),
+                    'cohort' => self::studentCohort($cohorts->get($student->id, collect())->pluck('cohort'), $currentCohort, $profile?->cohort, $profile?->admission_year),
                     'current_cohort' => $currentCohort,
                     'career_code' => $career?->code,
                     'scores' => $scoresByItem,
                     'definitive' => $definitive,
                     'definitive_ten' => $definitiveTen,
-                    'approved' => EvaluationPlanGrading::isApproved($definitiveTen),
+                    'approved' => EvaluationPlanGrading::isApproved($definitiveTen, $complete),
                 ];
             })
             ->values()
@@ -186,18 +194,25 @@ final class EvaluationPlanSheet
 
     /**
      * Cohorte propio del estudiante: el horario donde cursa sus materias; si
-     * no tiene horario, el año de ingreso de su perfil.
+     * no tiene horario, la cohorte guardada en su perfil y, en su defecto, el
+     * año de ingreso.
      *
      * @param  Collection<int, string>  $cohorts
      */
-    private static function studentCohort(Collection $cohorts, ?string $currentCohort, ?int $admissionYear): ?string
-    {
+    private static function studentCohort(
+        Collection $cohorts,
+        ?string $currentCohort,
+        ?string $profileCohort,
+        ?int $admissionYear,
+    ): ?string {
         $cohorts = $cohorts->filter()->unique()->values();
 
         if ($currentCohort !== null && $cohorts->contains($currentCohort)) {
             return $currentCohort;
         }
 
-        return $cohorts->first() ?? ($admissionYear !== null ? (string) $admissionYear : null);
+        return $cohorts->first()
+            ?? $profileCohort
+            ?? ($admissionYear !== null ? (string) $admissionYear : null);
     }
 }

@@ -2,14 +2,19 @@ import type { ReactNode } from 'react';
 import { CheckCircle2, Save, Users } from 'lucide-react';
 import { EmptyState } from '@/components/portal/empty-state';
 import { ToneBadge } from '@/components/portal/tone-badge';
-import { formatScore, type GradingLimits } from '@/lib/evaluation-plan';
+import {
+    formatScore,
+    parseScore,
+    weightedContribution,
+    type GradingLimits,
+} from '@/lib/evaluation-plan';
 import {
     cellKey,
     type GradedRow,
     type GradeItem,
     type GradeRow,
 } from '@/components/professor/use-evaluation-grades';
-import { cn } from '@/lib/utils';
+import { cn, countLabel } from '@/lib/utils';
 
 type Props<TRow extends GradeRow> = {
     items: GradeItem[];
@@ -44,12 +49,25 @@ export function EvaluationGradesTable<TRow extends GradeRow>({
     onCellChange,
     onSave,
     title = 'Notas por estudiante',
-    description = `Escala de 1 a ${limits.max_item_score} por evaluación · definitiva sobre ${limits.final_scale} · mínima aprobatoria ${limits.passing_grade}.`,
-    footerNote = 'La nota definitiva se recalcula automáticamente según el porcentaje de cada evaluación.',
+    description = `Escala de 1 a ${limits.max_item_score} por evaluación, con hasta dos decimales · definitiva sobre ${limits.final_scale} · mínima aprobatoria ${limits.passing_grade}.`,
+    footerNote = `Debajo de cada nota aparece cuánto aporta a la definitiva sobre ${limits.final_scale} según su porcentaje. La definitiva es la suma de esos aportes y se recalcula automáticamente.`,
     embedded = false,
     actions,
     highlightStudentId = null,
 }: Props<TRow>) {
+    const completedRows = rows.filter((row) => row.approved !== null);
+    const definitiveAverage =
+        completedRows.length === 0
+            ? null
+            : Math.round(
+                  (completedRows.reduce(
+                      (total, row) => total + (row.definitiveTen ?? 0),
+                      0,
+                  ) /
+                      completedRows.length) *
+                      100,
+              ) / 100;
+
     return (
         <section
             className={cn(
@@ -68,7 +86,12 @@ export function EvaluationGradesTable<TRow extends GradeRow>({
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <p className="text-[0.7rem] font-bold text-muted-foreground">
-                        {rows.length} estudiantes · {gradedCells} notas cargadas
+                        {countLabel(rows.length, 'estudiante', 'estudiantes')} ·{' '}
+                        {countLabel(
+                            gradedCells,
+                            'nota cargada',
+                            'notas cargadas',
+                        )}
                     </p>
                     {actions}
                 </div>
@@ -106,6 +129,9 @@ export function EvaluationGradesTable<TRow extends GradeRow>({
                                 ))}
                                 <th className="px-4 py-3 text-center">
                                     Definitiva
+                                    <span className="mt-0.5 block font-semibold normal-case">
+                                        suma de aportes
+                                    </span>
                                 </th>
                             </tr>
                         </thead>
@@ -135,32 +161,62 @@ export function EvaluationGradesTable<TRow extends GradeRow>({
                                                 : ''}
                                         </p>
                                     </td>
-                                    {items.map((item) => (
-                                        <td key={item.id} className="px-3 py-3">
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                value={
-                                                    drafts[
-                                                        cellKey(
+                                    {items.map((item) => {
+                                        const score = parseScore(
+                                            drafts[
+                                                cellKey(row.student_id, item.id)
+                                            ] ?? '',
+                                            limits.max_item_score,
+                                        );
+                                        const contribution =
+                                            weightedContribution(
+                                                score,
+                                                item.weight,
+                                            );
+
+                                        return (
+                                            <td
+                                                key={item.id}
+                                                className="px-3 py-3"
+                                            >
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    maxLength={5}
+                                                    value={
+                                                        drafts[
+                                                            cellKey(
+                                                                row.student_id,
+                                                                item.id,
+                                                            )
+                                                        ] ?? ''
+                                                    }
+                                                    onChange={(event) =>
+                                                        onCellChange(
                                                             row.student_id,
                                                             item.id,
+                                                            event.target.value,
                                                         )
-                                                    ] ?? ''
-                                                }
-                                                onChange={(event) =>
-                                                    onCellChange(
-                                                        row.student_id,
-                                                        item.id,
-                                                        event.target.value,
-                                                    )
-                                                }
-                                                placeholder="—"
-                                                aria-label={`Nota de ${row.student_name} en ${item.title}`}
-                                                className="mx-auto block h-9 w-16 rounded-lg border border-border bg-white text-center text-xs font-bold text-upel-navy focus:border-upel-blue focus:outline-none dark:bg-muted/40 dark:text-foreground"
-                                            />
-                                        </td>
-                                    ))}
+                                                    }
+                                                    placeholder="—"
+                                                    aria-label={`Nota de ${row.student_name} en ${item.title}`}
+                                                    className="mx-auto block h-9 w-16 rounded-lg border border-border bg-white text-center text-xs font-bold text-upel-navy focus:border-upel-blue focus:outline-none dark:bg-muted/40 dark:text-foreground"
+                                                />
+                                                {contribution ===
+                                                null ? null : (
+                                                    <p
+                                                        className="mt-1 text-center text-[0.6rem] font-semibold text-muted-foreground"
+                                                        title={`${formatScore(score)} en la escala 1-${limits.max_item_score} × ${item.weight} % = ${formatScore(contribution)} sobre ${limits.final_scale}`}
+                                                    >
+                                                        aporta{' '}
+                                                        {formatScore(
+                                                            contribution,
+                                                        )}
+                                                    </p>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
                                     <td className="px-4 py-3 text-center">
                                         <p className="font-display text-sm font-bold text-upel-navy dark:text-foreground">
                                             {formatScore(row.definitiveTen)}
@@ -172,8 +228,24 @@ export function EvaluationGradesTable<TRow extends GradeRow>({
                                             {formatScore(row.definitive)} /{' '}
                                             {limits.max_item_score}
                                         </p>
-                                        {row.approved ===
-                                        null ? null : row.approved ? (
+                                        {row.approved === null ? (
+                                            row.definitiveTen ===
+                                            null ? null : (
+                                                <ToneBadge
+                                                    tone="amber"
+                                                    className="mt-1.5"
+                                                >
+                                                    {items.every(
+                                                        (item) =>
+                                                            row.scoresByItem[
+                                                                item.id
+                                                            ] !== null,
+                                                    )
+                                                        ? 'Plan incompleto'
+                                                        : 'Faltan notas'}
+                                                </ToneBadge>
+                                            )
+                                        ) : row.approved ? (
                                             <ToneBadge
                                                 tone="green"
                                                 className="mt-1.5"
@@ -207,27 +279,7 @@ export function EvaluationGradesTable<TRow extends GradeRow>({
                                     </td>
                                 ))}
                                 <td className="px-4 py-3 text-center text-upel-navy dark:text-foreground">
-                                    {formatScore(
-                                        rows.some(
-                                            (row) => row.definitiveTen !== null,
-                                        )
-                                            ? Math.round(
-                                                  (rows.reduce(
-                                                      (total, row) =>
-                                                          total +
-                                                          (row.definitiveTen ??
-                                                              0),
-                                                      0,
-                                                  ) /
-                                                      rows.filter(
-                                                          (row) =>
-                                                              row.definitiveTen !==
-                                                              null,
-                                                      ).length) *
-                                                      100,
-                                              ) / 100
-                                            : null,
-                                    )}
+                                    {formatScore(definitiveAverage)}
                                 </td>
                             </tr>
                         </tfoot>

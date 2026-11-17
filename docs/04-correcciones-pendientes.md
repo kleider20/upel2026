@@ -5,48 +5,24 @@ el esfuerzo de resolución.
 
 ## Alta
 
-### P-01 · Ruta de página con mayúsculas (`Student/Dashboard/Index`)
-
-- **Archivo:** `app/Http/Controllers/Student/DashboardController.php:131`
-- **Problema:** el controlador renderiza `Student/Dashboard/Index`, pero la convención
-  del proyecto y el resto de páginas usan minúsculas (`student/dashboard/index`).
-  En Windows funciona; en Linux (producción) la resolución de archivos distingue
-  mayúsculas y devolvería un error de página inexistente.
-- **Solución:** mover `resources/js/pages/Student/Dashboard/Index.tsx` a
-  `resources/js/pages/student/dashboard/index.tsx` y actualizar `Inertia::render`.
-
-### P-02 · Escala de notas inconsistente en el portal del estudiante
-
-- **Archivos:** `resources/js/components/student/modules/MisCalificaciones.tsx:20,45`,
-  `app/Http/Controllers/Student/DashboardController.php:183-185`
-- **Problema:** la interfaz del estudiante muestra “Escala 1-20 · Mín. aprobatoria 10” y
-  divide el promedio sobre 20, mientras que el resto de la plataforma (profesor, admin,
-  graduado, `Subject::PASSING_GRADE`) usa **0-10 con mínimo 5**. Además, el controlador
-  genera los cortes con `min(20, …)`, por lo que puede devolver valores imposibles para
-  la escala oficial.
-- **Solución:** unificar todo a 0-10, ajustar textos, divisor y generación de cortes; o
-  migrar formalmente toda la aplicación a 1-20 con una sola constante compartida.
-
 ### P-03 · Datos simulados en el dashboard del estudiante
 
-- **Archivo:** `app/Http/Controllers/Student/DashboardController.php:121,183-185`
+- **Archivo:** `app/Http/Controllers/Student/DashboardController.php`
 - **Estado:** parcial. Los datos personales ya salen del expediente de admisión (cédula,
-  nacimiento, turno, período, carrera y solicitud) y `MiPerfil` ya no precarga valores
-  inventados. Sigue pendiente:
-    - Los cortes N1/N2/N3 se inventan con `rand()`, así que cambian en cada recarga y no
-      reflejan evaluaciones reales. Ya existen las tablas `evaluation_plans`,
-      `evaluation_plan_items` y `evaluation_plan_scores` (planes de evaluación del
-      docente), pero el dashboard del estudiante todavía no las consulta.
+  nacimiento, turno, período, carrera y solicitud), `MiPerfil` ya no precarga valores
+  inventados y las calificaciones ya se calculan con las notas del plan de evaluación del
+  docente (`App\Support\StudentGrades`, sin `rand()`); la actividad reciente, las próximas
+  evaluaciones y el estado del pénsum también salen de la base de datos. Sigue pendiente:
     - `tramites` de ejemplo se mezclan con los de sesión.
-- **Solución:** agregar una tabla `evaluations` (o `grade_items`) para los cortes y
-  persistir los trámites; eliminar `rand()` y los trámites de ejemplo.
+- **Solución:** persistir los trámites en base de datos y eliminar los de ejemplo (ver
+  P-07).
 
 ## Media
 
 ### P-04 · Dos implementaciones del dashboard de estudiante
 
 - **Archivos:** `resources/js/pages/dashboard/student.tsx` (legacy) y
-  `resources/js/pages/Student/Dashboard/Index.tsx` (nuevo).
+  `resources/js/pages/student/dashboard/index.tsx` (nuevo).
 - **Problema:** el primero ya no se renderiza, pero sigue en el proyecto y puede
   confundir mantenimiento. `DashboardController::studentDashboard()` ignora su parámetro
   `$user` y vuelve a llamar `request()`.
@@ -91,9 +67,10 @@ el esfuerzo de resolución.
 ### P-10 · Sin pruebas para el portal estudiantil nuevo
 
 - **Archivos:** `tests/Feature/`
-- **Estado:** parcial. `StudentPortalTest` cubre el acceso, el expediente de admisión y la
-  actualización de perfil; `PasswordDefinitionTest` cubre el primer acceso. Falta cobertura
-  de `student.tramites.store`.
+- **Estado:** parcial. `StudentPortalTest` cubre el acceso, el expediente de admisión, la
+  actualización de perfil, las nueve páginas independientes del portal, el desglose de notas
+  por corte y las condiciones aprobado/reprobado/faltan notas/cursando; `PasswordDefinitionTest`
+  cubre el primer acceso. Falta cobertura de `student.tramites.store`.
 - **Problema:** los cambios recientes de rutas tipadas en los trámites no están cubiertos.
 - **Solución:** agregar pruebas de creación de trámites cuando se persistan en base de
   datos (ver P-07).
@@ -105,13 +82,6 @@ el esfuerzo de resolución.
 - **Archivos:** `resources/js/pages/welcome.tsx`, `resources/js/pages/dashboard.tsx`
 - **Problema:** restos del starter kit; no se renderizan desde ninguna ruta.
 - **Solución:** eliminar con aprobación o documentar como referencia.
-
-### P-12 · Datos no deterministas por `rand()`
-
-- **Archivo:** `app/Http/Controllers/Student/DashboardController.php:183-185`
-- **Problema:** además de ser ficticios, los cortes cambian en cada petición, lo que
-  impide pruebas estables y confunde al usuario.
-- **Solución:** incluida en P-03.
 
 ### P-13 · Listados administrativos sin paginación
 
@@ -130,7 +100,7 @@ el esfuerzo de resolución.
 
 ### P-15 · Respuesta del controlador estudiantil ante rol incorrecto
 
-- **Archivo:** `app/Http/Controllers/Student/DashboardController.php:24-26`
+- **Archivo:** `app/Http/Controllers/Student/DashboardController.php` (`renderPage()`)
 - **Problema:** si un usuario autenticado sin rol de estudiante llega al endpoint,
   redirige a `/login` en lugar de devolver `403`, a diferencia del resto del sistema.
 - **Solución:** `abort(403)` y dejar la redirección solo para invitados (ya la maneja el
@@ -161,8 +131,6 @@ el esfuerzo de resolución.
 
 | ID   | Severidad | Estado  |
 | ---- | --------- | ------- |
-| P-01 | Alta      | Abierto |
-| P-02 | Alta      | Abierto |
 | P-03 | Alta      | Parcial |
 | P-04 | Media     | Abierto |
 | P-05 | Media     | Abierto |
@@ -171,7 +139,6 @@ el esfuerzo de resolución.
 | P-09 | Media     | Abierto |
 | P-10 | Media     | Parcial |
 | P-11 | Baja      | Abierto |
-| P-12 | Baja      | Abierto |
 | P-13 | Baja      | Abierto |
 | P-14 | Baja      | Abierto |
 | P-15 | Baja      | Abierto |

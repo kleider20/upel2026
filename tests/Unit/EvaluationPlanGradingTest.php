@@ -2,25 +2,32 @@
 
 use App\Support\EvaluationPlanGrading;
 
-test('averages the graded evaluations by their weight', function () {
-    expect(EvaluationPlanGrading::weightedScore([
-        ['score' => 20.0, 'weight' => 20],
-        ['score' => 12.0, 'weight' => 10],
-    ]))->toBe(17.33);
+test('accumulates the contribution of each graded evaluation', function () {
+    expect(EvaluationPlanGrading::accumulatedTen([
+        ['score' => 10.0, 'weight' => 15],
+        ['score' => 12.0, 'weight' => 20],
+    ]))->toBe(1.95);
 });
 
-test('ignores evaluations without a score so the definitive advances', function () {
-    expect(EvaluationPlanGrading::weightedScore([
+test('does not normalize the definitive when weights are still missing', function () {
+    expect(EvaluationPlanGrading::accumulatedTen([
         ['score' => 18.0, 'weight' => 20],
         ['score' => null, 'weight' => 20],
-    ]))->toBe(18.0);
+    ]))->toBe(1.8);
 });
 
 test('returns null when no evaluation has been graded', function () {
-    expect(EvaluationPlanGrading::weightedScore([
+    expect(EvaluationPlanGrading::accumulatedTen([
         ['score' => null, 'weight' => 20],
         ['score' => null, 'weight' => 20],
     ]))->toBeNull();
+});
+
+test('computes the contribution of a score on the ten scale', function () {
+    expect(EvaluationPlanGrading::contribution(10.0, 15))->toBe(0.75)
+        ->and(EvaluationPlanGrading::contribution(12.0, 20))->toBe(1.2)
+        ->and(EvaluationPlanGrading::contribution(20.0, 20))->toBe(2.0)
+        ->and(EvaluationPlanGrading::contribution(null, 20))->toBeNull();
 });
 
 test('converts the score to the ten point scale', function () {
@@ -31,9 +38,10 @@ test('converts the score to the ten point scale', function () {
 });
 
 test('passes the subject from six points on the ten point scale', function () {
-    expect(EvaluationPlanGrading::isApproved(6.0))->toBeTrue()
-        ->and(EvaluationPlanGrading::isApproved(5.99))->toBeFalse()
-        ->and(EvaluationPlanGrading::isApproved(null))->toBeNull();
+    expect(EvaluationPlanGrading::isApproved(6.0, true))->toBeTrue()
+        ->and(EvaluationPlanGrading::isApproved(5.99, true))->toBeFalse()
+        ->and(EvaluationPlanGrading::isApproved(6.0, false))->toBeNull()
+        ->and(EvaluationPlanGrading::isApproved(null, true))->toBeNull();
 });
 
 test('reports the weight still available in the plan', function () {

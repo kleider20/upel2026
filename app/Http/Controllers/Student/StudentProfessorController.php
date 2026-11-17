@@ -67,7 +67,7 @@ class StudentProfessorController extends Controller
 
         $professorProfile = $professor->professorProfile()->first();
 
-        return Inertia::render('Student/Professor/Show', [
+        return Inertia::render('student/professor/show', [
             'professor' => [
                 'id' => $professor->id,
                 'name' => $professor->name,
@@ -89,8 +89,8 @@ class StudentProfessorController extends Controller
                     ->values()
                     ->all(),
             ],
-            'dashboard_url' => route('dashboard', absolute: false),
-            'subjects_url' => route('dashboard', ['tab' => 'materias'], absolute: false),
+            'dashboard_url' => route('student.dashboard', absolute: false),
+            'subjects_url' => route('student.materias', absolute: false),
         ]);
     }
 }

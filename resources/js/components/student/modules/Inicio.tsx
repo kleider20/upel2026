@@ -1,8 +1,10 @@
+import { Link, usePage } from '@inertiajs/react';
 import {
     Award,
     BookOpen,
     CalendarDays,
     CheckCircle2,
+    ClipboardCheck,
     FileSearch,
     FileText,
     GraduationCap,
@@ -10,12 +12,24 @@ import {
     TrendingUp,
 } from 'lucide-react';
 import { ToneBadge, type Tone } from '@/components/portal/tone-badge';
-import type { StudentDashboardProps } from '@/types/student';
-import type { StudentTab } from '../Sidebar';
+import type {
+    StudentDashboardProps,
+    StudentEnrollmentNotice,
+} from '@/types/student';
+import { studentTabHrefs } from '../Sidebar';
 
 type InicioProps = StudentDashboardProps & {
     userName: string;
-    onSelectTab: (tab: StudentTab) => void;
+};
+
+const activityDotClasses: Record<string, string> = {
+    green: 'bg-emerald-600',
+    blue: 'bg-upel-blue',
+    gold: 'bg-upel-gold',
+    amber: 'bg-amber-500',
+    red: 'bg-red-500',
+    navy: 'bg-upel-navy',
+    slate: 'bg-slate-400',
 };
 
 export function Inicio({
@@ -24,13 +38,17 @@ export function Inicio({
     admission,
     summary,
     enrollments,
+    recent_activity,
+    upcoming_evaluations,
     active_period,
-    onSelectTab,
 }: InicioProps) {
     const firstName = userName.split(' ')[0];
     const activeEnrollments = enrollments.filter(
-        (e) => e.status === 'cursando' || e.status === 'inscrito',
+        (enrollment) => enrollment.status !== 'retirado',
     );
+    const { studentEnrollment } = usePage<{
+        studentEnrollment: StudentEnrollmentNotice;
+    }>().props;
 
     return (
         <div className="space-y-6">
@@ -65,25 +83,65 @@ export function Inicio({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={() => onSelectTab('calificaciones')}
+                        <Link
+                            href={studentTabHrefs.calificaciones}
                             className="inline-flex items-center gap-2 rounded-xl bg-upel-gold px-4 py-2.5 text-xs font-extrabold text-upel-navy shadow-lg transition-transform hover:-translate-y-0.5 hover:bg-upel-gold-light"
                         >
                             <Award className="h-4 w-4" />
                             Ver Calificaciones
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => onSelectTab('tramites')}
+                        </Link>
+                        <Link
+                            href={studentTabHrefs.tramites}
                             className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-md transition-colors hover:bg-white/20"
                         >
                             <FileText className="h-4 w-4" />
                             Solicitar Trámite
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </div>
+
+            {/* Ventana de inscripción de materias */}
+            {studentEnrollment.is_open || studentEnrollment.submitted ? (
+                <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-[linear-gradient(120deg,#0a2540_0%,#164b7d_100%)] p-5 text-white shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-upel-gold-light">
+                            <ClipboardCheck
+                                className="h-5 w-5"
+                                aria-hidden="true"
+                            />
+                        </span>
+                        <div>
+                            <p className="text-[0.62rem] font-extrabold tracking-[0.14em] text-upel-gold-light uppercase">
+                                Inscripción de materias
+                            </p>
+                            <p className="mt-0.5 font-display text-sm font-bold">
+                                {studentEnrollment.is_open
+                                    ? `La ventana está abierta hasta el ${studentEnrollment.closes_at}`
+                                    : 'Tu inscripción ya fue registrada'}
+                            </p>
+                            <p className="mt-0.5 text-[0.68rem] font-semibold text-white/70">
+                                {studentEnrollment.is_open
+                                    ? 'Selecciona las materias de tu siguiente período según tus unidades de crédito.'
+                                    : 'Consulta la planilla con las materias inscritas en tu período.'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <Link
+                        href={studentTabHrefs.inscripciones}
+                        className="inline-flex items-center gap-2 rounded-xl bg-upel-gold px-4 py-2.5 text-xs font-extrabold text-upel-navy transition-transform hover:-translate-y-0.5 hover:bg-upel-gold-light"
+                    >
+                        <ClipboardCheck
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                        />
+                        {studentEnrollment.is_open
+                            ? 'Inscribir materias'
+                            : 'Ver mi planilla'}
+                    </Link>
+                </section>
+            ) : null}
 
             {/* Resumen de la solicitud de admisión */}
             {admission ? (
@@ -114,14 +172,13 @@ export function Inicio({
                         <ToneBadge tone={admission.status_tone as Tone}>
                             {admission.status_label}
                         </ToneBadge>
-                        <button
-                            type="button"
-                            onClick={() => onSelectTab('solicitud')}
+                        <Link
+                            href={studentTabHrefs.solicitud}
                             className="inline-flex items-center gap-2 rounded-xl bg-upel-navy px-4 py-2.5 text-xs font-extrabold text-white transition-colors hover:bg-upel-navy-800"
                         >
                             <FileText className="h-4 w-4" aria-hidden="true" />
                             Ver expediente
-                        </button>
+                        </Link>
                     </div>
                 </section>
             ) : null}
@@ -145,11 +202,11 @@ export function Inicio({
                             ? summary.average.toFixed(1).replace('.', ',')
                             : '—'}{' '}
                         <span className="text-sm font-semibold text-muted-foreground">
-                            / 20
+                            / 10
                         </span>
                     </p>
                     <p className="mt-2 flex items-center gap-1 text-[0.7rem] font-semibold text-emerald-600 dark:text-emerald-400">
-                        <span>Escala 1–20 · Mín. aprobatoria 10</span>
+                        <span>Promedio sobre 10 · aprueba con 6 o más</span>
                     </p>
                 </div>
 
@@ -248,13 +305,12 @@ export function Inicio({
                                 Has aprobado {summary.credits_approved} de{' '}
                                 {summary.credits_total} unidades de crédito.
                             </span>
-                            <button
-                                type="button"
-                                onClick={() => onSelectTab('pensum')}
+                            <Link
+                                href={studentTabHrefs.pensum}
                                 className="font-bold text-upel-blue hover:underline"
                             >
                                 Ver mapa curricular →
-                            </button>
+                            </Link>
                         </div>
                     </div>
 
@@ -269,13 +325,12 @@ export function Inicio({
                                     Mis materias en curso
                                 </h3>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => onSelectTab('materias')}
+                            <Link
+                                href={studentTabHrefs.materias}
                                 className="text-xs font-bold text-upel-blue hover:underline"
                             >
                                 Ver todas ({activeEnrollments.length})
-                            </button>
+                            </Link>
                         </div>
 
                         <div className="mt-4 divide-y divide-border">
@@ -301,8 +356,20 @@ export function Inicio({
                                                     'Por asignar'}
                                             </p>
                                         </div>
-                                        <span className="rounded-full bg-upel-cloud px-3 py-1 text-[0.65rem] font-bold text-upel-navy ring-1 ring-border dark:bg-muted dark:text-muted-foreground">
-                                            Cursando
+                                        <span className="flex shrink-0 items-center gap-2">
+                                            {item.definitive !== null ? (
+                                                <span className="text-[0.68rem] font-extrabold text-upel-navy dark:text-foreground">
+                                                    {item.definitive
+                                                        .toFixed(1)
+                                                        .replace('.', ',')}{' '}
+                                                    / 10
+                                                </span>
+                                            ) : null}
+                                            <ToneBadge
+                                                tone={item.status_tone as Tone}
+                                            >
+                                                {item.status_label}
+                                            </ToneBadge>
                                         </span>
                                     </div>
                                 ))
@@ -322,35 +389,32 @@ export function Inicio({
                         </h3>
 
                         <div className="mt-5 space-y-4 border-l-2 border-upel-mist pl-4 dark:border-muted">
-                            <div className="relative">
-                                <span className="absolute top-1 -left-[21px] h-3 w-3 rounded-full bg-upel-gold ring-4 ring-white dark:ring-card" />
-                                <p className="text-xs font-bold text-upel-navy dark:text-foreground">
-                                    Notas de Didáctica Especial publicadas
+                            {recent_activity.length === 0 ? (
+                                <p className="text-[0.68rem] font-semibold text-muted-foreground">
+                                    Todavía no hay actividad registrada en tu
+                                    expediente.
                                 </p>
-                                <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-                                    Hace 2 horas
-                                </p>
-                            </div>
-
-                            <div className="relative">
-                                <span className="absolute top-1 -left-[21px] h-3 w-3 rounded-full bg-upel-blue ring-4 ring-white dark:ring-card" />
-                                <p className="text-xs font-bold text-upel-navy dark:text-foreground">
-                                    Nueva tarea en Tecnología Educativa
-                                </p>
-                                <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-                                    Hace 1 día
-                                </p>
-                            </div>
-
-                            <div className="relative">
-                                <span className="absolute top-1 -left-[21px] h-3 w-3 rounded-full bg-emerald-600 ring-4 ring-white dark:ring-card" />
-                                <p className="text-xs font-bold text-upel-navy dark:text-foreground">
-                                    Acta de Pedagogía General cerrada
-                                </p>
-                                <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
-                                    Ayer
-                                </p>
-                            </div>
+                            ) : (
+                                recent_activity.map((item) => (
+                                    <div key={item.id} className="relative">
+                                        <span
+                                            className={`absolute top-1 -left-[21px] h-3 w-3 rounded-full ring-4 ring-white dark:ring-card ${
+                                                activityDotClasses[item.tone] ??
+                                                'bg-upel-blue'
+                                            }`}
+                                        />
+                                        <p className="text-xs font-bold text-upel-navy dark:text-foreground">
+                                            {item.title}
+                                        </p>
+                                        <p className="mt-0.5 text-[0.65rem] text-muted-foreground">
+                                            {item.detail
+                                                ? `${item.detail} · `
+                                                : ''}
+                                            {item.when}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
 
@@ -361,24 +425,36 @@ export function Inicio({
                                 Próximas evaluaciones
                             </h4>
                         </div>
-                        <ul className="mt-3 space-y-2.5 text-xs">
-                            <li className="flex items-center justify-between">
-                                <span className="font-semibold text-muted-foreground">
-                                    Evaluación 2 · Pedagogía
-                                </span>
-                                <span className="font-bold text-upel-navy dark:text-foreground">
-                                    30 Oct
-                                </span>
-                            </li>
-                            <li className="flex items-center justify-between">
-                                <span className="font-semibold text-muted-foreground">
-                                    Entrega Proyecto · T. Educativa
-                                </span>
-                                <span className="font-bold text-upel-navy dark:text-foreground">
-                                    05 Nov
-                                </span>
-                            </li>
-                        </ul>
+                        {upcoming_evaluations.length === 0 ? (
+                            <p className="mt-3 text-[0.68rem] font-semibold text-muted-foreground">
+                                No hay evaluaciones pendientes en los planes de
+                                tus materias.
+                            </p>
+                        ) : (
+                            <ul className="mt-3 space-y-2.5 text-xs">
+                                {upcoming_evaluations.map((evaluation) => (
+                                    <li
+                                        key={evaluation.id}
+                                        className="flex items-center justify-between gap-3"
+                                    >
+                                        <span className="min-w-0">
+                                            <span className="block truncate font-semibold text-muted-foreground">
+                                                {evaluation.title}
+                                                {evaluation.code
+                                                    ? ` · ${evaluation.code}`
+                                                    : ''}
+                                            </span>
+                                            <span className="block truncate text-[0.62rem] font-medium text-muted-foreground/80">
+                                                {evaluation.subject ?? '—'}
+                                            </span>
+                                        </span>
+                                        <span className="shrink-0 font-bold text-upel-navy dark:text-foreground">
+                                            {evaluation.scheduled_on}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 </div>
             </div>

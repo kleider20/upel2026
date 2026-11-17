@@ -1,7 +1,8 @@
 /**
  * Reglas y utilidades compartidas por los planes de evaluación del portal
- * docente. Las notas de cada evaluación van de 1 a 20 y la definitiva se
- * muestra sobre 10, con 6 como nota mínima aprobatoria.
+ * docente. Las notas de cada evaluación van de 1 a 20 y la definitiva sobre 10
+ * es la suma de los aportes de las evaluaciones calificadas (nota ÷ 2 ×
+ * porcentaje), con 6 como nota mínima aprobatoria.
  */
 export type GradingLimits = {
     min_item_weight: number;
@@ -36,23 +37,58 @@ export function parseScore(value: string, maxScore = 20): number | null {
     return score;
 }
 
+export type ScoreInput = {
+    value: string;
+    clamped: boolean;
+};
+
 /**
- * Promedio ponderado sobre 20 considerando solo las evaluaciones con nota.
+ * Limita lo que se escribe en una celda de nota: hasta dos enteros y dos
+ * decimales, con coma o punto como separador. Si el número supera la nota
+ * máxima se reajusta a ese tope y se marca `clamped` para avisar al docente.
  */
-export function weightedScore(entries: GradedEntry[]): number | null {
-    let weighted = 0;
-    let weights = 0;
+export function sanitizeScoreInput(value: string, maxScore = 20): ScoreInput {
+    const cleaned = value.replace(/[^\d.,]/g, '');
+
+    if (cleaned === '') {
+        return { value: '', clamped: false };
+    }
+
+    const [rawInteger, ...decimalParts] = cleaned.split(/[.,]/);
+    const integer = (rawInteger || '0').replace(/^0+(?=\d)/, '');
+    const decimals = decimalParts.join('').slice(0, 2);
+    const score = Number(`${integer}.${decimals || '0'}`);
+
+    if (score > maxScore) {
+        return { value: String(maxScore), clamped: true };
+    }
+
+    return {
+        value: decimalParts.length > 0 ? `${integer},${decimals}` : integer,
+        clamped: false,
+    };
+}
+
+/**
+ * Definitiva acumulada sobre 10: suma de los aportes de las evaluaciones ya
+ * calificadas, sin normalizar por el porcentaje que falta cargar.
+ */
+export function accumulatedTen(entries: GradedEntry[]): number | null {
+    let total = 0;
+    let graded = 0;
 
     for (const entry of entries) {
-        if (entry.score === null || entry.weight <= 0) {
+        const contribution = weightedContribution(entry.score, entry.weight);
+
+        if (contribution === null) {
             continue;
         }
 
-        weighted += entry.score * entry.weight;
-        weights += entry.weight;
+        total += contribution;
+        graded++;
     }
 
-    return weights === 0 ? null : Math.round((weighted / weights) * 100) / 100;
+    return graded === 0 ? null : Math.round(total * 100) / 100;
 }
 
 /**
@@ -60,6 +96,21 @@ export function weightedScore(entries: GradedEntry[]): number | null {
  */
 export function toScaleTen(score: number | null): number | null {
     return score === null ? null : Math.round((score / 2) * 100) / 100;
+}
+
+/**
+ * Aporte de una evaluación a la definitiva sobre 10: la nota llevada a la
+ * escala 1-10 multiplicada por el porcentaje que pesa en el plan.
+ */
+export function weightedContribution(
+    score: number | null,
+    weight: number,
+): number | null {
+    const scoreTen = toScaleTen(score);
+
+    return scoreTen === null
+        ? null
+        : Math.round(scoreTen * (weight / 100) * 100) / 100;
 }
 
 /**

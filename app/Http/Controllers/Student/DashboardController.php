@@ -11,9 +11,12 @@ use App\Models\AdmissionDocument;
 use App\Models\Enrollment;
 use App\Models\Subject;
 use App\Models\User;
+use App\Notifications\SchedulePublishedNotification;
 use App\Support\AdmissionTimeline;
+use App\Support\StudentGrades;
 use App\Support\StudentSchedule;
 use App\Support\SubjectCode;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,9 +27,82 @@ use Inertia\Response;
 class DashboardController extends Controller
 {
     /**
-     * Muestra el dashboard completo y exclusivo del estudiante autenticado.
+     * Página de inicio del portal: resumen personal del estudiante.
      */
     public function index(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/dashboard/index');
+    }
+
+    /**
+     * Página del expediente de admisión.
+     */
+    public function solicitud(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/solicitud/index');
+    }
+
+    /**
+     * Página de materias inscritas del período.
+     */
+    public function materias(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/materias/index');
+    }
+
+    /**
+     * Página de calificaciones con las evaluaciones y la definitiva de cada
+     * materia.
+     */
+    public function calificaciones(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/calificaciones/index');
+    }
+
+    /**
+     * Página de docentes que imparten clase al estudiante.
+     */
+    public function profesores(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/profesores/index');
+    }
+
+    /**
+     * Página del mapa curricular de la carrera.
+     */
+    public function pensum(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/pensum/index');
+    }
+
+    /**
+     * Página del horario oficial del estudiante.
+     */
+    public function horario(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/horario/index');
+    }
+
+    /**
+     * Página del expediente personal del estudiante.
+     */
+    public function perfil(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/perfil/index');
+    }
+
+    /**
+     * Página de trámites y constancias del estudiante.
+     */
+    public function tramites(Request $request): Response|RedirectResponse
+    {
+        return $this->renderPage($request, 'student/tramites/index');
+    }
+
+    /**
+     * Renderiza una página del portal con los datos del estudiante autenticado.
+     */
+    private function renderPage(Request $request, string $page): Response|RedirectResponse
     {
         $user = $request->user();
 
@@ -34,6 +110,16 @@ class DashboardController extends Controller
             return redirect()->route('login');
         }
 
+        return Inertia::render($page, $this->pageData($user));
+    }
+
+    /**
+     * Datos compartidos por las páginas del portal del estudiante.
+     *
+     * @return array<string, mixed>
+     */
+    private function pageData(User $user): array
+    {
         $profile = $user->studentProfile()->with('career')->first();
 
         $admission = Admission::query()
@@ -53,15 +139,37 @@ class DashboardController extends Controller
             ->orderBy('subject_id')
             ->get();
 
-        $graded = $enrollments->whereNotNull('final_grade');
-        $approved = $enrollments->where('status', 'aprobado');
-        $average = $graded->avg('final_grade');
+        // Definitiva, evaluaciones y condición de cada materia según las notas
+        // que el docente cargó en el plan de evaluación.
+        $gradeRows = StudentGrades::breakdown($enrollments);
+
+        // Veces reprobada cada materia: sustenta el registro de repitencia en
+        // Mis Materias y la suspensión de inscripciones a la tercera vez.
+        $failedAttempts = $enrollments
+            ->filter(static fn (Enrollment $enrollment): bool => ($gradeRows[$enrollment->id]['condition'] ?? $enrollment->status) === 'reprobado')
+            ->countBy(static fn (Enrollment $enrollment): string => (string) ($enrollment->subject?->code ?? ''));
+
+        $approvedEnrollments = $enrollments->filter(
+            static fn (Enrollment $enrollment): bool => ($gradeRows[$enrollment->id]['condition'] ?? null) === 'aprobado',
+        );
+        $pendingCount = $enrollments->filter(
+            static fn (Enrollment $enrollment): bool => in_array(
+                $gradeRows[$enrollment->id]['condition'] ?? null,
+                ['cursando', 'faltan_notas', 'plan_incompleto'],
+                true,
+            ),
+        )->count();
+
+        $grades = collect($gradeRows)
+            ->pluck('definitive')
+            ->filter(static fn (?float $definitive): bool => $definitive !== null);
+        $average = $grades->isEmpty() ? null : $grades->avg();
 
         $totalCredits = $enrollments->sum(
             static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
 
-        $approvedCredits = $approved->sum(
+        $approvedCredits = $approvedEnrollments->sum(
             static fn (Enrollment $enrollment): int => $enrollment->subject->credits,
         );
 
@@ -141,7 +249,7 @@ class DashboardController extends Controller
             foreach ($careerSubjects as $semester => $subjects) {
                 $pensum[] = [
                     'semester' => (int) $semester,
-                    'subjects' => $subjects->map(function (Subject $subject) use (&$availableElectives, $enrollments): array {
+                    'subjects' => $subjects->map(function (Subject $subject) use (&$availableElectives, $enrollments, $gradeRows): array {
                         $isElective = $subject->isElective();
                         $assigned = null;
 
@@ -162,8 +270,18 @@ class DashboardController extends Controller
                         $grade = null;
 
                         if ($enrolled) {
-                            $grade = $enrolled->final_grade !== null ? (float) $enrolled->final_grade : null;
-                            $status = $enrolled->status === 'aprobado' ? 'aprobado' : ($enrolled->status === 'reprobado' ? 'reprobado' : 'cursando');
+                            $gradeRow = $gradeRows[$enrolled->id] ?? null;
+                            $condition = $gradeRow['condition'] ?? $enrolled->status;
+
+                            $grade = $gradeRow['definitive']
+                                ?? ($enrolled->final_grade !== null ? (float) $enrolled->final_grade : null);
+
+                            $status = match ($condition) {
+                                'aprobado' => 'aprobado',
+                                'reprobado' => 'reprobado',
+                                'retirado' => 'pendiente',
+                                default => 'cursando',
+                            };
                         }
 
                         return [
@@ -231,7 +349,7 @@ class DashboardController extends Controller
                 ->get()
                 ->keyBy('code');
 
-        $presentSubject = static function (array $subject, int $index, ?string $period = null) use ($enrollments, $subjectCatalog, $profile, $activePeriodName): array {
+        $presentSubject = static function (array $subject, int $index, ?string $period = null) use ($enrollments, $gradeRows, $subjectCatalog, $profile, $activePeriodName, $failedAttempts): array {
             $catalog = $subjectCatalog->get($subject['code']);
             $enrollment = $enrollments->first(
                 static fn (Enrollment $candidate): bool => $candidate->subject?->code === $subject['code'],
@@ -243,6 +361,7 @@ class DashboardController extends Controller
             $teacher = trim((string) ($subject['teacher'] ?? ''));
             $professorName = $teacher !== '' ? $teacher : $enrollment?->professor?->name;
             $grade = $enrollment?->final_grade !== null ? (float) $enrollment->final_grade : null;
+            $gradeRow = $enrollment !== null ? ($gradeRows[$enrollment->id] ?? null) : null;
 
             return [
                 'id' => $enrollment?->id ?? $catalog?->id ?? $index + 1,
@@ -257,15 +376,12 @@ class DashboardController extends Controller
                 'professor_url' => $professorId !== null
                     ? route('student.professors.show', $professorId, absolute: false)
                     : null,
-                'n1' => null,
-                'n2' => null,
-                'n3' => null,
-                'final' => $grade,
-                'grade' => $grade,
-                'status' => $enrollment?->status ?? 'cursando',
-                'status_label' => $enrollment?->statusLabel() ?? 'Cursando',
-                'status_tone' => $enrollment?->statusTone() ?? 'amber',
+                'grade' => $gradeRow['definitive'] ?? $grade,
+                'status' => $gradeRow['condition'] ?? $enrollment?->status ?? 'cursando',
+                'status_label' => $gradeRow['condition_label'] ?? $enrollment?->statusLabel() ?? 'Cursando',
+                'status_tone' => $gradeRow['condition_tone'] ?? $enrollment?->statusTone() ?? 'amber',
                 'modality' => $catalog?->modalityLabel(),
+                'attempts' => (int) ($failedAttempts[(string) $subject['code']] ?? 0),
             ];
         };
 
@@ -308,7 +424,7 @@ class DashboardController extends Controller
         $teachers = $subjects
             ->filter(static fn (array $subject): bool => $subject['professor_id'] !== null)
             ->groupBy(static fn (array $subject): string => $subject['professor_id'].'|'.$subject['period'])
-            ->map(static function (Collection $rows) use ($professors): ?array {
+            ->map(static function (Collection $rows) use ($professors, $activePeriodName): ?array {
                 $professor = $professors->get((int) $rows->first()['professor_id']);
 
                 if ($professor === null) {
@@ -332,7 +448,90 @@ class DashboardController extends Controller
             ->filter()
             ->values();
 
-        return Inertia::render('Student/Dashboard/Index', [
+        // Actividad reciente: notas publicadas por el docente, horario
+        // publicado y movimientos de la solicitud de admisión.
+        $activity = collect();
+
+        foreach ($enrollments as $enrollment) {
+            $gradeRow = $gradeRows[$enrollment->id] ?? null;
+
+            if ($gradeRow === null || $gradeRow['graded_at'] === null) {
+                continue;
+            }
+
+            $activity->push([
+                'id' => 'grades-'.$enrollment->id,
+                'title' => 'Notas de '.($enrollment->subject?->name ?? 'la materia').' publicadas',
+                'detail' => $gradeRow['graded_count'].' de '.$gradeRow['items_count'].' evaluaciones calificadas',
+                'date' => $gradeRow['graded_at'],
+                'tone' => 'green',
+            ]);
+        }
+
+        $scheduleNotifications = $user->notifications()
+            ->where('type', SchedulePublishedNotification::class)
+            ->latest()
+            ->take(2)
+            ->get();
+
+        foreach ($scheduleNotifications as $notification) {
+            $activity->push([
+                'id' => 'notification-'.$notification->id,
+                'title' => (string) data_get($notification->data, 'title', 'Horario de clases'),
+                'detail' => (string) data_get($notification->data, 'message', 'Se ha publicado tu horario de clases.'),
+                'date' => $notification->created_at,
+                'tone' => 'blue',
+            ]);
+        }
+
+        if ($admission !== null) {
+            foreach ($admission->statusHistories->sortByDesc('created_at')->take(2) as $history) {
+                $isDocumentReview = $history->from_status === $history->to_status && $history->note !== null;
+
+                $activity->push([
+                    'id' => 'admission-'.$history->id,
+                    'title' => $isDocumentReview
+                        ? (string) $history->note
+                        : 'Solicitud de admisión: '.$history->toLabel(),
+                    'detail' => 'Movimiento del '.$history->created_at?->format('d/m/Y'),
+                    'date' => $history->created_at,
+                    'tone' => $history->toTone(),
+                ]);
+            }
+        }
+
+        $recentActivity = $activity
+            ->filter(static fn (array $item): bool => $item['date'] !== null)
+            ->sortByDesc(static fn (array $item): int => $item['date']->getTimestamp())
+            ->take(5)
+            ->map(static fn (array $item): array => [
+                'id' => $item['id'],
+                'title' => $item['title'],
+                'detail' => $item['detail'],
+                'date' => $item['date']->format('d/m/Y'),
+                'when' => self::humanDate($item['date']),
+                'tone' => $item['tone'],
+            ])
+            ->values();
+
+        // Próximas evaluaciones del plan que el estudiante todavía no tiene
+        // calificadas.
+        $upcomingEvaluations = $enrollments
+            ->flatMap(static fn (Enrollment $enrollment): array => collect($gradeRows[$enrollment->id]['upcoming'] ?? [])
+                ->map(static fn (array $item): array => [
+                    'id' => $enrollment->id.'|'.$item['date'].'|'.$item['title'],
+                    'title' => $item['title'],
+                    'subject' => $enrollment->subject?->name,
+                    'code' => $enrollment->subject?->code,
+                    'date' => $item['date'],
+                    'scheduled_on' => $item['scheduled_on'],
+                ])
+                ->all())
+            ->sortBy('date')
+            ->take(4)
+            ->values();
+
+        return [
             'profile' => $profile !== null ? [
                 'id' => $profile->id,
                 'student_code' => $profile->student_code,
@@ -371,21 +570,20 @@ class DashboardController extends Controller
             'summary' => [
                 'average' => $average !== null ? round((float) $average, 1) : null,
                 'subjects_count' => $enrollments->count(),
-                'approved_count' => $approved->count(),
-                'pending_count' => $enrollments->where('status', 'cursando')->count(),
+                'approved_count' => $approvedEnrollments->count(),
+                'pending_count' => $pendingCount,
                 'credits_total' => $totalCredits,
                 'credits_approved' => $approvedCredits,
                 'progress' => $totalCredits > 0
                     ? (int) round(($approvedCredits / $totalCredits) * 100)
                     : 0,
             ],
+            'recent_activity' => $recentActivity,
+            'upcoming_evaluations' => $upcomingEvaluations,
             'enrollments' => $enrollments->map(
-                static function (Enrollment $enrollment): array {
-                    $baseGrade = $enrollment->final_grade !== null ? (float) $enrollment->final_grade : null;
-                    // Generar cortes simulados razonables si hay nota final
-                    $n1 = $baseGrade !== null ? min(20, max(1, round($baseGrade * (0.9 + (rand(0, 20) / 100)), 1))) : null;
-                    $n2 = $baseGrade !== null ? min(20, max(1, round($baseGrade * (0.95 + (rand(0, 10) / 100)), 1))) : null;
-                    $n3 = $baseGrade !== null ? min(20, max(1, round($baseGrade * (0.98 + (rand(0, 10) / 100)), 1))) : null;
+                static function (Enrollment $enrollment) use ($gradeRows): array {
+                    $gradeRow = $gradeRows[$enrollment->id] ?? null;
+                    $finalGrade = $enrollment->final_grade !== null ? (float) $enrollment->final_grade : null;
 
                     return [
                         'id' => $enrollment->id,
@@ -396,15 +594,14 @@ class DashboardController extends Controller
                         'career' => $enrollment->subject?->career?->name,
                         'period' => $enrollment->academicPeriod?->name,
                         'professor' => $enrollment->professor?->name,
-                        'n1' => $n1,
-                        'n2' => $n2,
-                        'n3' => $n3,
-                        'final' => $baseGrade,
-                        'grade' => $baseGrade,
-                        'status' => $enrollment->status,
-                        'status_label' => $enrollment->statusLabel(),
-                        'status_tone' => $enrollment->statusTone(),
-                        'modality' => 'Online',
+                        'definitive' => $gradeRow['definitive'] ?? $finalGrade,
+                        'status' => $gradeRow['condition'] ?? $enrollment->status,
+                        'status_label' => $gradeRow['condition_label'] ?? $enrollment->statusLabel(),
+                        'status_tone' => $gradeRow['condition_tone'] ?? $enrollment->statusTone(),
+                        'graded_count' => $gradeRow['graded_count'] ?? 0,
+                        'items_count' => $gradeRow['items_count'] ?? 0,
+                        'evaluations' => $gradeRow['evaluations'] ?? [],
+                        'modality' => $enrollment->subject?->modalityLabel() ?? 'Online',
                     ];
                 },
             )->values(),
@@ -414,7 +611,37 @@ class DashboardController extends Controller
             'schedule' => $schedule,
             'tramites' => $tramites,
             'active_period' => $activePeriodName,
-        ]);
+        ];
+    }
+
+    /**
+     * Describe una fecha en español para la línea de tiempo.
+     */
+    private static function humanDate(CarbonInterface $date): string
+    {
+        $minutes = (int) now()->diffInMinutes($date);
+
+        if ($minutes < 1) {
+            return 'Ahora mismo';
+        }
+
+        if ($minutes < 60) {
+            return $minutes === 1 ? 'Hace 1 minuto' : "Hace {$minutes} minutos";
+        }
+
+        $hours = intdiv($minutes, 60);
+
+        if ($hours < 24) {
+            return $hours === 1 ? 'Hace 1 hora' : "Hace {$hours} horas";
+        }
+
+        $days = intdiv($hours, 24);
+
+        if ($days === 1) {
+            return 'Ayer';
+        }
+
+        return "Hace {$days} días";
     }
 
     /**

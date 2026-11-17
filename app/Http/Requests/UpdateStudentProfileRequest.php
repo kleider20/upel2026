@@ -41,6 +41,8 @@ class UpdateStudentProfileRequest extends FormRequest
                 Rule::unique('student_profiles', 'student_code')->ignore($student->id),
             ],
             'career_id' => ['nullable', 'integer', 'exists:careers,id'],
+            'identity_document' => ['nullable', 'string', 'max:20'],
+            'cohort' => ['nullable', 'string', 'max:10', 'regex:/^\d{4}(-[IVX]{1,4})?$/'],
             'current_semester' => ['required', 'integer', 'min:1', 'max:255'],
             'status' => ['required', Rule::in(['activo', 'preinscrito', 'suspendido', 'egresado'])],
             'phone' => ['nullable', 'string', 'max:30'],
@@ -63,10 +65,17 @@ class UpdateStudentProfileRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $cohort = strtoupper(trim((string) $this->input('cohort')));
+        $cohort = preg_replace('/\s*-\s*/', '-', $cohort) ?? $cohort;
+
         $this->merge([
             'name' => Str::of((string) $this->input('name'))->squish()->toString(),
             'email' => Str::lower(trim((string) $this->input('email'))),
             'student_code' => Str::upper(trim((string) $this->input('student_code'))),
+            'identity_document' => $this->filled('identity_document')
+                ? Str::upper(trim((string) $this->input('identity_document')))
+                : null,
+            'cohort' => $cohort !== '' ? $cohort : null,
         ]);
     }
 
@@ -79,6 +88,7 @@ class UpdateStudentProfileRequest extends FormRequest
             'email.unique' => 'Este correo ya está asociado a otro usuario.',
             'student_code.unique' => 'Este código ya pertenece a otro estudiante.',
             'career_id.exists' => 'La carrera seleccionada no existe.',
+            'cohort.regex' => 'La cohorte debe tener el formato 2025-II (año, guion y momento).',
         ];
     }
 }

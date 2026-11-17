@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Permission;
 use App\Http\Requests\StoreEvaluationPlanRequest;
 use App\Models\AcademicPeriod;
 use App\Models\EvaluationPlan;
 use App\Models\Schedule;
 use App\Models\Subject;
+use App\Models\User;
 use App\Support\AcademicOptions;
 use App\Support\EvaluationPlanDates;
 use App\Support\EvaluationPlanGrading;
@@ -34,6 +36,8 @@ class ProfessorEvaluationPlanController extends Controller
 
         $schedules = ProfessorAssignments::schedules($professor);
 
+        $canDeleteFinished = $this->canDeleteFinishedPlans($professor);
+
         $subjectIds = $schedules
             ->flatMap(static fn (Schedule $schedule): array => $schedule->subjects->modelKeys())
             ->unique()
@@ -51,8 +55,9 @@ class ProfessorEvaluationPlanController extends Controller
 
         $rows = $schedules
             ->flatMap(static fn (Schedule $schedule): array => $schedule->subjects
-                ->map(static function (Subject $subject) use ($schedule, $plans): array {
+                ->map(static function (Subject $subject) use ($canDeleteFinished, $schedule, $plans): array {
                     $plan = $plans->get("{$subject->id}-{$schedule->id}");
+                    $isFinished = $plan instanceof EvaluationPlan && $plan->isFinished();
                     $totalWeight = $plan instanceof EvaluationPlan
                         ? (int) $plan->items->sum('weight')
                         : 0;
@@ -80,6 +85,9 @@ class ProfessorEvaluationPlanController extends Controller
                         'students_count' => $plan instanceof EvaluationPlan
                             ? count(EvaluationPlanSheet::studentRows($plan))
                             : 0,
+                        'is_finished' => $isFinished,
+                        'can_delete' => $plan instanceof EvaluationPlan
+                            && (! $isFinished || $canDeleteFinished),
                     ];
                 })
                 ->all())
@@ -299,6 +307,7 @@ class ProfessorEvaluationPlanController extends Controller
                     'weight' => $item->weight,
                     'scheduled_on' => $item->scheduled_on->format('d/m/Y'),
                     'scheduled_on_input' => $item->scheduled_on->toDateString(),
+                    'is_past' => $item->isPastDue(),
                 ])
                 ->values()
                 ->all(),
@@ -312,16 +321,35 @@ class ProfessorEvaluationPlanController extends Controller
 
     /**
      * Elimina el plan con sus evaluaciones y notas.
+     *
+     * Un plan con todas sus fechas cumplidas solo puede eliminarlo quien tenga
+     * el permiso de eliminación de planes finalizados (decano o encargado).
      */
     public function destroy(Request $request, EvaluationPlan $plan): RedirectResponse
     {
         $this->authorizePlan($request, $plan);
+
+        if ($plan->isFinished() && ! $this->canDeleteFinishedPlans($request->user())) {
+            return back()->with(
+                'error',
+                'El plan ya pasó todas sus fechas: solo un decano o un usuario con permiso puede eliminarlo.',
+            );
+        }
 
         $plan->delete();
 
         return redirect()
             ->route('professor.plans.index')
             ->with('success', 'El plan de evaluación fue eliminado.');
+    }
+
+    /**
+     * Indica si el usuario puede eliminar planes con todas sus fechas cumplidas.
+     */
+    private function canDeleteFinishedPlans(?User $user): bool
+    {
+        return $user !== null
+            && $user->getAllPermissions()->contains('name', Permission::EvaluationPlansDelete->value);
     }
 
     /**

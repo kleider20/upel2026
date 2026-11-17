@@ -1,6 +1,6 @@
 # 02 · Módulos actuales y funcionalidades
 
-Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2026.
+Este documento describe lo que la aplicación **ya hace** al 16 de noviembre de 2026.
 
 ## 1. Sitio público (landing)
 
@@ -27,10 +27,14 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
 
 ### Comportamiento por fechas
 
-- Antes del **2026-11-02 08:00 (GMT-4)**: el botón de preinscripción se muestra
-  deshabilitado con cuenta regresiva.
-- Entre preinscripción e inscripción: se habilita la preinscripción.
-- Desde el **2027-01-12 08:00 (GMT-4)**: se habilita la inscripción formal.
+- La ventana de preinscripción se administra desde `/admin/dashboard` (administrador y
+  decano): fechas de inicio y cierre y modo **Automático / Abiertas / Cerradas**.
+- Antes de la fecha de inicio el botón de preinscripción se muestra deshabilitado con
+  cuenta regresiva; dentro del rango se habilita el formulario.
+- Al terminar la fecha de cierre las inscripciones se deshabilitan automáticamente. Los
+  cierres y aperturas manuales del panel tienen prioridad sobre el rango de fechas.
+- La inscripción formal (`canEnroll`) sigue dependiendo de
+  `enrollment_opens_at` (12 de enero de 2027 a las 8:00, GMT-4).
 
 ### Extras del sitio público
 
@@ -67,9 +71,11 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
   correspondiente y bloquean el avance.
 - Genera el código de aspirante `ASP-{año}-{secuencia}` (`Admission::nextCode()`), guarda
   el estado `recibida` y el primer registro de `admission_status_histories`.
-- La ventana la controla `AdmissionWindow` + `config/admissions.php`: antes del
-  2 de noviembre de 2026 se muestra `admissions/closed` con cuenta regresiva;
-  `ADMISSIONS_FORCE_OPEN` permite probar el flujo en desarrollo.
+- La ventana la controla `AdmissionWindow` con el registro único de
+  `admission_window_settings` que actualiza el panel administrativo (ver “Ventana de
+  inscripciones” en el módulo 7). Antes de la fecha de inicio, al pasar la fecha de cierre o
+  con un cierre manual se muestra `admissions/closed`, que explica el motivo del cierre; el
+  registro inicial toma las fechas de `config/admissions.php` (`ADMISSIONS_CLOSES_AT`).
 - El envío aplica `throttle:10,1` y responde con la URL firmada de seguimiento.
 
 ### Expediente de documentos
@@ -130,9 +136,9 @@ Este documento describe lo que la aplicación **ya hace** al 2 de noviembre de 2
   roles administrador y decano). `admissions.edit` y `admissions.delete` habilitan la
   edición y eliminación de solicitudes únicamente al administrador.
 
-> La **inscripción formal / matrícula en línea** (selección de materias y pago) sigue
-> pendiente: por ahora solo existe la fecha de apertura (`isEnrollmentOpen`) que usan la
-> landing y los módulos futuros.
+> La **matrícula en línea** ya permite seleccionar las materias del siguiente período y
+> emitir la planilla de inscripción (ver “Inscripción de materias del siguiente período”
+> en el portal del estudiante); el **pago** de la inscripción sigue pendiente.
 
 ## 3. Autenticación
 
@@ -207,23 +213,37 @@ Si el correo existe pero pertenece a otro portal, se devuelve un mensaje especí
 
 ## 4. Portal del estudiante
 
-**Ruta principal:** `GET /estudiante/dashboard` · **Nombre:** `student.dashboard`
-**Controlador:** `App\Http\Controllers\Student\DashboardController`
-**Página:** `resources/js/pages/Student/Dashboard/Index.tsx`
+**Rutas:** `GET /estudiante/dashboard`, `/estudiante/solicitud`, `/estudiante/materias`,
+`/estudiante/calificaciones`, `/estudiante/profesores`, `/estudiante/pensum`,
+`/estudiante/horario`, `/estudiante/perfil`, `/estudiante/tramites`,
+`/estudiante/inscripciones` y `/estudiante/inscripciones/planilla`
+· **Nombres:** `student.dashboard`, `student.solicitud`, `student.materias`,
+`student.calificaciones`, `student.profesores`, `student.pensum`, `student.horario`,
+`student.perfil`, `student.tramites` y `student.enrollment.{index,store,sheet}`
+**Controlador:** `App\Http\Controllers\Student\DashboardController` (módulos del portal) y
+`App\Http\Controllers\Student\StudentEnrollmentController` (inscripción de materias)
+**Páginas:** `resources/js/pages/student/{dashboard,solicitud,materias,calificaciones,
+profesores,pensum,horario,perfil,tramites,inscripciones}/index.tsx`
 
-Portal de una sola página con barra lateral y 9 módulos conmutables por pestaña:
+Cada elemento de la barra lateral es una **página independiente** con su propia URL de
+Inertia. El controlador expone una acción por sección (`index`, `solicitud`, `materias`,
+`calificaciones`, `profesores`, `pensum`, `horario`, `perfil`, `tramites`) que reutiliza el
+mismo payload a través de `renderPage()` y de `pageData()`. La navegación de `Sidebar`,
+`Topbar` e `Inicio` usa `<Link>` sobre `studentTabHrefs`, construido con las rutas tipadas
+de Wayfinder (`@/routes/student`).
 
-| Pestaña             | Componente                      | Funcionalidad                                                                                                                                                                                                                                                                                                                                  |
-| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inicio              | `modules/Inicio.tsx`            | Saludo, resumen de promedio, materias, créditos, avance, franja de la solicitud de admisión y accesos rápidos.                                                                                                                                                                                                                                 |
-| Mi solicitud        | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                                                                                                                                                                 |
-| Mis materias        | `modules/MisMaterias.tsx`       | Materias del horario publicado (cruzadas con la inscripción cuando existe) con período, créditos, modalidad, estado y el docente asignado enlazado a su perfil (`GET /estudiante/profesores/{professor}`).                                                                                                                                     |
-| Mis calificaciones  | `modules/MisCalificaciones.tsx` | Cortes N1/N2/N3, nota final y estado por materia.                                                                                                                                                                                                                                                                                              |
-| Mis profesores      | `modules/MisProfesores.tsx`     | Tarjetas de los docentes del horario con el mismo formato de la portada (avatar con iniciales, título abreviado, departamento y materias), agrupadas por período académico y con enlace al correo y al perfil del docente.                                                                                                                     |
-| Mi carrera y pénsum | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/cursando/pendiente y marca de libre elección (UNCLE).                                                                                                                                                                                                                                          |
-| Mi horario          | `modules/MiHorario.tsx`         | Horario oficial (plantilla de 16 sábados o rango dinámico publicado), seleccionado por carrera, período, modalidad y horario de preinscripción; incluye las dos cuadrículas, descarga/impresión en PDF (`GET /estudiante/horario/pdf`) y avisos en la campana al publicar o actualizar el horario correspondiente.                             |
-| Mi perfil           | `modules/MiPerfil.tsx`          | Expediente completo del estudiante (identidad, contacto, datos académicos y de preinscripción, bachillerato), historial de cambios y revisiones, aviso de privacidad, formulario de actualización de contacto y lugar de nacimiento (`PUT /estudiante/perfil`) y recarga de documentos con estado de revisión (`POST /estudiante/documentos`). |
-| Mis trámites        | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                                                                                                                                                           |
+| Página                  | URL                          | Componente                      | Funcionalidad                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------- | ---------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inicio                  | `/estudiante/dashboard`      | `modules/Inicio.tsx`            | Saludo, resumen de promedio (sobre 10), materias con su condición y definitiva reales, créditos, avance, franja de la solicitud de admisión, actividad reciente tomada de la base de datos y próximas evaluaciones del plan, con accesos rápidos a las demás páginas.                                                                                                                          |
+| Mi solicitud            | `/estudiante/solicitud`      | `modules/MiSolicitud.tsx`       | Expediente de admisión completo: datos personales y académicos, récord de bachillerato, documentos, historial y observaciones.                                                                                                                                                                                                                                                                 |
+| Inscripción de materias | `/estudiante/inscripciones`  | `modules/MisInscripciones.tsx`  | Selección de materias del siguiente período según las UC asignadas: las aplazadas quedan bloqueadas, el resto se marca o desmarca y al guardar se muestra la planilla oficial **Planilla de Asesoría Académica e Inscripción (Diseño 2015)** con vista previa y PDF (solo activa con la ventana de inscripciones abierta; a la tercera reprobación de una materia se suspende la inscripción). |
+| Mis materias            | `/estudiante/materias`       | `modules/MisMaterias.tsx`       | Materias del horario publicado (cruzadas con la inscripción cuando existe) con período, créditos, modalidad, estado y el docente asignado enlazado a su perfil (`GET /estudiante/profesores/{professor}`).                                                                                                                                                                                     |
+| Mis calificaciones      | `/estudiante/calificaciones` | `modules/MisCalificaciones.tsx` | Acordeones por período académico y materia: cada materia indica las evaluaciones calificadas, la definitiva sobre 10 y la condición; al expandirla lista las evaluaciones del plan del docente con fecha, ponderación, nota sobre 20 y aporte sobre 10.                                                                                                                                        |
+| Mis profesores          | `/estudiante/profesores`     | `modules/MisProfesores.tsx`     | Tarjetas de los docentes del horario con el mismo formato de la portada (avatar con iniciales, título abreviado, departamento y materias), agrupadas por período académico y con enlace al correo y al perfil del docente.                                                                                                                                                                     |
+| Mi carrera y pénsum     | `/estudiante/pensum`         | `modules/MiCarreraPensum.tsx`   | Mapa curricular por período con estado aprobado/reprobado/cursando/pendiente —tomado de las notas que carga el docente— y marca de libre elección (UNCLE).                                                                                                                                                                                                                                     |
+| Mi horario              | `/estudiante/horario`        | `modules/MiHorario.tsx`         | Horario oficial (plantilla de 16 sábados o rango dinámico publicado), seleccionado por carrera, período, modalidad y horario de preinscripción; incluye las dos cuadrículas, descarga/impresión en PDF (`GET /estudiante/horario/pdf`) y avisos en la campana al publicar o actualizar el horario correspondiente.                                                                             |
+| Mi perfil               | `/estudiante/perfil`         | `modules/MiPerfil.tsx`          | Expediente completo del estudiante (identidad, contacto, datos académicos y de preinscripción, bachillerato), historial de cambios y revisiones, aviso de privacidad, formulario de actualización de contacto y lugar de nacimiento (`PUT /estudiante/perfil`) y recarga de documentos con estado de revisión (`POST /estudiante/documentos`).                                                 |
+| Mis trámites            | `/estudiante/tramites`       | `modules/MisTramites.tsx`       | Solicitud de constancias y solvencias (`POST /estudiante/tramites`).                                                                                                                                                                                                                                                                                                                           |
 
 - `Student\DashboardController` envía `admission` con la solicitud que originó la cuenta
   (datos, documentos e historial) y completa el perfil con esos datos cuando el
@@ -231,7 +251,7 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 - **Historial de la solicitud:** `App\Support\AdmissionTimeline` estructura las entradas de
   `admission_status_histories` para las vistas Inertia (bandeja de admisiones, perfil
   administrativo del estudiante, portal estudiantil y consulta pública) y presenta como
-  revisión documental las entradas sin cambio de estado. Las pestañas **Mi solicitud** y
+  revisión documental las entradas sin cambio de estado. Las páginas **Mi solicitud** y
   **Mi perfil** muestran la línea de tiempo con fecha, autor, nota y el resultado de
   validación o rechazo de los archivos; cada carga o reemplazo desde
   `POST /estudiante/documentos` agrega una entrada nueva.
@@ -266,12 +286,11 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   estado; las inscripciones que no figuran en el horario se agregan al final. Cada entrada
   incluye `professor`, `professor_id` y `professor_url`.
   `GET /estudiante/profesores/{professor}` (`student.professors.show`,
-  `Student\StudentProfessorController`, página `Student/Professor/Show.tsx`) muestra el perfil
+  `Student\StudentProfessorController`, página `student/professor/show.tsx`) muestra el perfil
   del docente —departamento, título, código de empleado y correo institucional— con las
   materias que los horarios publicados le asignan (`ProfessorAssignments::subjects()`);
   responde 404 para usuarios sin perfil de profesor y 403
-  fuera del rol estudiante. El dashboard abre la pestaña indicada en `?tab=` para que el
-  enlace «Volver a mis materias» regrese a ese módulo.
+  fuera del rol estudiante. El enlace «Volver a mis materias» regresa a `/estudiante/materias`.
 - **Docentes por período:** el prop `teachers` se deriva de esas mismas materias, con una
   entrada por docente y período académico (`department`, `academic_title`, `subjects`,
   `semesters`, `period` y `profile_url`). El período de las materias del horario es el
@@ -281,14 +300,99 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   portada: avatar con iniciales, nombre con el título abreviado (Dra., Dr., Mgtr., Esp.,
   Lcda., Lcdo.), departamento en dorado, semestre, descripción con el título completo y
   las materias, y accesos al correo y al perfil del docente.
+- **Calificaciones por evaluación:** `App\Support\StudentGrades` toma el plan de evaluación del
+  docente (`evaluation_plans`, `evaluation_plan_items` y `evaluation_plan_scores`) de cada
+  materia inscrita y lista cada evaluación con su fecha, ponderación, nota sobre 20 y aporte
+  sobre 10. La **definitiva** de la materia es la suma de los aportes
+  (`EvaluationPlanGrading::accumulatedTen`), igual que en la planilla del docente, y solo
+  alcanza la escala completa cuando el plan está al 100 % con todas las evaluaciones
+  calificadas. La condición se resuelve con lo que carga el docente: **Aprobado**
+  (definitiva ≥ 6), **Reprobado** (definitiva < 6), **Faltan notas**, **Plan incompleto** y
+  **Cursando** (sin plan o sin notas); los estados oficiales de la inscripción
+  (`aprobado`, `reprobado`, `retirado`) tienen prioridad cuando existen.
+  `MisCalificaciones.tsx` agrupa por período académico (`enrollments[].period`) en
+  acordeones: período → materia (“x de y evaluaciones calificadas”, definitiva y condición)
+  → detalle de evaluaciones cargadas por el docente. El resumen del portal
+  (`summary.average`, `approved_count`, `pending_count`) y el pénsum
+  (`pensum[].subjects[].status/grade`) usan esa misma definitiva, por lo que la materia
+  aparece **Aprobada** o **Reprobada** en cuanto el docente completa las notas.
+- **Actividad y próximas evaluaciones:** `recent_activity` se arma con datos reales —notas
+  publicadas desde `evaluation_plan_scores`, notificaciones de horario publicado y
+  `admission_status_histories`—, ordenados por fecha y con hora relativa en español;
+  `upcoming_evaluations` lista las evaluaciones del plan sin nota con fecha futura. `Inicio`
+  ya no muestra textos de ejemplo.
+- `resources/js/app.tsx` resuelve el layout de las páginas `student/*` como `null`: cada
+  página monta su propio `StudentLayout`, sin el layout de aplicación alrededor.
 - La barra lateral (`components/student/Sidebar.tsx`) agrupa “Mi vida académica” y
-  “Cuenta y Servicios”, e incluye cierre de sesión.
+  “Cuenta y Servicios”, enlaza cada sección con su URL y incluye cierre de sesión.
 - La barra superior (`components/student/Topbar.tsx`) muestra el título del módulo y el
-  usuario autenticado.
+  usuario autenticado, con acceso al perfil.
 - `StudentLayout` incorpora `FlashMessages` para los avisos de éxito.
 
 > Existe además un dashboard anterior en `resources/js/pages/dashboard/student.tsx`
 > que ya no se utiliza para estudiantes (ver correcciones pendientes).
+
+### Inscripción de materias del siguiente período
+
+**Rutas:** `GET /estudiante/inscripciones` (`student.enrollment.index`),
+`POST /estudiante/inscripciones` (`student.enrollment.store`) y
+`GET /estudiante/inscripciones/planilla` (`student.enrollment.sheet`)
+**Controlador:** `App\Http\Controllers\Student\StudentEnrollmentController`
+**Petición:** `App\Http\Requests\StudentEnrollmentRequest`
+**Soporte:** `App\Support\StudentEnrollment` (reglas y selección) y
+`App\Support\StudentEnrollmentSheetPdf` (planilla)
+**Página:** `resources/js/pages/student/inscripciones/index.tsx` con
+`resources/js/components/student/modules/MisInscripciones.tsx`
+**Prop compartida:** `studentEnrollment` (`HandleInertiaRequests`) con `is_open`,
+`submitted`, `url`, `opens_at`, `closes_at` y `reason`
+
+- El apartado **solo se activa con la ventana de inscripciones abierta**
+  (`AdmissionWindow::isOpen()`, la misma que administra el panel administrativo). El enlace
+  aparece en la barra lateral y la tarjeta del Inicio mientras la ventana está abierta y
+  permanece visible después si el estudiante ya tiene una inscripción registrada en el
+  período vigente, para que pueda consultar su planilla.
+- **Período destino:** el período activo mientras el estudiante no tenga matrículas en
+  períodos posteriores; si ya cursó el activo, el siguiente período por fecha de inicio.
+- **UC asignadas:** suma de los créditos de las materias del pénsum base del semestre que
+  corresponde inscribir. El semestre se toma del perfil cuando no hay historial y, en caso
+  contrario, del semestre siguiente al último cursado; una vez registradas las materias del
+  período se conserva el semestre inscrito.
+- **Materias aplazadas:** toda materia con condición **Reprobado** (definitiva del plan
+  menor a 6) sin aprobación posterior en otro período consume primero las UC asignadas,
+  aparece marcada y con candado: el estudiante no puede desmarcarla y el backend rechaza
+  cualquier selección que la omita.
+- **Resto de las UC:** se reparten entre las materias del semestre siguiente que el
+  estudiante no haya aprobado, en orden de pénsum. La selección inicial es codiciosa: se
+  marcan todas las materias que caben en las UC disponibles y el estudiante puede marcar o
+  desmarcar las demás mientras la ventana siga abierta; el servidor no acepta selecciones
+  que superen las UC asignadas.
+- **Repitencia y suspensión:** cada reprobación queda registrada como una inscripción del
+  período en que se cursó. En **Mis Materias** la materia muestra la etiqueta
+  `Reprobada 2.ª vez` y la fila **Veces reprobada**; a la **tercera** reprobación el
+  estudiante queda suspendido de las inscripciones: la página de inscripción reemplaza la
+  selección por el aviso «Has reprobado la o las materias: … Debes dirigirte a control de
+  estudios.» y `StudentEnrollment::save()` rechaza cualquier intento con el mismo mensaje.
+- **Persistencia:** `POST /estudiante/inscripciones` guarda (o actualiza) las inscripciones
+  del período con estado `cursando` y el docente tomado de `professor_subjects`; desmarcar
+  elimina la inscripción solo si sigue en `cursando` y no tiene notas de evaluación. La
+  validación vuelve a comprobar la ventana, las materias permitidas y el tope de UC.
+- **Planilla de inscripción:** con la inscripción registrada, la página muestra y el PDF
+  reproduce la **Planilla de Asesoría Académica e Inscripción – Diseño 2015** de la UPEL-IMPM
+  (carta 612 × 792): cabecera con los logotipos y las cuatro líneas institucionales, **Datos
+  Básicos** (cédula `V18534451`, período académico —no semestre—, cohorte, especialidad,
+  entidad académica `EA La Guaira`, primer y segundo apellido, primer y segundo nombre,
+  fecha de nacimiento, estado civil, sexo, teléfono, email y dirección), la tabla **PA /
+  UNIDAD CURRICULAR / COMP / TIPO / CA / INSCRITAS** sin columna de docente, la fila
+  **Firma del Estudiante** con **TOTAL CA ASESORADOS E INSCRITOS EN EL PERÍODO**, el bloque
+  **Datos de los Funcionarios** (Asesoría e Inscripción) y **Sello**. `GET
+  /estudiante/inscripciones/planilla` genera el PDF (apertura en línea y `?download=1` para
+  descargar) sin dependencias externas.
+- La página se prueba con `tests/Feature/StudentEnrollmentTest.php` (página y prop,
+  inscripción y PDF con el formato institucional, aplazadas bloqueadas, tope de UC,
+  desmarcado, registro de repitencia, suspensión a la tercera reprobación y ventana
+  cerrada).
+
+**Cierre:** 16 de noviembre de 2026.
 
 ## 5. Portal del profesor
 
@@ -306,7 +410,10 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   evaluación), topbar fija y área de contenido con el mismo ancho máximo y espaciado que los
   portales de estudiante y administrativo.
 - **Resumen** (`GET /dashboard`): carreras, materias, estudiantes, notas pendientes, notas
-  cargadas y promedio, datos del profesor y accesos rápidos a las demás páginas.
+  cargadas y promedio, datos del profesor y accesos rápidos a las demás páginas. Los conteos
+  de estudiantes y notas salen del cohorte de cada materia y de las notas cargadas en el plan
+  de evaluación, no de la nota final del expediente; el **promedio** solo considera las
+  definitivas ya resueltas (**Aprobado** o **Reprobado**), no los acumulados parciales.
 - Las carreras, materias y estudiantes salen **solo de los horarios publicados**
   (`app/Support/ProfessorAssignments.php`): el decano elige carrera, materia y docente al
   crear el horario, y de ahí se alimenta el portal. `professor_subjects` queda únicamente
@@ -314,16 +421,34 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 - Si el docente no tiene materias en ningún horario, “Mis carreras” y las páginas de notas
   muestran **Pendiente por asignación** y no listan carreras ni estudiantes.
 - Cada materia indica su código, semestre, cohorte, horario (Lunes a viernes / Sabatino) y
-  cantidad de estudiantes.
+  cantidad de estudiantes de su cohorte.
 - **Estudiantes** (`GET /dashboard/estudiantes`): selector de carrera y, por materia, la
-  tabla **Nota final del expediente** (estudiante, código, período, nota, estado). Es una
-  vista de consulta: la acción **Cargar nota / Editar nota** abre la página **Cargar notas**
+  tabla de **nota definitiva del plan de evaluación** (estudiante, código, período, nota y
+  estado). La lista es el **cohorte de la materia** —estudiantes activos de su carrera más
+  los inscritos, el mismo roster de la planilla de evaluación—, así que al hacer clic en una
+  carrera se ven todos sus estudiantes aunque todavía no tengan notas. La nota y el estado
+  salen solo de las notas cargadas en el plan (`ProfessorWorkspace::rosterRow()`): la nota es
+  la **definitiva acumulada** (suma de los aportes de cada evaluación calificada); con notas
+  parciales se muestra ese acumulado y el estado **Faltan notas**; con todas las evaluaciones
+  calificadas y el plan al 100 %, la definitiva sobre 10 resuelve **Aprobado** o **Reprobado**;
+  si el plan todavía no suma 100 % el estado es **Plan incompleto**; sin
+  ninguna nota la columna Nota indica **Sin nota** y el estado **Cursando** (no se reutiliza
+  la nota final del expediente). La acción **Cargar nota / Editar nota** (según haya notas
+  cargadas) abre la página **Cargar notas**
   con `?materia={subject_id}&estudiante={student_id}` para cargar las notas por evaluación de
-  ese estudiante. `PUT /dashboard/notas/{enrollment}` y `UpdateGradeRequest` siguen
+  ese estudiante, y la tarjeta **Avance de notas** cuenta las definitivas y los estudiantes
+  sin nota. `PUT /dashboard/notas/{enrollment}` y `UpdateGradeRequest` siguen
   disponibles en el backend, pero el portal ya no abre el modal de nota final.
-- **Cargar notas** (`GET /dashboard/cargar-notas`): selector de carrera y, por materia, la
-  planilla **Notas por estudiante** del plan de evaluación, sin la tabla de nota final. Cada
-  evaluación tiene su columna con porcentaje y fecha, la definitiva se calcula en vivo y
+- **Cargar notas** (`GET /dashboard/cargar-notas`): selector de carrera compacto —una barra
+  horizontal de pastillas (`CareerPicker` con `variant="compact"`) sobre el contenido, para
+  no restar ancho a la planilla— y, por materia, la planilla **Notas por estudiante** del plan
+  de evaluación, sin la tabla de nota final. Cada
+  evaluación tiene su columna con porcentaje y fecha, la definitiva se calcula en vivo **sumando
+  los aportes** de las evaluaciones calificadas y debajo de cada nota aparece su **aporte a la
+  definitiva sobre 10** —nota ÷ 2 × porcentaje de la evaluación, por ejemplo 18 al 15 % aporta
+  1,35— calculado con `weightedContribution()` de `resources/js/lib/evaluation-plan.ts`; las
+  celdas sin nota no muestran aporte. El detalle del cálculo está en el `title` de cada aporte
+  (nota × porcentaje) y la nota al pie de la tabla.
   **Guardar notas** envía a `PUT /dashboard/planes-evaluacion/{plan}/notas`. La tabla y su
   estado son compartidos (`components/professor/evaluation-grades-table.tsx` y
   `components/professor/use-evaluation-grades.ts`); los datos llegan de
@@ -356,6 +481,11 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   y estudiantes. Cada fila abre la planilla del plan o, si la materia no tiene plan, el
   formulario de creación con `?subject_id=&schedule_id=` preseleccionados
   (`defaults.subject_id` y `defaults.schedule_id`).
+- **Eliminar plan:** el botón de papelera del listado solo aparece mientras el plan tenga
+  alguna evaluación por cumplir. Cuando todas las fechas ya pasaron el plan se marca
+  **Finalizado** y solo puede eliminarlo quien tenga el permiso `plans.delete` (decano,
+  coordinador académico o administrador, o un docente al que se le asigne); el servidor
+  rechaza el `DELETE` con flash de error mediante `EvaluationPlan::isFinished()`.
 - Creación en cascada: **carrera → cohorte** (horarios publicados de la carrera), luego
   materia y período académico. Solo aparecen las carreras, cohortes y materias que los
   horarios le asignan al docente; si no tiene ninguna, el formulario muestra
@@ -370,6 +500,14 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   dentro de la carrera del cohorte. El servidor valida esa impartición con
   `ProfessorAssignments::teachesSubject()`, es decir, contra los horarios publicados. Un
   plan por docente, cohorte, materia y período.
+- Nota definitiva: la **suma de los aportes** de las evaluaciones calificadas, sin normalizar
+  por el porcentaje faltante (`EvaluationPlanGrading::accumulatedTen()` / `accumulatedTen()` de
+  `resources/js/lib/evaluation-plan.ts`). El aporte de cada evaluación es nota ÷ 2 × su
+  porcentaje, así que 10 al 15 % aporta 0,75 y 12 al 20 % aporta 1,20; la definitiva de esas
+  dos evaluaciones es 1,95 sobre 10 y solo llega a 10 cuando el plan está 100 % calificado.
+  **Aprobado** o **Reprobado** solo se resuelve cuando el plan suma 100 % y todas las
+  evaluaciones tienen nota; en cualquier otro caso la nota queda **Faltan notas** (o **Plan
+  incompleto** si ya están todas las notas pero falta ponderación).
 - Las fechas de evaluación se eligen entre los días de clase que el horario del cohorte
   asigna a la materia (`schedule_subjects.dates`, ver `EvaluationPlanDates`); el servidor
   rechaza cualquier otra fecha. Cada día de clase se usa en una sola evaluación: al
@@ -380,10 +518,25 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 - `fecha de inicio` y `fecha de fin` se recalculan solas desde las fechas de las
   evaluaciones (`EvaluationPlan::syncScheduleWindow()`), también al agregar, editar o
   eliminar una evaluación; al borrar se reordenan las posiciones restantes.
+- Una evaluación cuya fecha ya pasó queda **cerrada**: su tarjeta se resalta en ámbar con la
+  insignia **Fecha cumplida** y la nota “La fecha ya pasó: la evaluación quedó cerrada y no
+  se puede editar”, pierde las acciones **Editar** y **Eliminar** —solo queda **Ver notas**—
+  y el servidor rechaza tanto la actualización como la eliminación
+  (`PUT`/`DELETE /dashboard/planes-evaluacion/{plan}/evaluaciones/{item}` → flash de error)
+  mediante `EvaluationPlanItem::isPastDue()`. La planilla expone el indicador como
+  `items.*.is_past`.
+- Cada evaluación tiene la acción **Ver notas**, que abre el diálogo
+  `components/professor/evaluation-item-scores-dialog.tsx` con la lista completa de
+  estudiantes del cohorte y la nota obtenida en esa evaluación, además del total de
+  estudiantes, cuántas notas están cargadas y el promedio de la evaluación. Es solo de
+  consulta: las notas se siguen cargando en la página **Cargar notas**.
 - Las notas se cargan de 1 a 20 por evaluación desde la página **Cargar notas** del portal
-  docente. La definitiva se calcula en vivo como promedio ponderado de las evaluaciones ya
-  calificadas (se normaliza por el porcentaje calificado, así avanza mientras se cargan las
-  notas) y se muestra en la escala de 1 a 10, donde 6 aprueba. `enrollments.final_grade` no se
+  docente. Cada celda acepta como máximo dos enteros y dos decimales (coma o punto; se
+  normaliza a coma con `sanitizeScoreInput` en `resources/js/lib/evaluation-plan.ts`) y
+  reajusta a 20 cualquier valor mayor, con un aviso emergente que indica el tope. El backend
+  mantiene el rechazo de notas fuera de 1–20 en `EvaluationPlanScoresRequest`. La definitiva
+  acumula en vivo los aportes de las evaluaciones calificadas (ver la regla anterior) y se
+  muestra en la escala de 1 a 10, donde 6 aprueba. `enrollments.final_grade` no se
   modifica desde este módulo.
 - El roster de la planilla (`EvaluationPlanSheet::studentRows()`) reúne a todos los
   estudiantes activos de la carrera del plan más los ya inscritos en la materia, aunque no
@@ -515,6 +668,28 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 - La tabla se renderiza con `resources/js/pages/admin/resource.tsx` (columnas, filas,
   tonos y estadísticas).
 
+### Ventana de inscripciones
+
+**Ruta:** `PUT /admin/inscripciones` (`admin.inscripciones.update`)
+**Controlador:** `App\Http\Controllers\AdminAdmissionWindowController`
+**Petición:** `App\Http\Requests\UpdateAdmissionWindowRequest`
+**Modelo:** `App\Models\AdmissionWindowSetting` (tabla `admission_window_settings`, registro único)
+**Componente:** `resources/js/components/admin/admission-window-panel.tsx` en `/admin/dashboard`
+
+- La tarjeta **Ventana de inscripciones** solo aparece para los roles con el permiso
+  `admissions.window` (Administrador y Decano). Muestra el estado actual (abiertas o
+  cerradas), las fechas de inicio y cierre y el selector **Automático / Abiertas / Cerradas**.
+- En modo automático la preinscripción abre a las 8:00 a. m. (GMT-4) de la fecha de inicio y
+  se deshabilita sola al terminar la fecha de cierre; los modos manuales (`open` y `closed`)
+  tienen prioridad sobre el rango.
+- La landing y `AdmissionController` usan el mismo cálculo de `App\Support\AdmissionWindow`,
+  y `admissions/closed` distingue cierre por fecha, por cierre manual o antes de la apertura.
+- El registro se crea la primera vez con las fechas de `config/admissions.php`
+  (`ADMISSIONS_OPENS_AT` y `ADMISSIONS_CLOSES_AT`). Al desplegar hay que ejecutar
+  `php artisan migrate` y `php artisan db:seed --class=RolePermissionSeeder` para crear el
+  permiso y asignarlo al decano.
+- Pruebas: `tests/Feature/AdminAdmissionWindowTest.php` (10 casos).
+
 ### Horarios publicados
 
 **Rutas:** `/admin/schedules` (`admin.schedules.index`), `/create`, `/{schedule}`,
@@ -601,6 +776,15 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
   (`ApreMateI-PA1PRE`). En creación se recalcula en vivo; la edición manual se respeta y
   puede regenerarse con el botón **Regenerar**.
 - `DemoUserSeeder` crea 13 usuarios, perfiles, inscripciones, notas y pagos de ejemplo.
+- `TicStudentsSeeder` carga la nómina oficial de TIC I (60 estudiantes) tomada de la planilla
+  del curso: crea la cuenta `v{cedula}@estudiante.upel.edu.ve` con la cédula como contraseña
+  inicial y asigna la carrera según la especialidad de la planilla (P → EDPRI, L → LENLI,
+  G → GEHIS), el cohorte y el código de expediente del año correspondiente. Es idempotente:
+  si la cédula ya existe (por perfil o por solicitud convertida) solo completa sus datos y
+  conserva su año de ingreso.
+- `student_profiles` guarda la cédula (`identity_document`) y la cohorte (`cohort`) del
+  estudiante. La planilla de evaluación y el perfil administrativo prefieren esos valores y
+  solo recurren a la solicitud de admisión o al año de ingreso cuando están vacíos.
 - `ScheduleFactory` genera horarios de prueba por carrera, período y cohorte.
 - `AdmissionSeeder` agrega solicitudes de admisión de muestra con distintos estados y
   documentos para probar la bandeja administrativa.
@@ -609,27 +793,30 @@ Portal de una sola página con barra lateral y 9 módulos conmutables por pesta�
 
 ## 10. Pruebas automatizadas
 
-| Archivo                                             | Cobertura                                                                                                                                             |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/Feature/LandingPageTest.php`                 | Landing, fechas y metadatos.                                                                                                                          |
-| `tests/Feature/NewsletterSubscriptionTest.php`      | Alta, duplicados y validación.                                                                                                                        |
-| `tests/Feature/Auth/AuthenticationTest.php`         | Login por portal, admin, 2FA, logout y throttling.                                                                                                    |
-| `tests/Feature/AdminPortalTest.php`                 | Acceso y visibilidad de módulos por rol.                                                                                                              |
-| `tests/Feature/AdminCareerTest.php`                 | CRUD de carreras: permisos, validación, alta, edición y baja.                                                                                         |
-| `tests/Feature/AdminSubjectTest.php`                | CRUD de materias: permisos, validación, búsqueda y baja.                                                                                              |
-| `tests/Feature/AdminProfessorTest.php`              | Cuentas docentes, permisos, asignaciones de materias y opciones en horarios.                                                                          |
-| `tests/Feature/AdminScheduleTest.php`               | Horarios: permisos, filtros, alta con materias, validación, PDF, baja y prioridad en el portal.                                                       |
-| `tests/Feature/AcademicSeederTest.php`              | Solo las 4 carreras oficiales y renombrado de códigos históricos.                                                                                     |
-| `tests/Feature/AdmissionApplicationTest.php`        | Ventana, registro, validaciones, consulta, enlaces firmados y documentos.                                                                             |
-| `tests/Feature/AdminAdmissionTest.php`              | Permisos, bandeja, transiciones, aprobación, documentos y conversión con credenciales iniciales.                                                      |
-| `tests/Feature/PasswordDefinitionTest.php`          | Login con cédula, bloqueo del portal, definición de contraseña y validación.                                                                          |
-| `tests/Feature/StudentPortalTest.php`               | Expediente en el dashboard, materias del horario con docente enlazado, perfil del profesor, docentes agrupados por período y actualización de perfil. |
-| `tests/Feature/AdminStudentReviewTest.php`          | Solicitudes de revisión: campana, badges, validación desde el perfil e historial.                                                                     |
-| `tests/Feature/AdminStudentAdmissionStatusTest.php` | Estado e historial desde el perfil: permisos, transiciones y solicitudes convertidas.                                                                 |
-| `tests/Feature/ProfessorGradeTest.php`              | Carga de notas, validación y redondeo.                                                                                                                |
-| `tests/Feature/ProfessorEvaluationPlanTest.php`     | Planes de evaluación: fechas del horario, ponderación, evaluaciones, notas, definitiva y permisos.                                                    |
-| `tests/Unit/EvaluationPlanGradingTest.php`          | Promedio ponderado, escala de 1 a 10 y nota mínima aprobatoria.                                                                                       |
-| `tests/Feature/DashboardTest.php`                   | Redirecciones por rol.                                                                                                                                |
-| `tests/Feature/Settings/*`                          | Perfil, contraseña y seguridad.                                                                                                                       |
+| Archivo                                             | Cobertura                                                                                                                                                                                                         |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/Feature/LandingPageTest.php`                 | Landing, fechas y metadatos.                                                                                                                                                                                      |
+| `tests/Feature/NewsletterSubscriptionTest.php`      | Alta, duplicados y validación.                                                                                                                                                                                    |
+| `tests/Feature/Auth/AuthenticationTest.php`         | Login por portal, admin, 2FA, logout y throttling.                                                                                                                                                                |
+| `tests/Feature/AdminPortalTest.php`                 | Acceso y visibilidad de módulos por rol.                                                                                                                                                                          |
+| `tests/Feature/AdminCareerTest.php`                 | CRUD de carreras: permisos, validación, alta, edición y baja.                                                                                                                                                     |
+| `tests/Feature/AdminSubjectTest.php`                | CRUD de materias: permisos, validación, búsqueda y baja.                                                                                                                                                          |
+| `tests/Feature/AdminProfessorTest.php`              | Cuentas docentes, permisos, asignaciones de materias y opciones en horarios.                                                                                                                                      |
+| `tests/Feature/AdminScheduleTest.php`               | Horarios: permisos, filtros, alta con materias, validación, PDF, baja y prioridad en el portal.                                                                                                                   |
+| `tests/Feature/AcademicSeederTest.php`              | Solo las 4 carreras oficiales y renombrado de códigos históricos.                                                                                                                                                 |
+| `tests/Feature/AdmissionApplicationTest.php`        | Ventana, registro, validaciones, consulta, enlaces firmados y documentos.                                                                                                                                         |
+| `tests/Feature/AdminAdmissionTest.php`              | Permisos, bandeja, transiciones, aprobación, documentos y conversión con credenciales iniciales.                                                                                                                  |
+| `tests/Feature/PasswordDefinitionTest.php`          | Login con cédula, bloqueo del portal, definición de contraseña y validación.                                                                                                                                      |
+| `tests/Feature/StudentPortalTest.php`               | Expediente en el dashboard, materias del horario con docente enlazado, perfil del profesor, docentes agrupados por período y actualización de perfil.                                                             |
+| `tests/Feature/AdminStudentReviewTest.php`          | Solicitudes de revisión: campana, badges, validación desde el perfil e historial.                                                                                                                                 |
+| `tests/Feature/AdminStudentAdmissionStatusTest.php` | Estado e historial desde el perfil: permisos, transiciones y solicitudes convertidas.                                                                                                                             |
+| `tests/Feature/TicStudentsSeederTest.php`           | Nómina de TIC I: cédula, cohorte y especialidad, idempotencia y conservación de estudiantes existentes.                                                                                                           |
+| `tests/Feature/ProfessorGradeTest.php`              | Carga de notas, validación y redondeo.                                                                                                                                                                            |
+| `tests/Feature/ProfessorEvaluationPlanTest.php`     | Planes de evaluación: fechas del horario, ponderación, evaluaciones, notas, definitiva, roster de la página Estudiantes, cédula y cohorte del perfil y permisos.                                                  |
+| `tests/Unit/EvaluationPlanGradingTest.php`          | Aportes acumulados, escala de 1 a 10 y nota mínima aprobatoria.                                                                                                                                                   |
+| `tests/Feature/AdminAdmissionWindowTest.php`        | Ventana de inscripciones: actualización por admin y decano, permisos, validación, cierre automático y manual.                                                                                                     |
+| `tests/Feature/StudentEnrollmentTest.php`           | Inscripción de materias: UC asignadas, aplazadas bloqueadas, tope de créditos, desmarcado, planilla Diseño 2015 y PDF sin docente, registro de repitencia, suspensión a la tercera reprobación y ventana cerrada. |
+| `tests/Feature/DashboardTest.php`                   | Redirecciones por rol.                                                                                                                                                                                            |
+| `tests/Feature/Settings/*`                          | Perfil, contraseña y seguridad.                                                                                                                                                                                   |
 
-**Resultado actual:** 326 pruebas aprobadas, 3007 aserciones.
+**Resultado actual:** 390 pruebas aprobadas, 3944 aserciones.

@@ -21,7 +21,7 @@ void createInertiaApp({
             case name === 'auth/login':
             case name === 'auth/reset-password':
             case name === 'auth/define-password':
-            case name.startsWith('Student/'):
+            case name.startsWith('student/'):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -32,6 +32,7 @@ void createInertiaApp({
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
             case name === 'dashboard/professor':
+            case name.startsWith('dashboard/professor/'):
             case name.startsWith('professor/'):
                 return ProfessorLayout;
             default:

@@ -6,8 +6,10 @@ namespace App\Support;
  * Reglas de ponderación de los planes de evaluación.
  *
  * Cada evaluación vale entre 5 % y 20 % y el plan no puede superar el 100 %.
- * Las notas de cada evaluación se cargan en la escala de 1 a 20 y la nota
- * definitiva se muestra sobre 10, donde 6 es la mínima aprobatoria.
+ * Las notas de cada evaluación se cargan en la escala de 1 a 20. La definitiva
+ * sobre 10 es la suma de los aportes de cada evaluación calificada (nota ÷ 2 ×
+ * porcentaje), así que solo llega a la escala completa cuando el plan está
+ * 100 % calificado; 6 es la mínima aprobatoria.
  */
 final class EvaluationPlanGrading
 {
@@ -42,29 +44,41 @@ final class EvaluationPlanGrading
     public const FINAL_SCALE = 10;
 
     /**
-     * Promedio ponderado de las evaluaciones ya calificadas.
-     *
-     * Se divide entre la suma de los porcentajes calificados para que la nota
-     * definitiva avance a medida que el docente carga las notas y coincida con
-     * la ponderación oficial cuando el plan está completo.
+     * Aporte de una evaluación a la definitiva sobre 10: la nota llevada a la
+     * escala de 1 a 10 multiplicada por el porcentaje que pesa en el plan.
+     */
+    public static function contribution(?float $score, int $weight): ?float
+    {
+        $scoreTen = self::toScaleTen($score);
+
+        return $scoreTen === null || $weight <= 0
+            ? null
+            : round($scoreTen * ($weight / 100), 2);
+    }
+
+    /**
+     * Definitiva acumulada sobre 10: suma de los aportes de las evaluaciones
+     * calificadas, sin normalizar por el porcentaje faltante.
      *
      * @param  array<int, array{score: float|null, weight: int}>  $entries
      */
-    public static function weightedScore(array $entries): ?float
+    public static function accumulatedTen(array $entries): ?float
     {
-        $weighted = 0.0;
-        $weights = 0;
+        $total = 0.0;
+        $graded = 0;
 
         foreach ($entries as $entry) {
-            if ($entry['score'] === null || $entry['weight'] <= 0) {
+            $contribution = self::contribution($entry['score'], $entry['weight']);
+
+            if ($contribution === null) {
                 continue;
             }
 
-            $weighted += $entry['score'] * $entry['weight'];
-            $weights += $entry['weight'];
+            $total += $contribution;
+            $graded++;
         }
 
-        return $weights === 0 ? null : round($weighted / $weights, 2);
+        return $graded === 0 ? null : round($total, 2);
     }
 
     /**
@@ -76,11 +90,14 @@ final class EvaluationPlanGrading
     }
 
     /**
-     * Indica si una nota sobre 10 aprueba la unidad curricular.
+     * Indica si una nota sobre 10 aprueba la unidad curricular. Solo se
+     * resuelve cuando el plan está completo y todas sus notas cargadas.
      */
-    public static function isApproved(?float $scoreTen): ?bool
+    public static function isApproved(?float $scoreTen, bool $complete): ?bool
     {
-        return $scoreTen === null ? null : $scoreTen >= self::PASSING_GRADE;
+        return $scoreTen === null || ! $complete
+            ? null
+            : $scoreTen >= self::PASSING_GRADE;
     }
 
     /**

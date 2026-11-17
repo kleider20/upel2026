@@ -133,15 +133,18 @@ vendor/bin/pint --dirty --format agent
 
 ## 5. Fechas clave del calendario
 
-| Hito                     | Fecha y hora             | Constante / origen                          |
-| ------------------------ | ------------------------ | ------------------------------------------- |
-| Inicio de preinscripción | 2026-11-02 08:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow` |
-| Inicio de inscripción    | 2027-01-12 08:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow` |
-| Meta de graduación       | 2026-12-12 09:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow` |
+| Hito                     | Fecha y hora             | Origen                                                         |
+| ------------------------ | ------------------------ | -------------------------------------------------------------- |
+| Inicio de preinscripción | 2026-11-02 08:00 (GMT-4) | Panel administrativo; valor inicial en `config/admissions.php` |
+| Cierre de preinscripción | 2027-01-12 23:59 (GMT-4) | Panel administrativo; valor inicial en `config/admissions.php` |
+| Inicio de inscripción    | 2027-01-12 08:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow`                    |
+| Meta de graduación       | 2026-12-12 09:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow`                    |
 
-Los botones de la landing (`Preinscribirse`, `Inscríbete`), los contadores y el formulario
-público de `/preinscripcion` se activan automáticamente cuando el servidor alcanza estas
-fechas. En desarrollo se puede forzar la apertura con `ADMISSIONS_FORCE_OPEN=true`.
+El administrador y el decano definen el rango de la preinscripción y pueden abrirla o
+cerrarla manualmente desde la tarjeta **Ventana de inscripciones** del panel
+(`/admin/dashboard`). Al terminar la fecha de cierre el formulario de `/preinscripcion` y
+los botones de la landing se deshabilitan automáticamente; el modo manual tiene prioridad.
+`ADMISSIONS_FORCE_OPEN=true` solo fuerza la inscripción formal (`canEnroll`) en desarrollo.
 
 ## 6. Roles y permisos
 
@@ -159,18 +162,20 @@ fechas. En desarrollo se puede forzar la apertura con `ADMISSIONS_FORCE_OPEN=tru
 
 ### Matriz de permisos (`App\Enums\Permission`)
 
-| Rol                     | Permisos                                                                                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Estudiante              | `portal.estudiante`                                                                                                                               |
-| Profesor                | `portal.profesor`                                                                                                                                 |
-| Graduado                | `portal.graduado`                                                                                                                                 |
-| Coordinador académico   | `dashboard.view` + académicos (`students`, `professors`, `careers`, `subjects`, `schedules`, `grades`, `admissions`, `programs`: ver y gestionar) |
-| Personal administrativo | `dashboard.view` + `finance.view`, `finance.manage`                                                                                               |
-| Decano                  | Académicos + financieros                                                                                                                          |
-| Administrador           | Todos, incluidos `users.*`, `roles.manage`, `settings.manage`                                                                                     |
+| Rol                     | Permisos                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Estudiante              | `portal.estudiante`                                                                                                                                                |
+| Profesor                | `portal.profesor`                                                                                                                                                  |
+| Graduado                | `portal.graduado`                                                                                                                                                  |
+| Coordinador académico   | `dashboard.view` + académicos (`students`, `professors`, `careers`, `subjects`, `schedules`, `grades`, `admissions`, `programs`: ver y gestionar) + `plans.delete` |
+| Personal administrativo | `dashboard.view` + `finance.view`, `finance.manage`                                                                                                                |
+| Decano                  | Académicos + financieros                                                                                                                                           |
+| Administrador           | Todos, incluidos `users.*`, `roles.manage`, `settings.manage`                                                                                                      |
 
 Los usuarios con `students.view` pueden consultar el listado de estudiantes. Solo el rol
-administrador puede abrir, editar o eliminar perfiles estudiantiles.
+administrador puede abrir, editar o eliminar perfiles estudiantiles. `plans.delete` permite
+eliminar planes de evaluación con todas sus fechas cumplidas; lo tienen decano, coordinador
+académico y administrador, y puede asignarse a un docente encargado.
 
 ## 7. Credenciales de demostración
 
@@ -264,6 +269,7 @@ sesión (`must_change_password`).
 | PATCH  | `/admin/admissions/{code}/documents/{document}`          | `admin.admissions.documents.review`   | `admissions.manage`                 |
 | GET    | `/admin/admissions/{code}/documents/{document}`          | `admin.admissions.documents.download` | `admissions.view`                   |
 | GET    | `/admin/admissions/{code}/documents/{document}/ver`      | `admin.admissions.documents.preview`  | `admissions.view`                   |
+| PUT    | `/admin/inscripciones`                                   | `admin.inscripciones.update`          | `admissions.window`                 |
 | GET    | `/admin/{module}`                                        | `admin.module`                        | Permiso del módulo                  |
 | GET    | `/admin/students/{student}`                              | `admin.students.show`                 | Solo administrador                  |
 | GET    | `/admin/students/{student}/edit`                         | `admin.students.edit`                 | Solo administrador                  |
@@ -272,6 +278,16 @@ sesión (`must_change_password`).
 | GET    | `/dashboard`                                             | `dashboard`                           | Autenticados y verificados          |
 | PUT    | `/dashboard/notas/{enrollment}`                          | `professor.grades.update`             | Rol profesor                        |
 | GET    | `/estudiante/dashboard`                                  | `student.dashboard`                   | Rol estudiante                      |
+| GET    | `/estudiante/solicitud`                                  | `student.solicitud`                   | Rol estudiante                      |
+| GET    | `/estudiante/materias`                                   | `student.materias`                    | Rol estudiante                      |
+| GET    | `/estudiante/calificaciones`                             | `student.calificaciones`              | Rol estudiante                      |
+| GET    | `/estudiante/profesores`                                 | `student.profesores`                  | Rol estudiante                      |
+| GET    | `/estudiante/pensum`                                     | `student.pensum`                      | Rol estudiante                      |
+| GET    | `/estudiante/horario`                                    | `student.horario`                     | Rol estudiante                      |
+| GET    | `/estudiante/perfil`                                     | `student.perfil`                      | Rol estudiante                      |
+| GET    | `/estudiante/tramites`                                   | `student.tramites`                    | Rol estudiante                      |
+| GET    | `/estudiante/profesores/{professor}`                     | `student.professors.show`             | Rol estudiante                      |
+| GET    | `/estudiante/horario/pdf`                                | `student.schedule.pdf`                | Rol estudiante                      |
 | PUT    | `/estudiante/perfil`                                     | `student.profile.update`              | Rol estudiante                      |
 | POST   | `/estudiante/tramites`                                   | `student.tramites.store`              | Rol estudiante                      |
 | —      | `/settings/*`                                            | `profile.*`, `security.*`             | Autenticados                        |

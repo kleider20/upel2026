@@ -16,6 +16,8 @@ return [
 
     'enrollment_opens_at' => env('ADMISSIONS_ENROLLMENT_OPENS_AT', '2027-01-12T08:00:00-04:00'),
 
+    'closes_at' => env('ADMISSIONS_CLOSES_AT', '2027-01-12T23:59:59-04:00'),
+
     'graduation_at' => env('ADMISSIONS_GRADUATION_AT', '2026-12-12T09:00:00-04:00'),
 
     /*
@@ -23,8 +25,9 @@ return [
     | Apertura forzada (solo desarrollo)
     |--------------------------------------------------------------------------
     |
-    | Permite probar el formulario antes de la fecha oficial sin alterar la
-    | regla de negocio. En producción debe permanecer en false.
+    | Fuerza la inscripción formal (canEnroll) fuera de fecha. La ventana de
+    | preinscripción la controla el panel administrativo. En producción debe
+    | permanecer en false.
     |
     */
 

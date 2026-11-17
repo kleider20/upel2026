@@ -363,6 +363,7 @@ class AdminAdmissionController extends Controller
 
             StudentProfile::query()->create([
                 'user_id' => $user->id,
+                'identity_document' => $admission->id_number,
                 'career_id' => $admission->career_id,
                 'student_code' => $codes->generate($admission->period_year),
                 'current_semester' => 1,

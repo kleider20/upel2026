@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Permission;
 use App\Enums\Role;
 use App\Models\AcademicPeriod;
 use App\Models\Admission;
@@ -17,6 +18,10 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->seed(RolePermissionSeeder::class);
+
+    // Las evaluaciones del escenario se programan entre marzo y mayo de 2026;
+    // se fija el reloj antes de esa ventana para poder editarlas.
+    $this->travelTo('2026-03-01 08:00:00');
 });
 
 /**
@@ -545,7 +550,77 @@ test('editing and deleting evaluations reshuffles the plan', function () {
     expect(EvaluationPlanScore::query()->where('evaluation_plan_item_id', $first->id)->exists())->toBeFalse();
 });
 
-test('the definitive grade is weighted by each evaluation and shown on the ten scale', function () {
+test('evaluations with a fulfilled date are closed and cannot be edited or deleted', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $past = $plan->items()->create([
+        'position' => 1, 'title' => 'Exposición', 'weight' => 20, 'scheduled_on' => '2026-03-07',
+    ]);
+    $future = $plan->items()->create([
+        'position' => 2, 'title' => 'Examen', 'weight' => 20, 'scheduled_on' => '2026-05-09',
+    ]);
+
+    $plan->syncScheduleWindow();
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.plans.show', $plan))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('items.0.is_past', false)
+            ->where('items.1.is_past', false)
+        );
+
+    $this->travelTo('2026-04-01 08:00:00');
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.plans.show', $plan))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('items.0.id', $past->id)
+            ->where('items.0.is_past', true)
+            ->where('items.1.is_past', false)
+        );
+
+    $this->actingAs($scenario['professor'])
+        ->from(route('professor.plans.show', $plan))
+        ->put(route('professor.plans.items.update', [$plan, $past]), [
+            'title' => 'Exposición corregida',
+            'weight' => 10,
+            'scheduled_on' => '2026-03-07',
+        ])
+        ->assertRedirect(route('professor.plans.show', $plan))
+        ->assertSessionHas('error');
+
+    expect($past->fresh()->title)->toBe('Exposición')
+        ->and($past->fresh()->weight)->toBe(20);
+
+    $this->actingAs($scenario['professor'])
+        ->from(route('professor.plans.show', $plan))
+        ->delete(route('professor.plans.items.destroy', [$plan, $past]))
+        ->assertRedirect(route('professor.plans.show', $plan))
+        ->assertSessionHas('error');
+
+    expect($plan->items()->whereKey($past->id)->exists())->toBeTrue();
+
+    $this->actingAs($scenario['professor'])
+        ->put(route('professor.plans.items.update', [$plan, $future]), [
+            'title' => 'Examen final',
+            'weight' => 20,
+            'scheduled_on' => '2026-05-09',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($future->fresh()->title)->toBe('Examen final');
+});
+
+test('the definitive grade accumulates the contribution of each evaluation', function () {
     $scenario = evaluationPlanScenario();
 
     $plan = EvaluationPlan::factory()->create([
@@ -603,9 +678,9 @@ test('the definitive grade is weighted by each evaluation and shown on the ten s
             ->where('plan.is_complete', false)
             ->has('students', 1)
             ->where('students.0.student_name', 'Luis Estudiante')
-            ->where('students.0.definitive', 17.33)
-            ->where('students.0.definitive_ten', 8.67)
-            ->where('students.0.approved', true)
+            ->where('students.0.definitive', 5.2)
+            ->where('students.0.definitive_ten', 2.6)
+            ->where('students.0.approved', null)
         );
 
     $this->actingAs($scenario['professor'])
@@ -621,8 +696,66 @@ test('the definitive grade is weighted by each evaluation and shown on the ten s
     $this->actingAs($scenario['professor'])
         ->get(route('professor.plans.show', $plan))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('students.0.definitive', 20)
+            ->where('students.0.definitive', 4)
+            ->where('students.0.definitive_ten', 2)
+            ->where('students.0.approved', null)
+        );
+});
+
+test('the definitive is the sum of the contributions when the plan is complete', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $items = collect(range(1, 5))->map(static fn (int $position) => $plan->items()->create([
+        'position' => $position,
+        'title' => "Evaluación {$position}",
+        'weight' => 20,
+        'scheduled_on' => sprintf('2026-03-%02d', $position),
+    ]));
+
+    $enrollments = collect([
+        'Ana Estudiante' => 20,
+        'Luis Estudiante' => 10,
+    ])->map(static function (int $score, string $name) use ($scenario, $items): Enrollment {
+        $enrollment = Enrollment::factory()->create([
+            'student_id' => User::factory()->create(['name' => $name])->id,
+            'subject_id' => $scenario['subject']->id,
+            'academic_period_id' => $scenario['period']->id,
+            'professor_id' => $scenario['professor']->id,
+        ]);
+
+        foreach ($items as $item) {
+            EvaluationPlanScore::factory()->create([
+                'evaluation_plan_item_id' => $item->id,
+                'enrollment_id' => $enrollment->id,
+                'score' => $score,
+            ]);
+        }
+
+        return $enrollment;
+    });
+
+    expect($enrollments)->toHaveCount(2);
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.plans.show', $plan))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('students', 2)
+            ->where('students.0.student_name', 'Ana Estudiante')
             ->where('students.0.definitive_ten', 10)
+            ->where('students.0.definitive', 20)
+            ->where('students.0.approved', true)
+            ->where('students.1.student_name', 'Luis Estudiante')
+            ->where('students.1.definitive_ten', 5)
+            ->where('students.1.definitive', 10)
+            ->where('students.1.approved', false)
         );
 });
 
@@ -800,6 +933,76 @@ test('professors can delete their plan with its evaluations', function () {
     $this->assertDatabaseCount('evaluation_plan_items', 0);
 });
 
+test('a plan whose evaluations already passed cannot be deleted', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $plan->items()->create([
+        'position' => 1, 'title' => 'Taller', 'weight' => 20, 'scheduled_on' => '2026-03-07',
+    ]);
+
+    $plan->syncScheduleWindow();
+
+    $this->travelTo('2026-04-01 08:00:00');
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.plans.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.is_finished', true)
+            ->where('subjects.0.can_delete', false)
+        );
+
+    $this->actingAs($scenario['professor'])
+        ->from(route('professor.plans.index'))
+        ->delete(route('professor.plans.destroy', $plan))
+        ->assertRedirect(route('professor.plans.index'))
+        ->assertSessionHas('error');
+
+    $this->assertDatabaseHas('evaluation_plans', ['id' => $plan->id]);
+});
+
+test('deleting a finished plan requires the plans delete permission', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $plan->items()->create([
+        'position' => 1, 'title' => 'Taller', 'weight' => 20, 'scheduled_on' => '2026-03-07',
+    ]);
+
+    $plan->syncScheduleWindow();
+
+    $this->travelTo('2026-04-01 08:00:00');
+
+    $scenario['professor']->givePermissionTo(Permission::EvaluationPlansDelete->value);
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.plans.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subjects.0.is_finished', true)
+            ->where('subjects.0.can_delete', true)
+        );
+
+    $this->actingAs($scenario['professor'])
+        ->delete(route('professor.plans.destroy', $plan))
+        ->assertRedirect(route('professor.plans.index'));
+
+    $this->assertDatabaseMissing('evaluation_plans', ['id' => $plan->id]);
+});
+
 test('students cannot access the evaluation plans', function () {
     $student = User::factory()->create();
     $student->assignRole(Role::Estudiante->value);
@@ -856,6 +1059,45 @@ test('the plan sheet exposes the official student columns', function () {
             ->where('students.0.current_cohort', '2025-II')
             ->where('students.0.cohort', '2025-II')
             ->where('students.0.career_code', 'EDPRI')
+        );
+});
+
+test('the plan sheet prefers the identity document and cohort stored in the profile', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $student = User::factory()->create(['name' => 'Luis Estudiante']);
+
+    StudentProfile::factory()->create([
+        'user_id' => $student->id,
+        'career_id' => $scenario['career']->id,
+        'identity_document' => '18534451',
+        'cohort' => '2021-I',
+        'current_semester' => 3,
+        'admission_year' => 2021,
+    ]);
+
+    Admission::factory()->create([
+        'career_id' => $scenario['career']->id,
+        'converted_user_id' => $student->id,
+        'id_number' => '99999999',
+    ]);
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.plans.show', $plan))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('students', 1)
+            ->where('students.0.student_name', 'Luis Estudiante')
+            ->where('students.0.id_number', '18534451')
+            ->where('students.0.cohort', '2021-I')
+            ->where('students.0.enrolled', false)
         );
 });
 
@@ -1014,7 +1256,7 @@ test('the grades page focuses the subject and student of the link', function () 
         );
 });
 
-test('the students page shows only the final grade of the record', function () {
+test('the students page does not reuse the final grade of the record without notes', function () {
     $scenario = evaluationPlanScenario();
 
     $plan = EvaluationPlan::factory()->create([
@@ -1051,8 +1293,159 @@ test('the students page shows only the final grade of the record', function () {
             ->has('careers.0.subjects.0.students', 1)
             ->where('careers.0.subjects.0.students.0.student_id', $student->id)
             ->where('careers.0.subjects.0.students.0.enrollment_id', $enrollment->id)
-            ->where('careers.0.subjects.0.students.0.grade', 8.5)
-            ->where('summary.graded_count', 1)
+            ->where('careers.0.subjects.0.students.0.grade', null)
+            ->where('careers.0.subjects.0.students.0.graded_items', 0)
+            ->where('careers.0.subjects.0.students.0.status_label', 'Cursando')
+            ->where('careers.0.subjects.0.students.0.period', '2025-II')
+            ->where('summary.graded_count', 0)
+            ->where('summary.pending_count', 1)
+        );
+});
+
+test('the students page lists the career students of the subject without notes', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $plan->items()->create([
+        'position' => 1,
+        'title' => 'Exposición',
+        'weight' => 20,
+        'scheduled_on' => '2026-03-07',
+    ]);
+
+    $previousPeriod = AcademicPeriod::factory()->create(['name' => '2024-II']);
+
+    $graduatedSubject = User::factory()->create(['name' => 'María Fernanda Pérez']);
+
+    StudentProfile::factory()->create([
+        'user_id' => $graduatedSubject->id,
+        'career_id' => $scenario['career']->id,
+        'student_code' => 'EST-2021-001',
+        'admission_year' => 2021,
+    ]);
+
+    Enrollment::factory()->create([
+        'student_id' => $graduatedSubject->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $previousPeriod->id,
+        'status' => 'aprobado',
+        'final_grade' => 8.5,
+    ]);
+
+    $cursando = User::factory()->create(['name' => 'Ana Gabriela Martínez']);
+
+    StudentProfile::factory()->create([
+        'user_id' => $cursando->id,
+        'career_id' => $scenario['career']->id,
+        'student_code' => 'EST-2021-003',
+        'admission_year' => 2021,
+    ]);
+
+    Enrollment::factory()->create([
+        'student_id' => $cursando->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+        'status' => 'cursando',
+    ]);
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.students'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('dashboard/professor/students')
+            ->has('careers.0.subjects.0.students', 2)
+            ->where('careers.0.subjects.0.students.0.student_name', 'Ana Gabriela Martínez')
+            ->where('careers.0.subjects.0.students.0.period', '2025-II')
+            ->where('careers.0.subjects.0.students.0.grade', null)
+            ->where('careers.0.subjects.0.students.0.status_label', 'Cursando')
+            ->where('careers.0.subjects.0.students.1.student_name', 'María Fernanda Pérez')
+            ->where('careers.0.subjects.0.students.1.enrollment_id', null)
+            ->where('careers.0.subjects.0.students.1.grade', null)
+            ->where('careers.0.subjects.0.students.1.graded_items', 0)
+            ->where('careers.0.subjects.0.students.1.total_items', 1)
+            ->where('careers.0.subjects.0.students.1.status_label', 'Cursando')
+            ->where('summary.graded_count', 0)
+            ->where('summary.pending_count', 2)
+            ->where('summary.students_count', 2)
+        );
+});
+
+test('the students page grades the career roster with the plan definitive', function () {
+    $scenario = evaluationPlanScenario();
+
+    $plan = EvaluationPlan::factory()->create([
+        'professor_id' => $scenario['professor']->id,
+        'schedule_id' => $scenario['schedule']->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+    ]);
+
+    $first = $plan->items()->create([
+        'position' => 1, 'title' => 'Exposición', 'weight' => 20, 'scheduled_on' => '2026-03-07',
+    ]);
+    $second = $plan->items()->create([
+        'position' => 2, 'title' => 'Taller', 'weight' => 20, 'scheduled_on' => '2026-03-14',
+    ]);
+
+    $enrollments = collect([
+        'Ana Gabriela Martínez',
+        'Luis Miguel Herrera',
+        'María Fernanda Pérez',
+        'Airam del Carmen Guaregua Luna',
+    ])->map(static fn (string $name): Enrollment => Enrollment::factory()->create([
+        'student_id' => User::factory()->create(['name' => $name])->id,
+        'subject_id' => $scenario['subject']->id,
+        'academic_period_id' => $scenario['period']->id,
+        'professor_id' => $scenario['professor']->id,
+    ]));
+
+    $scoresByStudent = [
+        [18],
+        [18, 16],
+        [10, 8],
+        [],
+    ];
+
+    foreach ($enrollments as $index => $enrollment) {
+        foreach ($scoresByStudent[$index] as $position => $score) {
+            EvaluationPlanScore::factory()->create([
+                'evaluation_plan_item_id' => $position === 0 ? $first->id : $second->id,
+                'enrollment_id' => $enrollment->id,
+                'score' => $score,
+            ]);
+        }
+    }
+
+    $this->actingAs($scenario['professor'])
+        ->get(route('professor.students'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('dashboard/professor/students')
+            ->has('careers.0.subjects.0.students', 4)
+            ->where('careers.0.subjects.0.students.0.student_name', 'Airam del Carmen Guaregua Luna')
+            ->where('careers.0.subjects.0.students.0.grade', null)
+            ->where('careers.0.subjects.0.students.0.graded_items', 0)
+            ->where('careers.0.subjects.0.students.0.status_label', 'Cursando')
+            ->where('careers.0.subjects.0.students.1.student_name', 'Ana Gabriela Martínez')
+            ->where('careers.0.subjects.0.students.1.grade', 1.8)
+            ->where('careers.0.subjects.0.students.1.graded_items', 1)
+            ->where('careers.0.subjects.0.students.1.total_items', 2)
+            ->where('careers.0.subjects.0.students.1.status_label', 'Faltan notas')
+            ->where('careers.0.subjects.0.students.2.student_name', 'Luis Miguel Herrera')
+            ->where('careers.0.subjects.0.students.2.grade', 3.4)
+            ->where('careers.0.subjects.0.students.2.graded_items', 2)
+            ->where('careers.0.subjects.0.students.2.status_label', 'Plan incompleto')
+            ->where('careers.0.subjects.0.students.3.student_name', 'María Fernanda Pérez')
+            ->where('careers.0.subjects.0.students.3.grade', 1.8)
+            ->where('careers.0.subjects.0.students.3.status_label', 'Plan incompleto')
+            ->where('summary.graded_count', 3)
+            ->where('summary.pending_count', 1)
         );
 });
 

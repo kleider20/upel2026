@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
+    accumulatedTen,
     formatScore,
     parseScore,
-    toScaleTen,
-    weightedScore,
+    sanitizeScoreInput,
     type GradingLimits,
 } from '@/lib/evaluation-plan';
 import planRoutes from '@/routes/professor/plans';
@@ -38,7 +39,7 @@ export type GradeRow = {
 };
 
 /**
- * Fila de la planilla con la definitiva recalculada en vivo.
+ * Fila de la planilla con la definitiva acumulada en vivo.
  */
 export type GradedRow<TRow extends GradeRow = GradeRow> = TRow & {
     scoresByItem: Record<number, number | null>;
@@ -87,6 +88,8 @@ export function useEvaluationGrades<TRow extends GradeRow>({
     });
     const [saving, setSaving] = useState(false);
 
+    const totalWeight = items.reduce((total, item) => total + item.weight, 0);
+
     const rows = useMemo(
         () =>
             students.map((student): GradedRow<TRow> => {
@@ -101,8 +104,15 @@ export function useEvaluationGrades<TRow extends GradeRow>({
 
                     return { score, weight: item.weight };
                 });
-                const definitive = weightedScore(entries);
-                const definitiveTen = toScaleTen(definitive);
+                const definitiveTen = accumulatedTen(entries);
+                const definitive =
+                    definitiveTen === null
+                        ? null
+                        : Math.round(definitiveTen * 2 * 100) / 100;
+                const complete =
+                    items.length > 0 &&
+                    entries.every((entry) => entry.score !== null) &&
+                    totalWeight >= limits.total_weight;
 
                 return {
                     ...student,
@@ -110,12 +120,20 @@ export function useEvaluationGrades<TRow extends GradeRow>({
                     definitive,
                     definitiveTen,
                     approved:
-                        definitiveTen === null
+                        definitiveTen === null || !complete
                             ? null
                             : definitiveTen >= limits.passing_grade,
                 };
             }),
-        [drafts, items, limits.max_item_score, limits.passing_grade, students],
+        [
+            drafts,
+            items,
+            limits.max_item_score,
+            limits.passing_grade,
+            limits.total_weight,
+            students,
+            totalWeight,
+        ],
     );
 
     const averages = useMemo(
@@ -155,9 +173,21 @@ export function useEvaluationGrades<TRow extends GradeRow>({
     );
 
     const setCell = (studentId: number, itemId: number, value: string) => {
+        const { value: sanitized, clamped } = sanitizeScoreInput(
+            value,
+            limits.max_item_score,
+        );
+
+        if (clamped) {
+            toast.warning(
+                `La nota máxima por evaluación es ${limits.max_item_score}. La nota se reajustó a ${limits.max_item_score}.`,
+                { id: 'evaluation-score-max' },
+            );
+        }
+
         setDrafts((current) => ({
             ...current,
-            [cellKey(studentId, itemId)]: value,
+            [cellKey(studentId, itemId)]: sanitized,
         }));
     };
 

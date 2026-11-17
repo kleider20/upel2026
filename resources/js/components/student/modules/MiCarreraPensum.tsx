@@ -1,6 +1,31 @@
-import { BookOpen, CheckCircle2, Clock3, GraduationCap } from 'lucide-react';
+import {
+    BookOpen,
+    CheckCircle2,
+    Clock3,
+    GraduationCap,
+    XCircle,
+} from 'lucide-react';
 import { ToneBadge } from '@/components/portal/tone-badge';
-import type { StudentDashboardProps } from '@/types/student';
+import type {
+    StudentDashboardProps,
+    StudentPensumSubject,
+} from '@/types/student';
+
+function pensumStatusLabel(subject: StudentPensumSubject): string {
+    if (subject.status === 'aprobado') {
+        return subject.grade !== null
+            ? `Aprobada (${subject.grade.toFixed(1)})`
+            : 'Aprobada';
+    }
+
+    if (subject.status === 'reprobado') {
+        return subject.grade !== null
+            ? `Reprobada (${subject.grade.toFixed(1)})`
+            : 'Reprobada';
+    }
+
+    return subject.status === 'cursando' ? 'Cursando actualmente' : 'Pendiente';
+}
 
 export function MiCarreraPensum({
     profile,
@@ -69,6 +94,10 @@ export function MiCarreraPensum({
                             <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />{' '}
                             Cursando
                         </span>
+                        <span className="flex items-center gap-1.5 text-red-600">
+                            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />{' '}
+                            Reprobada
+                        </span>
                         <span className="flex items-center gap-1.5 text-muted-foreground">
                             <span className="h-2.5 w-2.5 rounded-full bg-border" />{' '}
                             Pendiente
@@ -98,6 +127,8 @@ export function MiCarreraPensum({
                                 {group.subjects.map((sub) => {
                                     const isAprobado =
                                         sub.status === 'aprobado';
+                                    const isReprobado =
+                                        sub.status === 'reprobado';
                                     const isCursando =
                                         sub.status === 'cursando';
 
@@ -107,9 +138,11 @@ export function MiCarreraPensum({
                                             className={`flex flex-col justify-between rounded-xl border p-4 transition-all ${
                                                 isAprobado
                                                     ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20'
-                                                    : isCursando
-                                                      ? 'border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20'
-                                                      : 'border-border bg-upel-cloud/30 dark:bg-muted/30'
+                                                    : isReprobado
+                                                      ? 'border-red-200 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/20'
+                                                      : isCursando
+                                                        ? 'border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20'
+                                                        : 'border-border bg-upel-cloud/30 dark:bg-muted/30'
                                             }`}
                                         >
                                             <div>
@@ -143,19 +176,20 @@ export function MiCarreraPensum({
                                                     className={
                                                         isAprobado
                                                             ? 'font-bold text-emerald-700 dark:text-emerald-400'
-                                                            : isCursando
-                                                              ? 'font-bold text-amber-700 dark:text-amber-400'
-                                                              : 'text-muted-foreground'
+                                                            : isReprobado
+                                                              ? 'font-bold text-red-700 dark:text-red-400'
+                                                              : isCursando
+                                                                ? 'font-bold text-amber-700 dark:text-amber-400'
+                                                                : 'text-muted-foreground'
                                                     }
                                                 >
-                                                    {isAprobado
-                                                        ? `Aprobada (${sub.grade?.toFixed(1)})`
-                                                        : isCursando
-                                                          ? 'Cursando actualmente'
-                                                          : 'Pendiente'}
+                                                    {pensumStatusLabel(sub)}
                                                 </span>
                                                 {isAprobado && (
                                                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                                )}
+                                                {isReprobado && (
+                                                    <XCircle className="h-4 w-4 text-red-600" />
                                                 )}
                                                 {isCursando && (
                                                     <Clock3 className="h-4 w-4 text-amber-600" />

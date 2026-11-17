@@ -25,15 +25,17 @@ export type PlanGradeData = PlanSummary & {
 };
 
 /**
- * Fila de la nota final del expediente de un estudiante.
+ * Fila del estudiante que cursa la materia con su nota definitiva del plan.
  */
 export type ProfessorStudent = {
-    enrollment_id: number;
+    enrollment_id: number | null;
     student_id: number;
     student_name: string | null;
     student_code: string | null;
     period: string | null;
     grade: number | null;
+    graded_items: number;
+    total_items: number;
     status: string;
     status_label: string;
     status_tone: string;

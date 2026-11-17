@@ -8,7 +8,9 @@ type StudentFormData = {
     name: string;
     email: string;
     student_code: string;
+    identity_document: string;
     career_id: number | null;
+    cohort: string;
     current_semester: number;
     status: string;
     phone: string;
@@ -269,6 +271,24 @@ export default function AdminStudentEdit({
                                         'career_id',
                                         value === '' ? null : Number(value),
                                     )
+                                }
+                            />
+                            <TextField
+                                id="identity_document"
+                                label="Cédula"
+                                value={form.data.identity_document}
+                                error={form.errors.identity_document}
+                                onChange={(value) =>
+                                    form.setData('identity_document', value)
+                                }
+                            />
+                            <TextField
+                                id="cohort"
+                                label="Cohorte"
+                                value={form.data.cohort}
+                                error={form.errors.cohort}
+                                onChange={(value) =>
+                                    form.setData('cohort', value)
                                 }
                             />
                             <SelectField

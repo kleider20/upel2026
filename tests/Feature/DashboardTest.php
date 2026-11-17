@@ -36,7 +36,7 @@ test('students are redirected to the student dashboard', function () {
 
     $response->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('Student/Dashboard/Index'),
+            ->component('student/dashboard/index'),
         );
 });
 

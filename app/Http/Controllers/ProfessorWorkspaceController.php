@@ -18,7 +18,8 @@ use Inertia\Response;
 class ProfessorWorkspaceController extends Controller
 {
     /**
-     * Página "Estudiantes": nota final del expediente por materia.
+     * Página "Estudiantes": estudiantes que cursan cada materia con la nota
+     * definitiva del plan de evaluación.
      */
     public function students(Request $request): Response
     {
@@ -26,7 +27,11 @@ class ProfessorWorkspaceController extends Controller
 
         return Inertia::render('dashboard/professor/students', [
             'careers' => $data['careers'],
-            'summary' => $data['summary'],
+            'summary' => [
+                'students_count' => $data['summary']['students_count'],
+                'graded_count' => $data['summary']['graded_count'],
+                'pending_count' => $data['summary']['pending_count'],
+            ],
             'active_period' => $data['active_period'],
         ]);
     }

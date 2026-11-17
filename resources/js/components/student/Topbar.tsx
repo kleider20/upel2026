@@ -1,19 +1,19 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { Bell, Menu } from 'lucide-react';
 import { read } from '@/routes/student/notifications';
 import type { Auth } from '@/types';
-import type { StudentTab } from './Sidebar';
+import { studentTabHrefs, type StudentTab } from './Sidebar';
 import type { StudentNotificationsData } from '@/types/student';
 
 type TopbarProps = {
     activeTab: StudentTab;
     onOpenMobile: () => void;
-    onSelectTab: (tab: StudentTab) => void;
 };
 
 const tabTitles: Record<StudentTab, string> = {
     inicio: 'Resumen Personal',
+    inscripciones: 'Inscripción de Materias',
     solicitud: 'Mi Solicitud de Admisión',
     materias: 'Mis Materias',
     calificaciones: 'Mis Calificaciones',
@@ -24,7 +24,7 @@ const tabTitles: Record<StudentTab, string> = {
     tramites: 'Mis Trámites y Constancias',
 };
 
-export function Topbar({ activeTab, onOpenMobile, onSelectTab }: TopbarProps) {
+export function Topbar({ activeTab, onOpenMobile }: TopbarProps) {
     const { auth, studentNotifications, photo_url } = usePage<{
         auth: Auth;
         studentNotifications: StudentNotificationsData;
@@ -71,7 +71,7 @@ export function Topbar({ activeTab, onOpenMobile, onSelectTab }: TopbarProps) {
                 preserveScroll: true,
                 onSuccess: () => {
                     setNotificationsOpen(false);
-                    onSelectTab('horario');
+                    router.visit(studentTabHrefs.horario);
                 },
             },
         );
@@ -176,9 +176,8 @@ export function Topbar({ activeTab, onOpenMobile, onSelectTab }: TopbarProps) {
                     )}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() => onSelectTab('perfil')}
+                <Link
+                    href={studentTabHrefs.perfil}
                     className="group flex items-center gap-2.5 rounded-2xl border border-border bg-upel-cloud/50 p-1.5 pr-3 transition-colors hover:bg-upel-cloud dark:bg-muted/50 dark:hover:bg-muted"
                 >
                     {photo_url ? (
@@ -200,7 +199,7 @@ export function Topbar({ activeTab, onOpenMobile, onSelectTab }: TopbarProps) {
                             ● Estudiante activo
                         </p>
                     </div>
-                </button>
+                </Link>
             </div>
         </header>
     );
