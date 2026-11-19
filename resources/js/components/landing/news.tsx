@@ -9,7 +9,11 @@ import {
     Trophy,
     type LucideIcon,
 } from 'lucide-react';
-import { news, type NewsIcon } from '@/data/news';
+import {
+    news as fallbackNews,
+    type NewsIcon,
+    type NewsItem,
+} from '@/data/news';
 import { NewsArt } from '@/components/landing/brand';
 import { Reveal } from '@/components/landing/reveal';
 import { SectionHeading } from '@/components/landing/ui/section-heading';
@@ -21,6 +25,15 @@ const newsIcons: Record<NewsIcon, LucideIcon> = {
     trophy: Trophy,
     handshake: Handshake,
     calendar: CalendarPlus,
+};
+
+const newsGradients: Record<NewsIcon, string> = {
+    laptop: 'linear-gradient(135deg, #0a2540 0%, #1e5fa8 100%)',
+    graduation: 'linear-gradient(135deg, #113a63 0%, #c9a227 100%)',
+    globe: 'linear-gradient(135deg, #12876f 0%, #1e5fa8 100%)',
+    trophy: 'linear-gradient(135deg, #8a6c0d 0%, #e8c15a 100%)',
+    handshake: 'linear-gradient(135deg, #3b1e63 0%, #1e5fa8 100%)',
+    calendar: 'linear-gradient(135deg, #7a1f2b 0%, #c94f5e 100%)',
 };
 
 const dateFormatter = new Intl.DateTimeFormat('es-VE', {
@@ -37,7 +50,9 @@ function formatDate(value: string): string {
  * Noticias institucionales. Cada tarjeta usa un gradiente único
  * y una ilustración SVG generada.
  */
-export function News() {
+export function News({ items = [] }: { items?: NewsItem[] }) {
+    const published = items.length > 0 ? items : fallbackNews;
+
     return (
         <section
             id="noticias"
@@ -64,17 +79,17 @@ export function News() {
                 </Reveal>
 
                 <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {news.map((item, index) => {
-                        const Icon = newsIcons[item.icon];
+                    {published.map((item, index) => {
+                        const Icon = newsIcons[item.icon] ?? Laptop;
+                        const gradient =
+                            item.gradient ?? newsGradients[item.icon];
 
                         return (
                             <Reveal key={item.id} delay={index * 70}>
                                 <article className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-upel-mist bg-white shadow-[0_10px_28px_-24px_rgba(10,37,64,0.3)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_56px_-32px_rgba(10,37,64,0.4)]">
                                     <div
                                         className="relative h-44 overflow-hidden"
-                                        style={{
-                                            backgroundImage: item.gradient,
-                                        }}
+                                        style={{ backgroundImage: gradient }}
                                     >
                                         <NewsArt />
                                         <span className="absolute top-4 left-4 rounded-full bg-white/95 px-3 py-1 text-[0.6rem] font-extrabold tracking-wide text-upel-navy uppercase">
@@ -101,7 +116,7 @@ export function News() {
                                             {item.excerpt}
                                         </p>
                                         <a
-                                            href="#noticias"
+                                            href={item.link_url ?? '#noticias'}
                                             aria-label={`Leer más sobre ${item.title}`}
                                             className="mt-4 inline-flex items-center gap-1.5 text-[0.75rem] font-extrabold text-upel-blue transition-colors hover:text-upel-navy"
                                         >

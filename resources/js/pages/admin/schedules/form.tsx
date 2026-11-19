@@ -93,10 +93,19 @@ type ScheduleTypeOption = {
     label: string;
 };
 
+type ClassroomOption = {
+    id: number;
+    code: string;
+    name: string;
+    capacity: number | null;
+    label: string;
+};
+
 type SubjectChoice = {
     position: string;
     subject_id: string;
     professor_id: string;
+    classroom_id: string;
     teacher_name: string;
     dates: string[];
     date_times: Record<string, { starts_at: string; ends_at: string }>;
@@ -122,6 +131,7 @@ type Props = {
     careers: CareerOption[];
     template: ScheduleTemplate;
     subjects: SubjectOption[];
+    classrooms: ClassroomOption[];
     schedule: ExistingSchedule | null;
 };
 
@@ -142,6 +152,7 @@ export default function AdminScheduleForm({
     careers,
     template,
     subjects: subjectCatalog,
+    classrooms,
     schedule,
 }: Props) {
     const isEditing = schedule !== null;
@@ -168,6 +179,7 @@ export default function AdminScheduleForm({
                 ...(existingSubject ?? {
                     subject_id: '',
                     professor_id: '',
+                    classroom_id: '',
                     teacher_name: '',
                     dates: [],
                     date_times: {},
@@ -445,6 +457,7 @@ export default function AdminScheduleForm({
             ...choice,
             subject_id: '',
             professor_id: '',
+            classroom_id: '',
             teacher_name: '',
             dates: [],
             date_times: {},
@@ -590,6 +603,7 @@ export default function AdminScheduleForm({
                               defaultProfessor !== undefined
                                   ? String(defaultProfessor)
                                   : '',
+                          classroom_id: '',
                           teacher_name: '',
                           dates: subjectId === '' ? [] : item.dates,
                           date_times: subjectId === '' ? {} : item.date_times,
@@ -1257,6 +1271,10 @@ export default function AdminScheduleForm({
                                                     form.errors[
                                                         `subjects.${index}.teacher_name`
                                                     ];
+                                                const classroomError =
+                                                    form.errors[
+                                                        `subjects.${index}.classroom_id`
+                                                    ];
                                                 const datesError =
                                                     form.errors[
                                                         `subjects.${index}.dates`
@@ -1367,7 +1385,7 @@ export default function AdminScheduleForm({
                                                                 id={`subject-panel-${choice.position}`}
                                                                 className="space-y-3 border-t border-border/70 p-3"
                                                             >
-                                                                <div className="grid gap-2 sm:grid-cols-[2rem_minmax(0,1fr)_11rem_6.5rem] sm:items-start">
+                                                                <div className="grid gap-2 sm:grid-cols-[2rem_minmax(0,1fr)_11rem_10rem_6.5rem] sm:items-start">
                                                                     <span className="mt-2.5 hidden h-6 w-6 items-center justify-center rounded-lg bg-upel-cloud text-[0.65rem] font-extrabold text-upel-navy sm:flex dark:bg-muted dark:text-foreground">
                                                                         {index +
                                                                             1}
@@ -1533,6 +1551,74 @@ export default function AdminScheduleForm({
                                                                         <InputError
                                                                             message={
                                                                                 professorError
+                                                                            }
+                                                                            className="mt-1 text-xs"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label
+                                                                            htmlFor={`classroom-${index}`}
+                                                                            className="sr-only"
+                                                                        >
+                                                                            Aula
+                                                                            de
+                                                                            la
+                                                                            materia{' '}
+                                                                            {index +
+                                                                                1}
+                                                                        </label>
+                                                                        <select
+                                                                            id={`classroom-${index}`}
+                                                                            value={
+                                                                                choice.classroom_id
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                form.setData(
+                                                                                    `subjects.${index}.classroom_id`,
+                                                                                    event
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
+                                                                            }
+                                                                            disabled={
+                                                                                selected ===
+                                                                                undefined
+                                                                            }
+                                                                            aria-invalid={Boolean(
+                                                                                classroomError,
+                                                                            )}
+                                                                            className={
+                                                                                inputClass
+                                                                            }
+                                                                        >
+                                                                            <option value="">
+                                                                                Sin
+                                                                                aula
+                                                                            </option>
+                                                                            {classrooms.map(
+                                                                                (
+                                                                                    classroom,
+                                                                                ) => (
+                                                                                    <option
+                                                                                        key={
+                                                                                            classroom.id
+                                                                                        }
+                                                                                        value={
+                                                                                            classroom.id
+                                                                                        }
+                                                                                    >
+                                                                                        {
+                                                                                            classroom.label
+                                                                                        }
+                                                                                    </option>
+                                                                                ),
+                                                                            )}
+                                                                        </select>
+                                                                        <InputError
+                                                                            message={
+                                                                                classroomError
                                                                             }
                                                                             className="mt-1 text-xs"
                                                                         />

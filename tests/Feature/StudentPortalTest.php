@@ -69,7 +69,7 @@ test('el dashboard expone el expediente de admisión del estudiante', function (
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -95,6 +95,18 @@ test('el dashboard expone el expediente de admisión del estudiante', function (
         );
 });
 
+test('el dashboard expone la cohorte del perfil del estudiante', function () {
+    [$user] = convertedStudent([], ['cohort' => '2026-II']);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/dashboard/index')
+            ->where('profile.cohort', '2026-II')
+        );
+});
+
 test('el dashboard expone la fotografía tipo carnet del expediente como avatar', function () {
     Storage::fake((string) config('admissions.documents.disk'));
 
@@ -110,7 +122,7 @@ test('el dashboard expone la fotografía tipo carnet del expediente como avatar'
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -123,7 +135,7 @@ test('el dashboard no expone avatar cuando el expediente no tiene fotografía', 
     [$user] = convertedStudent();
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -196,7 +208,7 @@ test('el dashboard no inventa datos cuando no hay solicitud de admisión', funct
     StudentProfile::factory()->create(['user_id' => $user->id]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -236,7 +248,7 @@ test('el dashboard expone la modalidad de preinscripción y la duración del pé
     ]);
     Subject::factory()->create([
         'career_id' => $career->id,
-        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'name' => 'Uncle Del Componente De Formación Contextualizada',
         'semester' => 1,
         'component' => 'CFC',
         'type' => 'UNCLE',
@@ -247,7 +259,7 @@ test('el dashboard expone la modalidad de preinscripción y la duración del pé
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -283,7 +295,7 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
 
     Subject::factory()->create([
         'career_id' => $career->id,
-        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'name' => 'Uncle Del Componente De Formación Contextualizada',
         'code' => 'EDTEST-UNCLE-101',
         'semester' => 1,
         'component' => 'CFC',
@@ -296,7 +308,7 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
     ]);
     Subject::factory()->create([
         'career_id' => $career->id,
-        'name' => 'Uncle Del Componente De Formación Profesional CFPE UNCLE Específico',
+        'name' => 'Uncle Del Componente De Formación Profesional Específico',
         'code' => 'EDTEST-UNCLE-201',
         'semester' => 2,
         'component' => 'CFPE',
@@ -322,16 +334,16 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
             ->has('pensum.0.subjects', 1)
-            ->where('pensum.0.subjects.0.name', 'Uncle Del Componente De Formación CFC UNCLE 2 2 4 Contextualizada')
+            ->where('pensum.0.subjects.0.name', 'Uncle Del Componente De Formación 2 2 4 Contextualizada')
             ->where('pensum.0.subjects.0.code', 'UNCLE')
             ->where('pensum.0.subjects.0.is_elective', true)
             ->where('pensum.0.subjects.0.is_assigned', false)
-            ->where('pensum.1.subjects.0.name', 'Uncle Del Componente De Formación CFPE UNCLE 2 2 4 Específica')
+            ->where('pensum.1.subjects.0.name', 'Uncle Del Componente De Formación 2 2 4 Específico')
             ->where('pensum.1.subjects.0.is_assigned', false)
         );
 
@@ -341,7 +353,7 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -349,7 +361,7 @@ test('el pénsum del estudiante revela la materia de libre elección cuando se l
             ->where('pensum.0.subjects.0.code', 'EAN-PA1ONLINEUNCLE')
             ->where('pensum.0.subjects.0.is_elective', true)
             ->where('pensum.0.subjects.0.is_assigned', true)
-            ->where('pensum.1.subjects.0.name', 'Uncle Del Componente De Formación CFPE UNCLE 2 2 4 Específica')
+            ->where('pensum.1.subjects.0.name', 'Uncle Del Componente De Formación 2 2 4 Específico')
             ->where('pensum.1.subjects.0.is_assigned', false)
         );
 });
@@ -380,7 +392,7 @@ test('el pénsum del estudiante revela la materia de libre elección agregada a 
 
     Subject::factory()->create([
         'career_id' => $career->id,
-        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'name' => 'Uncle Del Componente De Formación Contextualizada',
         'code' => 'EDTEST-UNCLE-101',
         'semester' => 1,
         'component' => 'CFC',
@@ -414,7 +426,7 @@ test('el pénsum del estudiante revela la materia de libre elección agregada a 
     $schedule->subjects()->attach($elective->id, ['position' => 1]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -450,7 +462,7 @@ test('el horario base del período sustituye el bloque de libre elección', func
 
     Subject::factory()->create([
         'career_id' => $career->id,
-        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'name' => 'Uncle Del Componente De Formación Contextualizada',
         'code' => 'EDPRI-UNCLE-101',
         'semester' => 1,
         'component' => 'CFC',
@@ -475,7 +487,7 @@ test('el horario base del período sustituye el bloque de libre elección', func
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -511,7 +523,7 @@ test('el horario del estudiante sabatino muestra las 16 semanas del documento of
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -581,7 +593,7 @@ it('shows only the published schedule matching the student modality and study sc
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('schedule.cohort', '2025-II')
@@ -589,7 +601,7 @@ it('shows only the published schedule matching the student modality and study sc
         );
 
     $this->actingAs($differentOfferingStudent)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('schedule', null));
 });
@@ -605,7 +617,7 @@ it('shares unread schedule notifications and marks an owned notification as read
     $notification = $user->unreadNotifications()->firstOrFail();
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('studentNotifications.unread_count', 2)
@@ -615,9 +627,9 @@ it('shares unread schedule notifications and marks an owned notification as read
         );
 
     $this->actingAs($user)
-        ->from(route('student.dashboard'))
+        ->from(route('dashboard'))
         ->patch(route('student.notifications.read', $notification->id))
-        ->assertRedirect(route('student.dashboard'));
+        ->assertRedirect(route('dashboard'));
 
     expect($user->fresh()->unreadNotifications()->count())->toBe(1)
         ->and($notification->fresh()->read_at)->not->toBeNull();
@@ -880,7 +892,7 @@ test('mis materias muestra las materias del horario con el docente asignado', fu
             ->where('subjects.0.subject', $subjects->first()->name)
             ->where('subjects.0.professor', 'Ana Pérez')
             ->where('subjects.0.professor_id', $professor->id)
-            ->where('subjects.0.professor_url', '/estudiante/profesores/'.$professor->id)
+            ->where('subjects.0.professor_url', '/dashboard/estudiante/profesores/'.$professor->id)
             ->where('subjects.0.status', 'cursando')
             ->where('subjects.0.status_label', 'Cursando')
             ->where('subjects.0.credits', $subjects->first()->credits)
@@ -907,7 +919,7 @@ test('mis profesores lista los docentes del horario con su período', function (
             ->where('teachers.0.period', '2026-I')
             ->where('teachers.0.semesters', [1])
             ->where('teachers.0.subjects', [$subjects->first()->name])
-            ->where('teachers.0.profile_url', '/estudiante/profesores/'.$professor->id)
+            ->where('teachers.0.profile_url', '/dashboard/estudiante/profesores/'.$professor->id)
         );
 });
 
@@ -959,7 +971,7 @@ test('el estudiante consulta el perfil del docente asignado en su horario', func
             ->where('professor.subjects.0.code', $subjects->first()->code)
             ->where('professor.subjects.0.name', $subjects->first()->name)
             ->where('professor.subjects.0.modality', 'Presencial')
-            ->where('subjects_url', '/estudiante/materias')
+            ->where('subjects_url', '/dashboard/estudiante/materias')
         );
 });
 
@@ -1041,7 +1053,7 @@ test('cada elemento de la sidebar del portal del estudiante es una página indep
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component($component));
 })->with([
-    ['student.dashboard', 'student/dashboard/index'],
+    ['dashboard', 'student/dashboard/index'],
     ['student.solicitud', 'student/solicitud/index'],
     ['student.materias', 'student/materias/index'],
     ['student.calificaciones', 'student/calificaciones/index'],
@@ -1169,7 +1181,7 @@ test('la actividad reciente solo refleja eventos guardados en la base de datos',
     [$student] = convertedStudent();
 
     $this->actingAs($student)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')
@@ -1185,7 +1197,7 @@ test('la actividad reciente muestra el horario publicado al estudiante', functio
     $student->notify(new SchedulePublishedNotification($schedule));
 
     $this->actingAs($student)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('recent_activity', 1)

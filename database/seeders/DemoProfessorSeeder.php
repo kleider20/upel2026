@@ -2,15 +2,17 @@
 
 namespace Database\Seeders;
 
-use App\Enums\Role;
-use App\Models\Career;
-use App\Models\ProfessorProfile;
-use App\Models\Subject;
+use App\Enums\Role as RoleEnum;
 use App\Models\User;
+use Database\Seeders\Concerns\ManagesProfessorProfiles;
+use Database\Seeders\Concerns\ResolvesAcademicEntities;
+use Database\Seeders\Concerns\SyncsRolePermissions;
 use Illuminate\Database\Seeder;
 
 class DemoProfessorSeeder extends Seeder
 {
+    use ManagesProfessorProfiles, ResolvesAcademicEntities, SyncsRolePermissions;
+
     /**
      * Contraseña inicial de los docentes de demostración; se cambia al primer acceso.
      */
@@ -21,7 +23,7 @@ class DemoProfessorSeeder extends Seeder
      */
     public function run(): void
     {
-        $career = Career::query()->where('code', 'EDPRI')->firstOrFail();
+        $career = $this->getCareer('EDPRI');
         $professors = [
             [
                 'name' => 'Edilia Díaz',
@@ -98,24 +100,11 @@ class DemoProfessorSeeder extends Seeder
                     'email_verified_at' => now(),
                 ],
             );
-            $user->syncRoles([Role::Profesor->value]);
+            $this->assignExistingRoles($user, [RoleEnum::Profesor]);
 
-            $profile = ProfessorProfile::query()->updateOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'employee_code' => $professorData['employee_code'],
-                    'identity_document' => $professorData['identity_document'],
-                    'department' => $professorData['department'],
-                    'academic_title' => $professorData['academic_title'],
-                ],
-            );
+            $profile = $this->createProfessorProfile($user, $professorData);
 
-            $subject = Subject::query()
-                ->whereBelongsTo($career)
-                ->where('name', $professorData['subject'])
-                ->firstOrFail();
-
-            $profile->subjects()->syncWithoutDetaching([$subject->id]);
+            $this->assignTaughtSubject($profile, $career, $professorData['subject']);
         }
     }
 }

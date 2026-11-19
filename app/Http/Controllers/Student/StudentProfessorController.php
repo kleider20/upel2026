@@ -89,7 +89,7 @@ class StudentProfessorController extends Controller
                     ->values()
                     ->all(),
             ],
-            'dashboard_url' => route('student.dashboard', absolute: false),
+            'dashboard_url' => route('dashboard', absolute: false),
             'subjects_url' => route('student.materias', absolute: false),
         ]);
     }

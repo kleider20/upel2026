@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use App\Models\Subject;
 use App\Support\AcademicOptions;
 use App\Support\ScheduleCalendar;
+use App\Support\ScheduleConflictDetector;
 use App\Support\StudentSchedule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -75,6 +76,7 @@ class ScheduleRequest extends FormRequest
             'subjects.*.position' => ['required', 'integer', 'min:1', 'max:'.$maxPosition, 'distinct'],
             'subjects.*.subject_id' => ['required', 'integer', 'distinct', 'exists:subjects,id'],
             'subjects.*.professor_id' => ['nullable', 'integer', 'exists:users,id'],
+            'subjects.*.classroom_id' => ['nullable', 'integer', 'exists:classrooms,id'],
             'subjects.*.teacher_name' => ['nullable', 'string', 'max:120'],
             'subjects.*.dates' => ['required', 'array', 'min:1'],
             'subjects.*.dates.*' => ['required', 'date_format:Y-m-d'],
@@ -307,6 +309,28 @@ class ScheduleRequest extends FormRequest
                     );
                 }
             }
+
+            $hasSubjectErrors = collect($validator->errors()->keys())
+                ->contains(static fn (string $key): bool => str_starts_with($key, 'subjects.'));
+
+            if ($hasSubjectErrors) {
+                return;
+            }
+
+            /** @var Schedule|null $schedule */
+            $schedule = $this->route('schedule');
+            $conflicts = (new ScheduleConflictDetector($schedule?->id))->detect(
+                $subjects,
+                $career->id,
+                $period,
+                (string) $this->input('cohort'),
+                $studySchedule,
+                $modality,
+            );
+
+            foreach ($conflicts as $index => $message) {
+                $validator->errors()->add("subjects.{$index}.dates", $message);
+            }
         });
     }
 
@@ -339,6 +363,7 @@ class ScheduleRequest extends FormRequest
             'subjects.*.subject_id.distinct' => 'Una materia no puede repetirse en el horario.',
             'subjects.*.subject_id.exists' => 'La materia seleccionada no existe.',
             'subjects.*.professor_id.exists' => 'El docente seleccionado no existe.',
+            'subjects.*.classroom_id.exists' => 'El aula seleccionada no existe.',
             'subjects.*.dates.required' => 'Selecciona al menos un día de clase para cada materia.',
             'subjects.*.dates.min' => 'Selecciona al menos un día de clase para cada materia.',
             'subjects.*.dates.*.date_format' => 'Cada día de clase debe ser una fecha válida.',

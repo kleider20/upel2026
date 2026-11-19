@@ -7,7 +7,8 @@ namespace App\Support;
  *
  * La planilla replica la estructura del documento institucional: cabecera con
  * el logotipo, título del plan y una única tabla con los períodos agrupados y
- * los niveles (FUND, INTEG, PROF) escritos en vertical.
+ * los niveles (FUND, INTEG, PROF) escritos en vertical. El cuerpo de la tabla
+ * se ajusta para que el pensum completo entre en una sola página.
  */
 final class PensumPdf
 {
@@ -25,7 +26,14 @@ final class PensumPdf
 
     private const CONTENT_BOTTOM = 728.0;
 
+    /**
+     * Espacio reservado bajo la tabla para la fila de totales y la nota.
+     */
+    private const TOTALS_SPACE = 30.0;
+
     private const BODY_FONT = 5.2;
+
+    private const MIN_BODY_FONT = 3.4;
 
     private const LINE_HEIGHT = 6.4;
 
@@ -70,6 +78,42 @@ final class PensumPdf
     ];
 
     /**
+     * Anchos de Helvetica (en milésimas de em) para los caracteres ASCII 32-126.
+     *
+     * Permiten centrar cada texto con su ancho real dentro de la celda.
+     *
+     * @var array<int, int>
+     */
+    private const HELVETICA_WIDTHS = [
+        278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
+        556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
+        1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778,
+        667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
+        333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556,
+        556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584,
+    ];
+
+    /**
+     * Anchos de Helvetica-Bold (en milésimas de em) para los caracteres ASCII
+     * 32-126.
+     *
+     * @var array<int, int>
+     */
+    private const HELVETICA_BOLD_WIDTHS = [
+        278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278,
+        556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611,
+        975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778,
+        667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556,
+        333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611,
+        611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584,
+    ];
+
+    /**
+     * Espacio libre a cada lado del texto dentro de una celda.
+     */
+    private const CELL_PADDING = 0.6;
+
+    /**
      * @var array<int, array{0: int, 1: int, 2: int}>
      */
     private const BLACK = [0, 0, 0];
@@ -89,6 +133,22 @@ final class PensumPdf
     private float $cursorY = 0.0;
 
     /**
+     * Tamaño del cuerpo de la tabla; se reduce cuando el pensum no entra en
+     * una página.
+     */
+    private float $bodyFont = self::BODY_FONT;
+
+    private float $lineHeight = self::LINE_HEIGHT;
+
+    private float $minRowHeight = self::MIN_ROW_HEIGHT;
+
+    /**
+     * Tamaño de los números romanos de la columna PA; se reduce si algún
+     * período no cabe en el ancho de la columna.
+     */
+    private float $paLabelSize = 6.0;
+
+    /**
      * @param  array{name: string, degree?: string, code?: string}  $career
      * @param  array<int, array{label: string, credits: int, subjects: array<int, array<string, mixed>>}>  $pensum
      */
@@ -103,6 +163,13 @@ final class PensumPdf
      */
     private function build(array $career, array $pensum): string
     {
+        $this->paLabelSize = $this->fittingFontSize(
+            array_map(static fn (array $period): string => (string) $period['label'], $pensum),
+            self::COLUMN_WIDTHS[0],
+            6.0,
+        );
+
+        $this->fitBodySize($pensum);
         $this->startPage($career);
 
         $totalCredits = 0;
@@ -127,6 +194,35 @@ final class PensumPdf
         $this->pages[] = $this->content;
 
         return $this->assemble();
+    }
+
+    /**
+     * Reduce el cuerpo de la tabla hasta que el pensum completo entre en una
+     * sola página.
+     *
+     * @param  array<int, array{label: string, credits: int, subjects: array<int, array<string, mixed>>}>  $pensum
+     */
+    private function fitBodySize(array $pensum): void
+    {
+        $available = self::CONTENT_BOTTOM
+            - (self::TABLE_TOP + self::HEADER_HEIGHT)
+            - self::TOTALS_SPACE;
+
+        for ($size = self::BODY_FONT; $size >= self::MIN_BODY_FONT; $size -= 0.1) {
+            $this->bodyFont = round($size, 2);
+            $this->lineHeight = round($size * 1.22, 2);
+            $this->minRowHeight = round($size * 2.1, 2);
+
+            $totalHeight = 0.0;
+
+            foreach ($pensum as $period) {
+                $totalHeight += array_sum(array_column($this->periodRows($period), 'height'));
+            }
+
+            if ($totalHeight <= $available) {
+                return;
+            }
+        }
     }
 
     /**
@@ -184,11 +280,11 @@ final class PensumPdf
             if ($index === 12) {
                 $this->line($x, self::SUBHEADER_TOP, $x + $width, self::SUBHEADER_TOP, 0.5);
                 $this->line($x + 9.6, self::SUBHEADER_TOP, $x + 9.6, $bottom, 0.5);
-                $this->centeredInCell($x, self::TABLE_TOP, $width, self::SUBHEADER_TOP - self::TABLE_TOP, self::HEADERS[$index], 5.6, true);
-                $this->centeredInCell($x, self::SUBHEADER_TOP, 9.6, $bottom - self::SUBHEADER_TOP, 'AE', 5.2, true);
-                $this->centeredInCell($x + 9.6, self::SUBHEADER_TOP, $width - 9.6, $bottom - self::SUBHEADER_TOP, 'SC', 5.2, true);
+                $this->centeredInCell($x, self::TABLE_TOP, $width, self::SUBHEADER_TOP - self::TABLE_TOP, self::HEADERS[$index], $this->fittingFontSize([self::HEADERS[$index]], $width, 5.6), true);
+                $this->centeredInCell($x, self::SUBHEADER_TOP, 9.6, $bottom - self::SUBHEADER_TOP, 'AE', $this->fittingFontSize(['AE'], 9.6, 5.2), true);
+                $this->centeredInCell($x + 9.6, self::SUBHEADER_TOP, $width - 9.6, $bottom - self::SUBHEADER_TOP, 'SC', $this->fittingFontSize(['SC'], $width - 9.6, 5.2), true);
             } else {
-                $this->centeredInCell($x, self::TABLE_TOP, $width, self::HEADER_HEIGHT, self::HEADERS[$index], 5.6, true);
+                $this->centeredInCell($x, self::TABLE_TOP, $width, self::HEADER_HEIGHT, self::HEADERS[$index], $this->fittingFontSize([self::HEADERS[$index]], $width, 5.6), true);
             }
 
             $x += $width;
@@ -205,7 +301,7 @@ final class PensumPdf
             $nameLines = $this->wrapText(
                 (string) ($subject['name'] ?? ''),
                 self::COLUMN_WIDTHS[3] - 4,
-                self::BODY_FONT,
+                $this->bodyFont,
             );
 
             $lineCount = max(count($nameLines), 1);
@@ -213,7 +309,7 @@ final class PensumPdf
             return [
                 'subject' => $subject,
                 'lines' => $nameLines,
-                'height' => max(self::MIN_ROW_HEIGHT, ($lineCount * self::LINE_HEIGHT) + 2.6),
+                'height' => max($this->minRowHeight, ($lineCount * $this->lineHeight) + 2.6),
             ];
         }, $period['subjects']);
     }
@@ -233,7 +329,7 @@ final class PensumPdf
 
         $this->cursorY += $periodHeight;
 
-        $this->mergedCell(self::TABLE_LEFT, $this->cursorY - $periodHeight, self::COLUMN_WIDTHS[0], $periodHeight, (string) $period['label'], 6, true);
+        $this->mergedCell(self::TABLE_LEFT, $this->cursorY - $periodHeight, self::COLUMN_WIDTHS[0], $periodHeight, (string) $period['label'], $this->paLabelSize, true);
         $this->mergedCell(self::TABLE_LEFT + self::COLUMN_WIDTHS[0], $this->cursorY - $periodHeight, self::COLUMN_WIDTHS[1], $periodHeight, (string) $period['credits'], 6, true);
 
         $level = trim((string) ($period['subjects'][0]['level'] ?? ''));
@@ -286,7 +382,7 @@ final class PensumPdf
                     $width,
                     $height,
                     $text,
-                    $index === 2 ? 4.2 : self::BODY_FONT,
+                    $index === 2 ? 4.2 : $this->bodyFont,
                     $index === 3,
                 );
             }
@@ -297,10 +393,10 @@ final class PensumPdf
         $lines = $row['lines'];
 
         if ($lines !== [] && trim($lines[0]) !== '') {
-            $startY = $top + (($height - count($lines) * self::LINE_HEIGHT) / 2) + self::BODY_FONT;
+            $startY = $top + (($height - count($lines) * $this->lineHeight) / 2) + $this->bodyFont;
 
             foreach ($lines as $lineIndex => $line) {
-                $this->textAt(self::TABLE_LEFT + array_sum(array_slice(self::COLUMN_WIDTHS, 0, 3)) + 2, $startY + ($lineIndex * self::LINE_HEIGHT), $line, self::BODY_FONT);
+                $this->textAt(self::TABLE_LEFT + array_sum(array_slice(self::COLUMN_WIDTHS, 0, 3)) + 2, $startY + ($lineIndex * $this->lineHeight), $line, $this->bodyFont);
             }
         }
     }
@@ -544,7 +640,67 @@ final class PensumPdf
 
     private function textWidth(string $text, float $size, bool $bold = false): float
     {
-        return mb_strlen($text) * $size * ($bold ? 0.54 : 0.52);
+        $table = $bold ? self::HELVETICA_BOLD_WIDTHS : self::HELVETICA_WIDTHS;
+        $units = 0;
+
+        foreach (mb_str_split($text) as $character) {
+            $units += $this->characterWidth($character, $table);
+        }
+
+        return ($units / 1000) * $size;
+    }
+
+    /**
+     * Ancho de un carácter; los acentuados usan el ancho de su letra base.
+     *
+     * @param  array<int, int>  $table
+     */
+    private function characterWidth(string $character, array $table): int
+    {
+        if (strlen($character) === 1) {
+            $code = ord($character);
+
+            if ($code >= 32 && $code <= 126) {
+                return $table[$code - 32];
+            }
+        }
+
+        $plain = iconv('UTF-8', 'ASCII//TRANSLIT', $character);
+
+        if ($plain === false) {
+            return 556;
+        }
+
+        $plain = (string) preg_replace('/[^A-Za-z0-9]/', '', $plain);
+
+        if ($plain === '') {
+            return 556;
+        }
+
+        $code = ord($plain[0]);
+
+        return ($code >= 32 && $code <= 126) ? $table[$code - 32] : 556;
+    }
+
+    /**
+     * Tamaño de letra con el que todos los textos caben en el ancho indicado.
+     *
+     * @param  array<int, string>  $texts
+     */
+    private function fittingFontSize(array $texts, float $width, float $maxSize): float
+    {
+        $available = $width - (self::CELL_PADDING * 2);
+        $size = $maxSize;
+
+        foreach ($texts as $text) {
+            $textWidth = $this->textWidth($text, $maxSize, true);
+
+            if ($textWidth > $available) {
+                $size = min($size, $maxSize * ($available / $textWidth));
+            }
+        }
+
+        return round(max(3.4, $size), 1);
     }
 
     private function escape(string $text): string

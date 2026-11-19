@@ -64,12 +64,23 @@ final class AcademicOptions
     /**
      * Palabra que describe el componente en los nombres genéricos de las
      * unidades de libre elección (por ejemplo "Contextualizada").
+     *
+     * @var array<string, string>
+     */
+    private const COMPONENT_DESCRIPTORS = [
+        'CFPE' => 'Específico',
+        'CFD' => 'Docente',
+        'CFC' => 'Contextualizada',
+        'ECU' => 'Investigación y práctica',
+    ];
+
+    /**
+     * Palabra que describe el componente en los nombres genéricos de las
+     * unidades de libre elección (por ejemplo "Contextualizada").
      */
     public static function componentDescriptor(?string $component): string
     {
-        $words = explode(' ', self::componentLabel($component));
-
-        return (string) end($words);
+        return self::COMPONENT_DESCRIPTORS[$component ?? ''] ?? 'Formación';
     }
 
     /**

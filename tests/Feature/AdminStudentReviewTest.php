@@ -310,7 +310,7 @@ test('el historial registra la carga y la revisión del documento para el estudi
     $uploadTitle = 'Cargaste tu '.AdmissionDocumentType::Foto->label().' y solicitaste su revisión.';
 
     $this->actingAs($student)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')

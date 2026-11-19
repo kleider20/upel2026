@@ -10,6 +10,7 @@ export type StudentProfileData = {
     status_label: string;
     status_tone: string;
     admission_year: number | null;
+    cohort: string | null;
     graduation_year: number | null;
     phone?: string | null;
     personal_email?: string | null;

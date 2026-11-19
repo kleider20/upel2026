@@ -7,6 +7,7 @@ use App\Enums\Permission;
 use App\Enums\Role;
 use App\Mail\AdmissionConverted;
 use App\Mail\AdmissionStatusChanged;
+use App\Models\AcademicPeriod;
 use App\Models\Admission;
 use App\Models\CareerOffering;
 use App\Models\StudentProfile;
@@ -64,6 +65,7 @@ function admissionUpdatePayload(Admission $admission, array $overrides = []): ar
         'id_number' => $admission->id_number,
         'birth_date' => $admission->birth_date->toDateString(),
         'gender' => $admission->gender,
+        'marital_status' => $admission->marital_status,
         'email' => $admission->email,
         'phone' => $admission->phone,
         'address' => $admission->address,
@@ -229,12 +231,14 @@ test('el administrador edita los datos sin alterar estado ni documentos', functi
         ->put(route('admin.admissions.update', ['admission' => $admission->code]), admissionUpdatePayload($admission, [
             'first_name' => '  maria   elena ',
             'high_school' => '  Unidad   Educativa Central ',
+            'marital_status' => 'casado',
         ]))
         ->assertRedirect(route('admin.admissions.show', ['admission' => $admission->code]))
         ->assertSessionHasNoErrors();
 
     expect($admission->fresh()->first_name)->toBe('Maria Elena')
         ->and($admission->fresh()->high_school)->toBe('Unidad Educativa Central')
+        ->and($admission->fresh()->marital_status)->toBe('casado')
         ->and($admission->fresh()->status)->toBe(AdmissionStatus::EnRevision->value)
         ->and($admission->statusHistories()->count())->toBe(1)
         ->and($document->fresh()->status)->toBe(AdmissionDocumentStatus::Pendiente->value)
@@ -952,6 +956,26 @@ test('un aspirante aprobado se convierte en estudiante con su perfil', function 
         ->and($admission->converted_at)->not->toBeNull();
 
     Mail::assertQueued(AdmissionConverted::class);
+});
+
+test('la conversión asigna al estudiante la cohorte del período académico activo', function () {
+    Mail::fake();
+    Storage::fake('local');
+
+    $admin = adminUserWithRole(Role::Admin->value);
+    AcademicPeriod::factory()->create(['name' => '2026-II', 'is_active' => true]);
+    $admission = Admission::factory()->approved()->create();
+    attachCompleteAdmissionDocuments($admission);
+
+    $this->actingAs($admin)
+        ->post(route('admin.admissions.convert', [
+            'admission' => $admission->code,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $user = User::query()->where('email', $admission->email)->firstOrFail();
+
+    expect($user->studentProfile->cohort)->toBe('2026-II');
 });
 
 test('solo las solicitudes aprobadas pueden convertirse en estudiantes', function () {

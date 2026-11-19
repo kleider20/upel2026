@@ -35,6 +35,7 @@ type ScheduleRow = {
     created_at: string | null;
     show_url: string;
     pdf_url: string;
+    ics_url: string;
     edit_url: string;
     delete_url: string;
 };
@@ -388,6 +389,16 @@ export default function AdminSchedulesIndex({
                                                             aria-hidden="true"
                                                         />
                                                         PDF
+                                                    </a>
+                                                    <a
+                                                        href={row.ics_url}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[0.65rem] font-bold text-upel-navy transition-colors hover:bg-upel-cloud dark:text-foreground dark:hover:bg-muted"
+                                                    >
+                                                        <CalendarDays
+                                                            className="size-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                        Calendario
                                                     </a>
                                                     {can_manage ? (
                                                         <button

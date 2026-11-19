@@ -2,6 +2,7 @@
 
 use App\Models\Career;
 use App\Models\CareerOffering;
+use App\Models\ProfessorProfile;
 use App\Models\Subject;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -212,7 +213,7 @@ test('la página pública de una carrera muestra los bloques de libre elección 
         'is_active' => true,
     ]);
     Subject::factory()->for($career)->create([
-        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'name' => 'Uncle Del Componente De Formación Contextualizada',
         'code' => 'EDPRI-UNCLE-101',
         'semester' => 1,
         'component' => 'CFC',
@@ -241,13 +242,13 @@ test('la página pública de una carrera muestra los bloques de libre elección 
             ->where('pensum.0.subjects.0.name', 'Didáctica General')
             ->where('pensum.0.subjects.0.code', 'DID-101')
             ->where('pensum.0.subjects.0.is_elective_slot', false)
-            ->where('pensum.0.subjects.1.name', 'Uncle Del Componente De Formación CFC UNCLE Contextualizada')
+            ->where('pensum.0.subjects.1.name', 'Uncle Del Componente De Formación Contextualizada')
             ->where('pensum.0.subjects.1.code', '')
             ->where('pensum.0.subjects.1.is_elective_slot', true)
         );
 });
 
-test('la página pública de una carrera inactiva responde 404', function () {
+test('la landing pública de una carrera inactiva responde 404', function () {
     Career::factory()->create([
         'code' => 'INACT',
         'is_active' => false,
@@ -255,4 +256,36 @@ test('la página pública de una carrera inactiva responde 404', function () {
 
     $this->get(route('careers.show', ['career' => 'INACT']))
         ->assertNotFound();
+});
+
+test('la landing publica el claustro registrado en la base de datos', function () {
+    $doctor = ProfessorProfile::factory()->create([
+        'employee_code' => 'PROF-001',
+        'department' => 'Educación',
+        'academic_title' => 'Doctora en Educación',
+        'position' => 'Decana de Postgrado',
+        'bio' => 'Doctora en Educación con 22 años de experiencia en formación avanzada y gestión académica.',
+        'photo_path' => 'professors/carmen.jpg',
+    ]);
+
+    ProfessorProfile::factory()->create([
+        'employee_code' => 'PROF-002',
+        'department' => 'Pedagogía',
+        'academic_title' => 'Magíster en Educación',
+    ]);
+
+    $this->get(route('landing'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('landing/index')
+            ->has('teachers', 2)
+            ->where('teachers.0.name', $doctor->user->name)
+            ->where('teachers.0.role', 'Decana de Postgrado')
+            ->where('teachers.0.bio', 'Doctora en Educación con 22 años de experiencia en formación avanzada y gestión académica.')
+            ->where('teachers.0.email', $doctor->user->email)
+            ->where('teachers.0.avatar_url', '/storage/professors/carmen.jpg')
+            ->where('teachers.1.role', 'Magíster en Educación')
+            ->where('teachers.1.bio', 'Docente del departamento de Pedagogía de la UPEL.')
+            ->where('teachers.1.avatar_url', null)
+        );
 });

@@ -32,6 +32,9 @@ type Professor = {
     identity_document: string | null;
     department: string | null;
     academic_title: string | null;
+    position: string | null;
+    bio: string | null;
+    photo_url: string | null;
     must_change_password: boolean;
     email_verified: boolean;
     registered_at: string | null;
@@ -216,13 +219,22 @@ export default function AdminProfessorShow({ professor }: Props) {
                 </section>
 
                 <section className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-upel-navy dark:text-foreground">
-                        <UserRound
-                            className="size-4 text-upel-blue"
-                            aria-hidden="true"
-                        />
-                        Datos del docente
-                    </h2>
+                    <div className="flex items-start justify-between gap-4">
+                        <h2 className="flex items-center gap-2 text-sm font-bold text-upel-navy dark:text-foreground">
+                            <UserRound
+                                className="size-4 text-upel-blue"
+                                aria-hidden="true"
+                            />
+                            Datos del docente
+                        </h2>
+                        {professor.photo_url ? (
+                            <img
+                                src={professor.photo_url}
+                                alt={`Fotografía de ${professor.name}`}
+                                className="size-14 rounded-xl object-cover ring-1 ring-border"
+                            />
+                        ) : null}
+                    </div>
                     <dl className="mt-4 grid gap-4 text-xs sm:grid-cols-2 xl:grid-cols-3">
                         <div>
                             <dt className="font-bold text-muted-foreground">
@@ -266,6 +278,22 @@ export default function AdminProfessorShow({ professor }: Props) {
                             </dt>
                             <dd className="mt-1 font-semibold text-foreground">
                                 {professor.academic_title ?? '—'}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="font-bold text-muted-foreground">
+                                Cargo publicado
+                            </dt>
+                            <dd className="mt-1 font-semibold text-foreground">
+                                {professor.position ?? '—'}
+                            </dd>
+                        </div>
+                        <div className="sm:col-span-2 xl:col-span-3">
+                            <dt className="font-bold text-muted-foreground">
+                                Reseña de la landing
+                            </dt>
+                            <dd className="mt-1 leading-relaxed font-semibold text-foreground">
+                                {professor.bio ?? '—'}
                             </dd>
                         </div>
                         <div>

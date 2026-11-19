@@ -45,7 +45,7 @@ test('el portal queda bloqueado hasta definir la contraseña', function () {
         ->assertRedirect(route('password.define'));
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertRedirect(route('password.define'));
 
     $this->actingAs($user)
@@ -81,7 +81,7 @@ test('el estudiante define su contraseña y entra al portal', function () {
         ->and($user->needsPasswordChange())->toBeFalse();
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk();
 });
 
@@ -103,6 +103,6 @@ test('un estudiante sin contraseña pendiente entra directo al portal', function
     $user->assignRole(Role::Estudiante->value);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk();
 });

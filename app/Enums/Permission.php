@@ -44,6 +44,12 @@ enum Permission: string
     case ProgramsView = 'programs.view';
     case ProgramsManage = 'programs.manage';
 
+    case BannersView = 'banners.view';
+    case BannersManage = 'banners.manage';
+
+    case NewsView = 'news.view';
+    case NewsManage = 'news.manage';
+
     case UsersView = 'users.view';
     case UsersManage = 'users.manage';
 
@@ -85,6 +91,10 @@ enum Permission: string
             self::FinanceManage => 'Gestionar finanzas',
             self::ProgramsView => 'Ver postgrados y cursos',
             self::ProgramsManage => 'Gestionar postgrados y cursos',
+            self::BannersView => 'Ver las publicaciones del baner',
+            self::BannersManage => 'Gestionar las publicaciones del baner',
+            self::NewsView => 'Ver las noticias de la landing',
+            self::NewsManage => 'Gestionar las noticias de la landing',
             self::UsersView => 'Ver usuarios',
             self::UsersManage => 'Gestionar usuarios',
             self::RolesManage => 'Gestionar roles y permisos',

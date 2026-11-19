@@ -78,6 +78,7 @@ type AdmissionDetail = {
     birth_date: string;
     age: number;
     gender: string | null;
+    marital_status: string | null;
     email: string;
     phone: string;
     address: string | null;
@@ -281,6 +282,13 @@ export default function AdminAdmissionsShow({
                                     <dt className={labelClass}>Género</dt>
                                     <dd className={valueClass}>
                                         {admission.gender ?? 'No indicado'}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className={labelClass}>Estado civil</dt>
+                                    <dd className={valueClass}>
+                                        {admission.marital_status ??
+                                            'No indicado'}
                                     </dd>
                                 </div>
                                 <div>

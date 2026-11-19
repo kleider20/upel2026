@@ -99,7 +99,7 @@ test('admin dashboard modules are scoped by role', function (string $role, int $
     'coordinador académico' => [Role::CoordinadorAcademico->value, 7, 3],
     'personal administrativo' => [Role::PersonalAdministrativo->value, 1, 1],
     'decano' => [Role::Decano->value, 11, 5],
-    'administrador' => [Role::Admin->value, 12, 6],
+    'administrador' => [Role::Admin->value, 14, 6],
 ]);
 
 test('academic coordinators can access modules granted by permissions', function () {

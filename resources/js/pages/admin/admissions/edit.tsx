@@ -11,6 +11,7 @@ type AdmissionFormData = {
     id_number: string;
     birth_date: string;
     gender: string;
+    marital_status: string;
     email: string;
     phone: string;
     address: string;
@@ -46,6 +47,7 @@ type Props = {
     schedules: Option[];
     shifts: Option[];
     genders: Option[];
+    maritalStatuses: Option[];
     update_url: string;
     show_url: string;
 };
@@ -134,6 +136,7 @@ export default function AdminAdmissionsEdit({
     schedules,
     shifts,
     genders,
+    maritalStatuses,
     update_url,
     show_url,
 }: Props) {
@@ -144,6 +147,7 @@ export default function AdminAdmissionsEdit({
         id_number: admission.id_number,
         birth_date: admission.birth_date,
         gender: admission.gender,
+        marital_status: admission.marital_status,
         email: admission.email,
         phone: admission.phone,
         address: admission.address,
@@ -356,6 +360,19 @@ export default function AdminAdmissionsEdit({
                                 error={form.errors.gender}
                                 onChange={(value) =>
                                     form.setData('gender', value)
+                                }
+                            />
+                            <SelectField
+                                id="marital_status"
+                                label="Estado civil"
+                                value={form.data.marital_status}
+                                options={[
+                                    { value: '', label: 'No indicado' },
+                                    ...maritalStatuses,
+                                ]}
+                                error={form.errors.marital_status}
+                                onChange={(value) =>
+                                    form.setData('marital_status', value)
                                 }
                             />
                             <TextField

@@ -63,9 +63,49 @@ class DashboardController extends Controller
     }
 
     /**
-     * Panel del graduado: récord académico, promedio y programas disponibles.
+     * Página de resumen del graduado.
+     */
+    public function graduateRecord(Request $request): Response|RedirectResponse
+    {
+        return $this->renderGraduatePage($request, 'graduate/record/index');
+    }
+
+    /**
+     * Página con la oferta de formación continua del graduado.
+     */
+    public function graduatePrograms(Request $request): Response|RedirectResponse
+    {
+        return $this->renderGraduatePage($request, 'graduate/programs/index');
+    }
+
+    /**
+     * Renderiza una página del portal del graduado.
+     */
+    private function renderGraduatePage(Request $request, string $page): Response|RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user === null || ! $user->isGraduate()) {
+            return redirect()->route('login');
+        }
+
+        return Inertia::render($page, $this->graduateData($user));
+    }
+
+    /**
+     * Panel del graduado: resumen, récord y formación continua.
      */
     private function graduateDashboard(User $user): Response
+    {
+        return Inertia::render('dashboard/graduate', $this->graduateData($user));
+    }
+
+    /**
+     * Datos compartidos por las páginas del portal del graduado.
+     *
+     * @return array<string, mixed>
+     */
+    private function graduateData(User $user): array
     {
         $profile = $user->studentProfile()->with('career')->first();
 
@@ -103,7 +143,7 @@ class DashboardController extends Controller
             ])
             ->values();
 
-        return Inertia::render('dashboard/graduate', [
+        return [
             'profile' => $profile !== null ? [
                 'student_code' => $profile->student_code,
                 'career' => $profile->career?->name,
@@ -139,6 +179,6 @@ class DashboardController extends Controller
                 ],
             )->values(),
             'programs' => $programs,
-        ]);
+        ];
     }
 }

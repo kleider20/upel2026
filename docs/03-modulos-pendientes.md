@@ -53,44 +53,20 @@ al cerrar sesión.
 - Notificación al estudiante cuando el documento esté listo.
 - Historial descargable.
 
-### 5. Horarios académicos reales
-
-**Estado:** parcial. `MiHorario` ya muestra el horario oficial de Educación Primaria
-período 1 (`App\Support\StudentSchedule`), con sus 16 semanas y las dos cuadrículas
-del documento, filtrado por el horario elegido en la preinscripción (sabatino →
-sábados). `GET /estudiante/horario/pdf` genera el PDF oficial
-(`App\Support\StudentSchedulePdf`) para imprimir o descargar.
-La administración publica horarios por carrera, período, cohorte, modalidad y tipo de
-horario desde `/admin/schedules` (tablas `schedules` y `schedule_subjects`, vista previa
-y PDF): elige las materias de la carrera y el período, evita repetirlas y toma el código
-y el docente de cada una. El portal muestra al estudiante solo la combinación
-correspondiente a su perfil y genera una notificación en la campana al publicar o
-actualizar ese horario.
-La administración también define el rango de clases (fecha de inicio y fin), el tipo de
-horario (sabatino o lunes a viernes), la hora libre de cada materia y sus fechas exactas
-con `App\Support\ScheduleCalendar`; la cuadrícula y el PDF se generan desde ese rango.
-El portal del profesor toma carreras, materias, estudiantes y planes de evaluación solo de
-esos horarios (`App\Support\ProfessorAssignments`); si el docente no tiene materias
-asignadas, el portal muestra **Pendiente por asignación**.
-**Falta:**
-
-- Asignación de aula por materia y período desde la administración.
-- Validación de choques de horario (materias, docentes o aulas solapadas).
-- Vista de horario para profesores.
-- Exportación a calendario.
-
 ## Prioridad media
 
 ### 6. CMS de noticias, eventos y banners
 
-**Estado:** las noticias y el hero son datos estáticos en `resources/js/data`.
+**Estado:** parcial. Ya se gestionan desde el panel las diapositivas del hero y las
+noticias de la landing (secciones 14 y 15 de
+[`02-modulos-actuales.md`](./02-modulos-actuales.md)). Siguen pendientes el resto de
+entidades y funciones del CMS.
 **Falta:**
 
-- Tablas `posts`, `categories`, `media`.
-- Editor administrativo con imágenes y borradores.
+- Tablas `categories` y `media` (las noticias ya usan `news_posts`).
+- Editor con imágenes y borradores con control de versiones.
 - Publicación programada y destacados.
 - Página de detalle de noticia (`/noticias/{slug}`) con SEO propio.
-- Gestión de las diapositivas del hero desde el panel.
 
 ### 7. Gestión de cursos, talleres y postgrados
 
@@ -107,8 +83,8 @@ asignadas, el portal muestra **Pendiente por asignación**.
 
 **Estado:** parcial. Las admisiones ya envían `AdmissionReceived`, `AdmissionStatusChanged`
 (que cubre la preinscripción aprobada) y `AdmissionConverted`, todos en cola. El portal
-estudiantil ya tiene una campana para el evento de horarios descrito en el módulo
-pendiente n.º 5. El portal administrativo ya tiene una campana, badges en el menú y en el
+estudiantil ya tiene una campana para el evento de publicación de horarios (módulo de
+horarios, implementado en `02-modulos-actuales.md`). El portal administrativo ya tiene una campana, badges en el menú y en el
 listado de estudiantes y un panel en el dashboard para las solicitudes de revisión que los
 estudiantes envían desde su perfil (documentos recargados), sin persistir un historial de
 avisos leídos.
@@ -144,9 +120,10 @@ apertura/cierre.
 
 ### 11. Portal del profesor ampliado
 
+**Estado:** parcial. Ya existe la página editable de perfil docente (`/dashboard/profesor/perfil`),
+con foto tipo carnet, cargo, título académico, departamento y reseña publicados en la landing.
 **Falta:**
 
-- Página de perfil docente editable.
 - Gestión de materiales y anuncios por materia.
 - Lista de estudiantes con historial académico.
 - Carga masiva de notas (CSV/Excel).

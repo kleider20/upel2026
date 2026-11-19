@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BannerSlide;
 use App\Models\Career;
 use App\Models\CareerOffering;
+use App\Models\NewsPost;
+use App\Models\ProfessorProfile;
 use App\Models\Subject;
 use App\Support\AdmissionWindow;
 use App\Support\StudentSchedule;
@@ -27,11 +30,96 @@ class LandingController extends Controller
         return Inertia::render('landing/index', [
             'canRegister' => $this->window->isOpen(),
             'canEnroll' => $this->window->isEnrollmentOpen(),
+            'admissionWindow' => $this->window->bannerWindow(),
             'preEnrollmentOpensAt' => $this->window->opensAt()->toIso8601String(),
             'enrollmentOpensAt' => $this->window->enrollmentOpensAt()->toIso8601String(),
             'graduationDate' => $this->window->graduationAt()->toIso8601String(),
             'careers' => $this->offeredCareers(),
+            'teachers' => $this->professors(),
+            'heroSlides' => $this->heroSlides(),
+            'newsPosts' => $this->newsPosts(),
         ]);
+    }
+
+    /**
+     * Publicaciones activas del baner, en el orden definido desde el panel.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function heroSlides(): array
+    {
+        return BannerSlide::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(static fn (BannerSlide $slide): array => [
+                'id' => $slide->id,
+                'tag' => $slide->tag,
+                'title_start' => $slide->title_start,
+                'title_highlight' => $slide->title_highlight,
+                'title_end' => $slide->title_end,
+                'description' => $slide->description,
+                'visual' => $slide->visual,
+                'image_url' => $slide->imageUrl(),
+                'countdown_at' => $slide->countdown_at,
+                'countdown_label' => $slide->countdown_label,
+                'primary_label' => $slide->primary_label,
+                'primary_url' => $slide->primary_url,
+                'secondary_label' => $slide->secondary_label,
+                'secondary_url' => $slide->secondary_url,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Noticias publicadas, en el orden definido desde el panel.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function newsPosts(): array
+    {
+        return NewsPost::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(static fn (NewsPost $post): array => [
+                'id' => $post->id,
+                'category' => $post->category,
+                'date' => $post->date->toDateString(),
+                'title' => $post->title,
+                'excerpt' => $post->excerpt,
+                'icon' => $post->icon,
+                'link_url' => $post->link_url,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Claustro docente registrado, publicado en la sección "Profesionales que
+     * inspiran".
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function professors(): array
+    {
+        return ProfessorProfile::query()
+            ->with('user:id,name,email')
+            ->orderBy('id')
+            ->get()
+            ->map(static fn (ProfessorProfile $professor): array => [
+                'id' => $professor->id,
+                'name' => $professor->user->name,
+                'role' => $professor->landingRole(),
+                'bio' => $professor->landingBio(),
+                'email' => $professor->user->email,
+                'avatar_url' => $professor->photoUrl(),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

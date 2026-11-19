@@ -237,6 +237,39 @@ corrección.
 - **Verificación:** `tests/Feature/StudentPortalTest.php` (definitiva, condición, pénsum,
   actividad reciente y próximas evaluaciones).
 
+### C-15 · Desajuste de hidratación en la cuenta regresiva de la landing
+
+- **Síntoma:** al abrir `/`, React registraba en consola `Hydration failed because the server
+  rendered text didn't match the client`; el diff marcaba, por ejemplo, `43` en el HTML del
+  servidor frente a `44` en el cliente, dentro de la sección de graduaciones.
+- **Causa:** `useCountdown` llamaba a `Date.now()` en el inicializador de `useState`. Ese
+  inicializador se ejecuta en el render SSR y, segundos después, en el primer render del
+  navegador, por lo que los días de la cuenta regresiva diferían antes de la hidratación.
+- **Corrección (18/11/2026):** el estado inicial es un valor determinista (`EMPTY_COUNTDOWN`,
+  todo en cero) y el cálculo real se hace en `useEffect`, después de la hidratación; el
+  intervalo de un segundo sigue actualizando la cuenta. Afecta también al contador del
+  hero, que comparte el hook.
+- **Archivos:** `resources/js/hooks/use-countdown.ts`
+- **Verificación:** el HTML entregado por SSR muestra `00` en los cuatro bloques, el navegador
+  muestra la cuenta real tras montar y `browser-logs` no registra nuevos errores de
+  hidratación; `npm run check` y `npm run types:check` sin errores.
+
+### C-16 · Materia aprobada seguía apareciendo en la planilla de inscripción
+
+- **Síntoma:** tras corregir una nota a aprobado, la materia desaparecía de “Materias a
+  cursar” pero seguía listada en la Planilla de Asesoría Académica e Inscripción.
+- **Causa:** `StudentEnrollment::state()` conservaba todas las inscripciones del período
+  destino en `existing` y `sheetFrom()` las imprimía sin volver a comprobar su condición
+  final calculada con `StudentGrades::breakdown()`.
+- **Corrección (19/11/2026):** las inscripciones aprobadas quedan fuera de `existing` (se
+  conservan como historial), de la selección inicial y de la planilla; `sheetFrom()` aplica
+  además un filtro defensivo. La condición se recalcula en cada petición, así que una
+  corrección del docente se refleja de inmediato en ambas vistas y en el total de UC. La
+  validación de tope de UC y de materias permitidas de `save()` sigue vigente.
+- **Archivos:** `app/Support/StudentEnrollment.php`, `tests/Feature/StudentEnrollmentTest.php`
+- **Verificación:** `tests/Feature/StudentEnrollmentTest.php` (nuevo caso de corrección a
+  aprobado), suite completa de Pest y revisión de los datos del estudiante de muestra.
+
 ## Resumen de verificación final
 
 | Comprobación                             | Resultado                                                                                                                    |

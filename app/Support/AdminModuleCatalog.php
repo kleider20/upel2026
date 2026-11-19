@@ -78,6 +78,18 @@ final class AdminModuleCatalog
                 'permission' => Permission::ProgramsView->value,
                 'icon' => 'award',
             ],
+            'banners' => [
+                'title' => 'Publicaciones de banner',
+                'description' => 'Crea y ordena las diapositivas que se muestran en el inicio de la landing.',
+                'permission' => Permission::BannersView->value,
+                'icon' => 'images',
+            ],
+            'news' => [
+                'title' => 'Noticias y novedades',
+                'description' => 'Publica las noticias institucionales de la sección “Actualidad UPEL” de la landing.',
+                'permission' => Permission::NewsView->value,
+                'icon' => 'newspaper',
+            ],
             'users' => [
                 'title' => 'Usuarios',
                 'description' => 'Administra las cuentas y los accesos del sistema.',

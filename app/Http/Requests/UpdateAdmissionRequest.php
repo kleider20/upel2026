@@ -52,6 +52,7 @@ class UpdateAdmissionRequest extends FormRequest
                 'before_or_equal:'.now()->subYears(15)->toDateString(),
             ],
             'gender' => ['nullable', Rule::in(['masculino', 'femenino', 'otro', 'prefiero_no_decir'])],
+            'marital_status' => ['nullable', Rule::in(array_keys(Admission::MARITAL_STATUSES))],
             'email' => [
                 'required',
                 'email',
@@ -84,6 +85,9 @@ class UpdateAdmissionRequest extends FormRequest
             'phone' => trim((string) $this->input('phone')),
             'high_school' => Str::of((string) $this->input('high_school'))->squish()->toString(),
             'address' => Str::of((string) $this->input('address'))->squish()->toString(),
+            'marital_status' => $this->filled('marital_status')
+                ? trim((string) $this->input('marital_status'))
+                : null,
         ]);
     }
 
@@ -167,6 +171,7 @@ class UpdateAdmissionRequest extends FormRequest
             'id_number.regex' => 'La cédula debe contener entre 5 y 9 dígitos.',
             'email.unique' => 'Ya existe una solicitud o cuenta asociada a este correo.',
             'birth_date.before_or_equal' => 'El aspirante debe tener al menos 15 años.',
+            'marital_status.in' => 'Selecciona un estado civil válido.',
             'high_school_year.max' => 'El año de graduación no puede ser futuro.',
             'high_school_average.max' => 'El promedio debe estar entre 0 y 20 puntos.',
         ];

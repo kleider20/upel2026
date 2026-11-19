@@ -5,8 +5,10 @@ import {
     CalendarDays,
     ClipboardList,
     GraduationCap,
+    Images,
     Inbox,
     Layers,
+    Newspaper,
     LayoutGrid,
     Library,
     PlusCircle,
@@ -31,6 +33,8 @@ const icons: Record<string, LucideIcon> = {
     dashboard: LayoutGrid,
     inbox: Inbox,
     layers: Layers,
+    images: Images,
+    newspaper: Newspaper,
 };
 
 /**

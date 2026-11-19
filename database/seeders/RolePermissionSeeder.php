@@ -4,60 +4,29 @@ namespace Database\Seeders;
 
 use App\Enums\Permission as PermissionEnum;
 use App\Enums\Role as RoleEnum;
+use Database\Seeders\Concerns\SyncsRolePermissions;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
+    use SyncsRolePermissions;
+
     /**
-     * Crea los roles y permisos base del sistema.
+     * Crea los permisos del sistema y sincroniza los roles con sus permisos.
      */
     public function run(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->forgetPermissionCache();
 
         foreach (PermissionEnum::cases() as $permission) {
-            Permission::findOrCreate($permission->value, 'web');
+            Permission::findOrCreate($permission->value, self::SYNC_GUARD);
         }
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->forgetPermissionCache();
 
-        $allPermissions = PermissionEnum::values(PermissionEnum::cases());
-        $academicPermissions = PermissionEnum::values(PermissionEnum::academic());
-        $financePermissions = PermissionEnum::values(PermissionEnum::finance());
+        $this->syncRolesPermissions(RoleEnum::cases());
 
-        $roles = [
-            RoleEnum::Estudiante->value => [
-                PermissionEnum::StudentPortal->value,
-            ],
-            RoleEnum::Profesor->value => [
-                PermissionEnum::ProfessorPortal->value,
-            ],
-            RoleEnum::Graduado->value => [
-                PermissionEnum::GraduatePortal->value,
-            ],
-            RoleEnum::Admin->value => $allPermissions,
-            RoleEnum::Decano->value => array_values(array_unique([
-                ...$academicPermissions,
-                ...$financePermissions,
-                PermissionEnum::StudentsView->value,
-                PermissionEnum::StudentsViewPrivate->value,
-                PermissionEnum::AdmissionsView->value,
-                PermissionEnum::AdmissionsReview->value,
-                PermissionEnum::AdmissionsWindow->value,
-                PermissionEnum::RolesManage->value,
-            ])),
-            RoleEnum::CoordinadorAcademico->value => $academicPermissions,
-            RoleEnum::PersonalAdministrativo->value => $financePermissions,
-        ];
-
-        foreach ($roles as $roleName => $permissions) {
-            $role = Role::findOrCreate($roleName, 'web');
-            $role->syncPermissions($permissions);
-        }
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->forgetPermissionCache();
     }
 }

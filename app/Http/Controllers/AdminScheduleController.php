@@ -7,15 +7,18 @@ use App\Enums\Permission;
 use App\Http\Requests\ScheduleRequest;
 use App\Models\Career;
 use App\Models\CareerOffering;
+use App\Models\Classroom;
 use App\Models\Schedule;
 use App\Models\Subject;
 use App\Models\User;
 use App\Support\AcademicOptions;
+use App\Support\CalendarExport;
 use App\Support\StudentSchedule;
 use App\Support\StudentSchedulePdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -65,6 +68,7 @@ class AdminScheduleController extends Controller
                 'created_at' => $schedule->created_at?->format('d/m/Y'),
                 'show_url' => route('admin.schedules.show', $schedule),
                 'pdf_url' => route('admin.schedules.pdf', $schedule),
+                'ics_url' => route('admin.schedules.ics', $schedule),
                 'edit_url' => route('admin.schedules.edit', $schedule),
                 'delete_url' => route('admin.schedules.destroy', $schedule),
             ]);
@@ -140,6 +144,9 @@ class AdminScheduleController extends Controller
                         ? (string) $subject->pivot->professor_id
                         : '',
                     'teacher_name' => (string) ($subject->pivot->teacher_name ?? ''),
+                    'classroom_id' => $subject->pivot->classroom_id !== null
+                        ? (string) $subject->pivot->classroom_id
+                        : '',
                     'dates' => $dates,
                     'date_times' => $dateTimes,
                 ];
@@ -251,6 +258,7 @@ class AdminScheduleController extends Controller
                 'created_at' => $schedule->created_at?->format('d/m/Y H:i'),
             ],
             'pdf_url' => route('admin.schedules.pdf', $schedule),
+            'ics_url' => route('admin.schedules.ics', $schedule),
             'edit_url' => route('admin.schedules.edit', $schedule),
             'delete_url' => route('admin.schedules.destroy', $schedule),
             'can_manage' => $request->user()?->can(Permission::SchedulesManage->value) ?? false,
@@ -280,6 +288,76 @@ class AdminScheduleController extends Controller
         return response(StudentSchedulePdf::make($definition), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => $disposition.'; filename="'.$filename.'"',
+        ]);
+    }
+
+    /**
+     * Exporta el horario a un archivo iCalendar.
+     */
+    public function ics(Request $request, Schedule $schedule): Response
+    {
+        $this->authorizeView($request);
+
+        $schedule->loadMissing(['career', 'subjects']);
+        $classroomIds = $schedule->subjects->pluck('pivot.classroom_id')->filter()->unique()->values()->all();
+        $classrooms = $classroomIds === []
+            ? collect()
+            : Classroom::query()->whereKey($classroomIds)->get()->keyBy('id');
+        $events = [];
+
+        foreach ($schedule->subjects as $subject) {
+            $dates = $subject->pivot->dates;
+            $dateTimes = $subject->pivot->date_times;
+
+            if (is_string($dates)) {
+                $dates = json_decode($dates, true);
+            }
+
+            if (is_string($dateTimes)) {
+                $dateTimes = json_decode($dateTimes, true);
+            }
+
+            foreach (is_array($dates) ? $dates : [] as $date) {
+                if (! is_string($date) || ! is_array($dateTimes ?? null) || ! isset($dateTimes[$date]) || ! is_array($dateTimes[$date])) {
+                    continue;
+                }
+
+                $startsAt = substr((string) ($dateTimes[$date]['starts_at'] ?? ''), 0, 5);
+                $endsAt = substr((string) ($dateTimes[$date]['ends_at'] ?? ''), 0, 5);
+
+                if ($startsAt === '' || $endsAt === '' || $endsAt <= $startsAt) {
+                    continue;
+                }
+
+                $starts = Carbon::createFromFormat('Y-m-d H:i', $date.' '.$startsAt, 'America/Caracas');
+                $ends = Carbon::createFromFormat('Y-m-d H:i', $date.' '.$endsAt, 'America/Caracas');
+
+                if ($starts === false || $ends === false) {
+                    continue;
+                }
+
+                $classroomId = $subject->pivot->classroom_id;
+
+                $events[] = [
+                    'uid' => sprintf('horario-%d-%s-%d-%s@upel.edu.ve', $schedule->id, $schedule->cohort, $subject->id, md5($date.$startsAt)),
+                    'title' => $subject->name,
+                    'starts_at' => $starts,
+                    'ends_at' => $ends,
+                    'location' => $classroomId !== null ? $classrooms->get((int) $classroomId)?->label() : null,
+                    'description' => $schedule->career->name.' · '.$schedule->cohort.' · '.$schedule->periodLabel(),
+                ];
+            }
+        }
+
+        $filename = sprintf(
+            'horario-%s-%s.ics',
+            Str::slug((string) $schedule->career->code),
+            Str::slug($schedule->cohort),
+        );
+
+        return response(CalendarExport::make($events), 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -336,6 +414,10 @@ class AdminScheduleController extends Controller
                     ? null
                     : (int) $professorId;
                 $teacherName = trim((string) ($subject['teacher_name'] ?? ''));
+                $classroomId = $subject['classroom_id'] ?? null;
+                $classroomId = $classroomId === null || $classroomId === ''
+                    ? null
+                    : (int) $classroomId;
                 $dates = array_values(array_unique(array_map(
                     static fn (string $date): string => $date,
                     $subject['dates'] ?? [],
@@ -354,6 +436,7 @@ class AdminScheduleController extends Controller
                         'teacher_name' => $professorId === null && $teacherName !== ''
                             ? $teacherName
                             : null,
+                        'classroom_id' => $classroomId,
                         'dates' => json_encode($dates),
                         'date_times' => json_encode($dateTimes),
                         'starts_at' => $firstDateTime['starts_at'] ?? null,
@@ -424,6 +507,18 @@ class AdminScheduleController extends Controller
                 ])
                 ->all(),
             'template' => StudentSchedule::template(),
+            'classrooms' => Classroom::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'capacity'])
+                ->map(static fn (Classroom $classroom): array => [
+                    'id' => $classroom->id,
+                    'code' => $classroom->code,
+                    'name' => $classroom->name,
+                    'capacity' => $classroom->capacity,
+                    'label' => $classroom->label(),
+                ])
+                ->all(),
             'subjects' => Subject::query()
                 ->where(static function ($query) use ($scheduleSubjectIds): void {
                     $query->where('is_active', true);

@@ -140,10 +140,12 @@ vendor/bin/pint --dirty --format agent
 | Inicio de inscripción    | 2027-01-12 08:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow`                    |
 | Meta de graduación       | 2026-12-12 09:00 (GMT-4) | `config/admissions.php` + `AdmissionWindow`                    |
 
-El administrador y el decano definen el rango de la preinscripción y pueden abrirla o
-cerrarla manualmente desde la tarjeta **Ventana de inscripciones** del panel
-(`/admin/dashboard`). Al terminar la fecha de cierre el formulario de `/preinscripcion` y
-los botones de la landing se deshabilitan automáticamente; el modo manual tiene prioridad.
+El administrador y el decano definen por separado el rango de cada ventana: las
+preinscripciones se gestionan en **Inscripciones → Habilitar Preinscripciones**
+(`/admin/preinscripciones`) y las inscripciones formales en
+**Inscripciones → Habilitar Inscripciones** (`/admin/inscripciones`). Al terminar la fecha
+de cierre el formulario correspondiente y los botones de la landing se deshabilitan
+automáticamente; el modo manual tiene prioridad sobre el rango.
 `ADMISSIONS_FORCE_OPEN=true` solo fuerza la inscripción formal (`canEnroll`) en desarrollo.
 
 ## 6. Roles y permisos
@@ -214,27 +216,28 @@ sesión (`must_change_password`).
 
 ## 8. Modelo de datos
 
-| Tabla                                     | Propósito                                                                            |
-| ----------------------------------------- | ------------------------------------------------------------------------------------ |
-| `users`                                   | Cuentas de todos los portales (`must_change_password` marca la contraseña inicial)   |
-| `careers`                                 | Oferta de pregrado (14 registros sembrados)                                          |
-| `academic_periods`                        | Períodos lectivos (`2025-II`, `2026-I`, `2026-II`, …)                                |
-| `subjects`                                | Unidades curriculares por carrera y semestre (155 registros)                         |
-| `schedules`                               | Horarios por carrera, período, cohorte, tipo y rango de clases                       |
-| `schedule_subjects`                       | Materia, docente, fechas y hora elegidos para cada franja de un horario (`position`) |
-| `student_profiles`                        | Datos académicos del estudiante/graduado                                             |
-| `professor_profiles`                      | Código, departamento y título del docente                                            |
-| `professor_subjects`                      | Asignación docente ↔ materia                                                         |
-| `enrollments`                             | Inscripción, nota final y estado (`cursando`, `aprobado`, `reprobado`)               |
-| `programs`                                | Especializaciones, maestrías, doctorados, cursos y talleres (9 registros)            |
-| `payments`                                | Pagos y mensualidades (8 registros)                                                  |
-| `admissions`                              | Solicitudes de preinscripción, estado, revisión y conversión                         |
-| `career_offerings`                        | Modalidad, horario y turno ofrecidos por cada carrera                                |
-| `high_schools`                            | Catálogo de planteles de bachillerato (15 registros sembrados)                       |
-| `admission_documents`                     | Expediente de documentos por aspirante y su revisión                                 |
-| `admission_status_histories`              | Historial de cambios de estado de cada solicitud                                     |
-| `newsletter_subscribers`                  | Suscripciones del sitio público                                                      |
-| `roles`, `permissions`, `model_has_roles` | Spatie                                                                               |
+| Tabla                                     | Propósito                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `users`                                   | Cuentas de todos los portales (`must_change_password` marca la contraseña inicial)         |
+| `careers`                                 | Oferta de pregrado (14 registros sembrados)                                                |
+| `academic_periods`                        | Períodos lectivos (`2025-II`, `2026-I`, `2026-II`, …)                                      |
+| `subjects`                                | Unidades curriculares por carrera y semestre (155 registros)                               |
+| `schedules`                               | Horarios por carrera, período, cohorte, tipo y rango de clases                             |
+| `schedule_subjects`                       | Materia, docente, aula, fechas y hora elegidos para cada franja de un horario (`position`) |
+| `classrooms`                              | Catálogo de aulas (código, nombre, capacidad y estado) para asignar en los horarios        |
+| `student_profiles`                        | Datos académicos del estudiante/graduado                                                   |
+| `professor_profiles`                      | Código, departamento y título del docente                                                  |
+| `professor_subjects`                      | Asignación docente ↔ materia                                                               |
+| `enrollments`                             | Inscripción, nota final y estado (`cursando`, `aprobado`, `reprobado`)                     |
+| `programs`                                | Especializaciones, maestrías, doctorados, cursos y talleres (9 registros)                  |
+| `payments`                                | Pagos y mensualidades (8 registros)                                                        |
+| `admissions`                              | Solicitudes de preinscripción, estado, revisión y conversión                               |
+| `career_offerings`                        | Modalidad, horario y turno ofrecidos por cada carrera                                      |
+| `high_schools`                            | Catálogo de planteles de bachillerato (15 registros sembrados)                             |
+| `admission_documents`                     | Expediente de documentos por aspirante y su revisión                                       |
+| `admission_status_histories`              | Historial de cambios de estado de cada solicitud                                           |
+| `newsletter_subscribers`                  | Suscripciones del sitio público                                                            |
+| `roles`, `permissions`, `model_has_roles` | Spatie                                                                                     |
 
 ### Regla de calificación
 
@@ -244,6 +247,12 @@ sesión (`must_change_password`).
   `aprobado` o `reprobado` automáticamente.
 
 ## 9. Rutas principales
+
+Todas las páginas de los portales viven bajo `/dashboard`: `/dashboard` es el inicio
+según el rol y los módulos se agrupan en `/dashboard/estudiante/*`,
+`/dashboard/profesor/*` y `/dashboard/graduado/*`. Las definiciones están separadas en
+`routes/estudiantes.php`, `routes/profesores.php` y `routes/graduados.php`, cargadas
+desde `routes/web.php`.
 
 | Método | URI                                                      | Nombre                                | Acceso                              |
 | ------ | -------------------------------------------------------- | ------------------------------------- | ----------------------------------- |
@@ -276,20 +285,26 @@ sesión (`must_change_password`).
 | PUT    | `/admin/students/{student}`                              | `admin.students.update`               | Solo administrador                  |
 | DELETE | `/admin/students/{student}`                              | `admin.students.destroy`              | Solo administrador                  |
 | GET    | `/dashboard`                                             | `dashboard`                           | Autenticados y verificados          |
-| PUT    | `/dashboard/notas/{enrollment}`                          | `professor.grades.update`             | Rol profesor                        |
-| GET    | `/estudiante/dashboard`                                  | `student.dashboard`                   | Rol estudiante                      |
-| GET    | `/estudiante/solicitud`                                  | `student.solicitud`                   | Rol estudiante                      |
-| GET    | `/estudiante/materias`                                   | `student.materias`                    | Rol estudiante                      |
-| GET    | `/estudiante/calificaciones`                             | `student.calificaciones`              | Rol estudiante                      |
-| GET    | `/estudiante/profesores`                                 | `student.profesores`                  | Rol estudiante                      |
-| GET    | `/estudiante/pensum`                                     | `student.pensum`                      | Rol estudiante                      |
-| GET    | `/estudiante/horario`                                    | `student.horario`                     | Rol estudiante                      |
-| GET    | `/estudiante/perfil`                                     | `student.perfil`                      | Rol estudiante                      |
-| GET    | `/estudiante/tramites`                                   | `student.tramites`                    | Rol estudiante                      |
-| GET    | `/estudiante/profesores/{professor}`                     | `student.professors.show`             | Rol estudiante                      |
-| GET    | `/estudiante/horario/pdf`                                | `student.schedule.pdf`                | Rol estudiante                      |
-| PUT    | `/estudiante/perfil`                                     | `student.profile.update`              | Rol estudiante                      |
-| POST   | `/estudiante/tramites`                                   | `student.tramites.store`              | Rol estudiante                      |
+| PUT    | `/dashboard/profesor/notas/{enrollment}`                 | `professor.grades.update`             | Rol profesor                        |
+| GET    | `/dashboard/profesor/estudiantes`                        | `professor.students`                  | Rol profesor                        |
+| GET    | `/dashboard/profesor/cargar-notas`                       | `professor.grades.index`              | Rol profesor                        |
+| GET    | `/dashboard/profesor/mis-carreras`                       | `professor.careers`                   | Rol profesor                        |
+| GET    | `/dashboard/profesor/perfil`                             | `professor.profile.edit`              | Rol profesor                        |
+| GET    | `/dashboard/profesor/planes-evaluacion`                  | `professor.plans.index`               | Rol profesor                        |
+| GET    | `/dashboard/graduado/record`                             | `graduate.record`                     | Rol graduado                        |
+| GET    | `/dashboard/graduado/programas`                          | `graduate.programs`                   | Rol graduado                        |
+| GET    | `/dashboard/estudiante/solicitud`                        | `student.solicitud`                   | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/materias`                         | `student.materias`                    | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/calificaciones`                   | `student.calificaciones`              | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/profesores`                       | `student.profesores`                  | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/pensum`                           | `student.pensum`                      | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/horario`                          | `student.horario`                     | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/perfil`                           | `student.perfil`                      | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/tramites`                         | `student.tramites`                    | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/profesores/{professor}`           | `student.professors.show`             | Rol estudiante                      |
+| GET    | `/dashboard/estudiante/horario/pdf`                      | `student.schedule.pdf`                | Rol estudiante                      |
+| PUT    | `/dashboard/estudiante/perfil`                           | `student.profile.update`              | Rol estudiante                      |
+| POST   | `/dashboard/estudiante/tramites`                         | `student.tramites.store`              | Rol estudiante                      |
 | —      | `/settings/*`                                            | `profile.*`, `security.*`             | Autenticados                        |
 
 ## 10. Convenciones del proyecto

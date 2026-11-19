@@ -31,6 +31,7 @@ type Props = {
     schedule: StudentScheduleData;
     meta: ScheduleMeta;
     pdf_url: string;
+    ics_url: string;
     edit_url: string;
     delete_url: string;
     can_manage: boolean;
@@ -43,6 +44,7 @@ export default function AdminScheduleShow({
     schedule,
     meta,
     pdf_url,
+    ics_url,
     edit_url,
     delete_url,
     can_manage,
@@ -85,6 +87,13 @@ export default function AdminScheduleShow({
                             >
                                 <Download className="h-3.5 w-3.5" />
                                 Descargar PDF
+                            </a>
+                            <a
+                                href={ics_url}
+                                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-xs font-bold text-upel-navy shadow-sm transition-colors hover:bg-upel-cloud dark:bg-card dark:text-foreground"
+                            >
+                                <CalendarDays className="h-3.5 w-3.5" />
+                                Calendario (.ics)
                             </a>
                             <Link
                                 href={schedulesIndex()}

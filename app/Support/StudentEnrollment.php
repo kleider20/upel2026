@@ -82,10 +82,10 @@ final class StudentEnrollment
 
         return [
             'window' => [
-                'is_open' => $window->isOpen(),
-                'opens_at' => $window->opensAt()->format('d/m/Y'),
-                'closes_at' => $window->closesAt()->format('d/m/Y'),
-                'reason' => $window->closureContext()['reason'],
+                'is_open' => $window->isEnrollmentOpen(),
+                'opens_at' => $window->enrollmentOpensAt()->format('d/m/Y'),
+                'closes_at' => $window->enrollmentClosesAt()->format('d/m/Y'),
+                'reason' => $window->enrollmentClosureContext()['reason'],
             ],
             'period' => $state['period'] !== null ? [
                 'id' => $state['period']->id,
@@ -309,6 +309,7 @@ final class StudentEnrollment
     {
         /** @var Collection<int, Enrollment> $enrollments */
         $enrollments = $state['existing']
+            ->reject(static fn (Enrollment $enrollment): bool => ($state['subject_conditions'][(int) $enrollment->subject_id]['approved'] ?? false) === true)
             ->sortBy(static fn (Enrollment $enrollment): array => [
                 (int) ($enrollment->subject?->semester ?? 0),
                 (string) ($enrollment->subject?->code ?? ''),
@@ -339,7 +340,7 @@ final class StudentEnrollment
                 'first_name' => $names['first_name'],
                 'second_name' => $names['second_name'],
                 'birth_date' => $birthDate?->format('d-m-Y'),
-                'civil_status' => '',
+                'civil_status' => $state['admission']?->maritalStatusLabel() ?? '',
                 'sex' => $this->sex($state['admission']),
                 'phone' => $state['profile']?->phone ?? $state['admission']?->phone,
                 'email' => $state['profile']?->personal_email
@@ -500,9 +501,17 @@ final class StudentEnrollment
             ? $enrollments->where('academic_period_id', $period->id)->values()
             : collect();
 
+        // Una nota corregida a aprobado debe desaparecer de inmediato tanto de
+        // "materias a cursar" como de la planilla. Las inscripciones aprobadas
+        // se conservan en la base de datos como historial, pero no cuentan como
+        // matrícula vigente del período destino.
+        $active = $existing
+            ->reject(static fn (Enrollment $enrollment): bool => ($conditions[(int) $enrollment->subject_id]['approved'] ?? false) === true)
+            ->values();
+
         // Materias ya inscritas en el período destino que no forman parte del
         // pensum del siguiente semestre (reinscripciones de otros períodos).
-        $extra = $existing
+        $extra = $active
             ->map(static fn (Enrollment $enrollment): ?Subject => $enrollment->subject)
             ->filter()
             ->reject(static fn (Subject $subject): bool => ($conditions[$subject->id]['approved'] ?? false) === true)
@@ -516,7 +525,7 @@ final class StudentEnrollment
             ->values();
 
         $requiredCredits = (int) $failed->sum('credits');
-        $selected = $this->initialSelection($failed, $next, $existing, (int) $budget, (int) $requiredCredits);
+        $selected = $this->initialSelection($failed, $next, $active, (int) $budget, (int) $requiredCredits);
 
         $selectedCredits = $failed
             ->concat($next)
@@ -542,14 +551,14 @@ final class StudentEnrollment
             'budget' => $budget,
             'failed' => $failed,
             'next' => $next,
-            'existing' => $existing,
+            'existing' => $active,
             'selected' => $selected,
             'selected_credits' => (int) $selectedCredits,
             'required_credits' => $requiredCredits,
             'approved_credits' => $approvedCredits,
             'total_credits' => (int) $careerSubjects->sum('credits'),
             'suspended' => $suspended,
-            'submitted' => $existing->isNotEmpty(),
+            'submitted' => $active->isNotEmpty(),
         ];
     }
 

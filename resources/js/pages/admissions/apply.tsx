@@ -53,6 +53,7 @@ type AdmissionFormData = {
     id_number: string;
     birth_date: string;
     gender: string;
+    marital_status: string;
     email: string;
     phone: string;
     address: string;
@@ -102,12 +103,22 @@ const selectClass =
 
 const labelClass = 'mb-1.5 block text-[0.72rem] font-extrabold text-upel-navy';
 
+const maritalStatusOptions = [
+    { value: 'soltero', label: 'Soltero(a)' },
+    { value: 'casado', label: 'Casado(a)' },
+    { value: 'divorciado', label: 'Divorciado(a)' },
+    { value: 'viudo', label: 'Viudo(a)' },
+    { value: 'concubino', label: 'Concubino(a)' },
+    { value: 'otro', label: 'Otro' },
+];
+
 const stepOneFields: (keyof AdmissionFormData)[] = [
     'first_name',
     'last_name',
     'nationality',
     'id_number',
     'birth_date',
+    'marital_status',
     'email',
     'phone',
 ];
@@ -149,6 +160,10 @@ function isPersonalInformationValid(data: AdmissionFormData): boolean {
         (data.gender === '' ||
             ['masculino', 'femenino', 'otro', 'prefiero_no_decir'].includes(
                 data.gender,
+            )) &&
+        (data.marital_status === '' ||
+            maritalStatusOptions.some(
+                (option) => option.value === data.marital_status,
             )) &&
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()) &&
         data.email.trim().length <= 255 &&
@@ -216,6 +231,7 @@ export default function AdmissionApply({
             id_number: '',
             birth_date: '',
             gender: '',
+            marital_status: '',
             email: '',
             phone: '',
             address: '',
@@ -1031,6 +1047,44 @@ export default function AdmissionApply({
                                         </select>
                                     </div>
 
+                                    <div>
+                                        <label
+                                            htmlFor="marital_status"
+                                            className={labelClass}
+                                        >
+                                            Estado civil{' '}
+                                            <span className="font-semibold text-upel-slate">
+                                                (opcional)
+                                            </span>
+                                        </label>
+                                        <select
+                                            id="marital_status"
+                                            value={data.marital_status}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'marital_status',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            onBlur={() => validateStep(1)}
+                                            className={selectClass}
+                                        >
+                                            <option value="">
+                                                Prefiero no indicar
+                                            </option>
+                                            {maritalStatusOptions.map(
+                                                (option) => (
+                                                    <option
+                                                        key={option.value}
+                                                        value={option.value}
+                                                    >
+                                                        {option.label}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                    </div>
+
                                     <div className="sm:col-span-2">
                                         <label
                                             htmlFor="address"
@@ -1455,6 +1509,14 @@ export default function AdmissionApply({
                                         [
                                             'Teléfono',
                                             formatPhoneNumber(data.phone),
+                                        ],
+                                        [
+                                            'Estado civil',
+                                            maritalStatusOptions.find(
+                                                (option) =>
+                                                    option.value ===
+                                                    data.marital_status,
+                                            )?.label ?? '—',
                                         ],
                                         [
                                             'Carrera',

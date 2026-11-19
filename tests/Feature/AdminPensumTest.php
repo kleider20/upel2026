@@ -4,6 +4,7 @@ use App\Enums\Role;
 use App\Models\Career;
 use App\Models\Subject;
 use App\Models\User;
+use Database\Seeders\PensumSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -141,7 +142,7 @@ test('el pensum base incluye los bloques de libre elección y excluye las oferta
         'type' => 'UNCO',
     ]);
     Subject::factory()->for($career)->create([
-        'name' => 'Uncle Del Componente De Formación CFC UNCLE Contextualizada',
+        'name' => 'Uncle Del Componente De Formación Contextualizada',
         'code' => 'EDPRI-UNCLE-101',
         'semester' => 1,
         'credits' => 2,
@@ -167,7 +168,7 @@ test('el pensum base incluye los bloques de libre elección y excluye las oferta
             ->where('career.credits_total', 6)
             ->has('pensum.0.subjects', 2)
             ->where('pensum.0.subjects.1.code', 'EDPRI-UNCLE-101')
-            ->where('pensum.0.subjects.1.name', 'Uncle Del Componente De Formación CFC UNCLE Contextualizada')
+            ->where('pensum.0.subjects.1.name', 'Uncle Del Componente De Formación Contextualizada')
             ->where('pensum.0.subjects.1.is_elective_slot', true)
         );
 });
@@ -193,7 +194,7 @@ test('academic managers can view and download a career pensum as a PDF', functio
     $preview
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf')
-        ->assertHeader('content-disposition', 'inline; filename="pensum-EDPRI.pdf"');
+        ->assertHeader('content-disposition', 'inline; filename="pensum-educacion-primaria.pdf"');
 
     $pdfContent = $preview->getContent();
     preg_match('/startxref\n(\d+)\n%%EOF/', $pdfContent, $xrefMatch);
@@ -207,7 +208,71 @@ test('academic managers can view and download a career pensum as a PDF', functio
 
     $this->get($pdfUrl.'?download=1')
         ->assertOk()
-        ->assertHeader('content-disposition', 'attachment; filename="pensum-EDPRI.pdf"');
+        ->assertHeader('content-disposition', 'attachment; filename="pensum-educacion-primaria.pdf"');
+});
+
+test('el PDF del pensum completo de Educación Primaria cabe en una sola página', function () {
+    Career::factory()->create([
+        'name' => 'Educación Primaria',
+        'code' => 'EDPRI',
+    ]);
+
+    $this->seed(PensumSeeder::class);
+
+    $pdf = $this->actingAs(pensumManager())
+        ->get(route('admin.pensums.pdf', ['career' => 'EDPRI']))
+        ->assertOk()
+        ->getContent();
+
+    expect($pdf)
+        ->toContain('/Count 1')
+        ->and(substr_count($pdf, '/Type /Page '))->toBe(1)
+        ->and($pdf)->toContain('(205) Tj ET');
+});
+
+test('los números de período del pensum quedan centrados dentro de la columna PA', function () {
+    Career::factory()->create([
+        'name' => 'Educación Primaria',
+        'code' => 'EDPRI',
+    ]);
+
+    $this->seed(PensumSeeder::class);
+
+    $pdf = $this->actingAs(pensumManager())
+        ->get(route('admin.pensums.pdf', ['career' => 'EDPRI']))
+        ->assertOk()
+        ->getContent();
+
+    preg_match_all(
+        '/1 0 0 1 ([\d.]+) [\d.]+ Tm \(([IVX]+)\) Tj ET/',
+        $pdf,
+        $matches,
+        PREG_SET_ORDER,
+    );
+
+    // Sólo los romanos de la columna PA (x cercano al borde izquierdo de la tabla).
+    $labels = collect($matches)
+        ->filter(static fn (array $match): bool => (float) $match[1] < 200)
+        ->map(static fn (array $match): string => $match[2])
+        ->values();
+
+    // Borde izquierdo de la columna PA en la planilla oficial.
+    $columnLeft = 154.94;
+    $columnWidth = 9.24;
+
+    expect($labels->all())->toBe(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII']);
+
+    foreach ($matches as $match) {
+        $textLeft = (float) $match[1];
+
+        if ($textLeft >= 200) {
+            continue;
+        }
+
+        // El romano debe quedar dentro de la columna, nunca encima del borde.
+        expect($textLeft)->toBeGreaterThanOrEqual($columnLeft)
+            ->and($textLeft)->toBeLessThan($columnLeft + $columnWidth);
+    }
 });
 
 test('users without academic permissions cannot access a career pensum PDF', function () {

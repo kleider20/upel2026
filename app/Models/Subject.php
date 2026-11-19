@@ -159,15 +159,12 @@ class Subject extends Model
      * Nombre genérico de un bloque de libre elección.
      *
      * Se usa mientras el estudiante no tiene asignada la materia concreta,
-     * por ejemplo "Uncle Del Componente De Formación CFC UNCLE 2 2 4
-     * Contextualizada".
+     * por ejemplo "Uncle Del Componente De Formación 2 2 4 Contextualizada".
      */
     public function electiveLabel(): string
     {
         return trim(sprintf(
-            'Uncle Del Componente De Formación %s %s %d %d %d %s',
-            (string) $this->component,
-            strtoupper(trim((string) $this->type)),
+            'Uncle Del Componente De Formación %d %d %d %s',
             $this->credits,
             $this->theory_hours,
             $this->practice_hours,

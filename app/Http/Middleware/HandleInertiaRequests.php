@@ -59,6 +59,9 @@ class HandleInertiaRequests extends Middleware
                     'permissions' => $user->getAllPermissions()->pluck('name')->values(),
                     'portal_role' => $user->portalRole()?->value,
                     'portal_role_label' => $user->portalRole()?->label(),
+                    'avatar_url' => $user->isProfessor()
+                        ? $user->professorProfile?->photoUrl()
+                        : null,
                 ] : null,
             ],
             'flash' => [
@@ -110,15 +113,15 @@ class HandleInertiaRequests extends Middleware
         $window = new AdmissionWindow;
 
         return [
-            'is_open' => $window->isOpen(),
+            'is_open' => $window->isEnrollmentOpen(),
             'submitted' => Enrollment::query()
                 ->where('student_id', $user->id)
                 ->whereHas('academicPeriod', static fn ($query) => $query->where('ends_at', '>=', now()))
                 ->exists(),
             'url' => route('student.enrollment.index', absolute: false),
-            'opens_at' => $window->opensAt()->format('d/m/Y'),
-            'closes_at' => $window->closesAt()->format('d/m/Y'),
-            'reason' => $window->closureContext()['reason'],
+            'opens_at' => $window->enrollmentOpensAt()->format('d/m/Y'),
+            'closes_at' => $window->enrollmentClosesAt()->format('d/m/Y'),
+            'reason' => $window->enrollmentClosureContext()['reason'],
         ];
     }
 

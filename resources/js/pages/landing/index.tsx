@@ -6,7 +6,7 @@ import { Courses } from '@/components/landing/courses';
 import { CTA } from '@/components/landing/cta';
 import { Footer } from '@/components/landing/footer';
 import { Graduations } from '@/components/landing/graduations';
-import { HeroSlider } from '@/components/landing/hero-slider';
+import { HeroSlider, type HeroSlide } from '@/components/landing/hero-slider';
 import { LandingErrorBoundary } from '@/components/landing/landing-error-boundary';
 import { Navbar } from '@/components/landing/navbar';
 import { News } from '@/components/landing/news';
@@ -14,6 +14,8 @@ import { OnlineMode } from '@/components/landing/online-mode';
 import { StatsBand } from '@/components/landing/stats-band';
 import { Teachers } from '@/components/landing/teachers';
 import type { LandingCareer } from '@/data/careers';
+import type { NewsItem } from '@/data/news';
+import type { LandingTeacher } from '@/data/teachers';
 
 type LandingProps = {
     canRegister: boolean;
@@ -22,6 +24,9 @@ type LandingProps = {
     enrollmentOpensAt: string;
     graduationDate: string;
     careers: LandingCareer[];
+    teachers: LandingTeacher[];
+    heroSlides: HeroSlide[];
+    newsPosts: NewsItem[];
 };
 
 /**
@@ -33,6 +38,9 @@ export default function LandingIndex({
     preEnrollmentOpensAt,
     graduationDate,
     careers,
+    teachers,
+    heroSlides,
+    newsPosts,
 }: LandingProps) {
     const navigate = (url: string) => router.visit(url);
 
@@ -79,18 +87,14 @@ export default function LandingIndex({
 
                 <LandingErrorBoundary>
                     <main id="contenido">
-                        <HeroSlider
-                            canRegister={canRegister}
-                            preEnrollmentOpensAt={preEnrollmentOpensAt}
-                            onLoginClick={() => navigate('/login')}
-                        />
+                        <HeroSlider slides={heroSlides} />
                         <StatsBand />
                         <About />
                         <Careers careers={careers} />
                         <OnlineMode />
                         <Courses />
-                        <Teachers />
-                        <News />
+                        <Teachers teachers={teachers} />
+                        <News items={newsPosts} />
                         <Graduations graduationDate={graduationDate} />
                         <CTA
                             canRegister={canRegister}

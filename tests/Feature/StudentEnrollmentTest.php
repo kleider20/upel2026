@@ -2,9 +2,9 @@
 
 use App\Enums\Role;
 use App\Models\AcademicPeriod;
-use App\Models\AdmissionWindowSetting;
 use App\Models\Career;
 use App\Models\Enrollment;
+use App\Models\EnrollmentWindowSetting;
 use App\Models\StudentProfile;
 use App\Models\Subject;
 use App\Models\User;
@@ -86,12 +86,12 @@ function enrollmentScenario(): array
 /**
  * Habilita la ventana de inscripciones sin depender de la fecha del sistema.
  */
-function openEnrollmentWindow(): AdmissionWindowSetting
+function openEnrollmentWindow(): EnrollmentWindowSetting
 {
-    return AdmissionWindowSetting::query()->create([
+    return EnrollmentWindowSetting::query()->create([
         'opens_on' => '2026-11-01',
         'closes_on' => '2026-12-15',
-        'mode' => AdmissionWindowSetting::MODE_OPEN,
+        'mode' => EnrollmentWindowSetting::MODE_OPEN,
     ]);
 }
 
@@ -229,6 +229,63 @@ test('las materias aplazadas consumen UC y no se pueden quitar', function () {
         ->assertSessionHasErrors('subjects');
 });
 
+test('una nota corregida a aprobado desaparece de la planilla y de las materias a cursar', function () {
+    openEnrollmentWindow();
+
+    ['user' => $user, 'previous' => $previous, 'next' => $next, 'subjects' => $subjects] = enrollmentScenario();
+
+    Enrollment::factory()->graded(3.0)->create([
+        'student_id' => $user->id,
+        'subject_id' => $subjects['first']->id,
+        'academic_period_id' => $previous->id,
+    ]);
+    Enrollment::factory()->graded(8.5)->create([
+        'student_id' => $user->id,
+        'subject_id' => $subjects['first']->id,
+        'academic_period_id' => $next->id,
+    ]);
+    Enrollment::factory()->create([
+        'student_id' => $user->id,
+        'subject_id' => $subjects['a']->id,
+        'academic_period_id' => $next->id,
+        'status' => 'cursando',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('student.enrollment.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('enrollment.submitted', true)
+            ->has('enrollment.subjects', 3)
+            ->where('enrollment.subjects.0.subject_id', $subjects['a']->id)
+            ->has('enrollment.sheet.rows', 1)
+            ->where('enrollment.sheet.rows.0.name', $subjects['a']->name)
+            ->where('enrollment.sheet.total_credits', 4)
+            ->where('enrollment.credits.selected', 4)
+        );
+
+    $this->actingAs($user)
+        ->post(route('student.enrollment.store'), [
+            'subjects' => [$subjects['first']->id, $subjects['a']->id],
+        ])
+        ->assertSessionHasErrors('subjects');
+
+    $this->actingAs($user)
+        ->post(route('student.enrollment.store'), [
+            'subjects' => [$subjects['a']->id],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    $this->actingAs($user)
+        ->get(route('student.enrollment.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('enrollment.sheet.rows', 1)
+            ->where('enrollment.sheet.total_credits', 4)
+        );
+});
+
 test('desmarcar una materia elimina su inscripción mientras no tenga notas', function () {
     openEnrollmentWindow();
 
@@ -266,10 +323,10 @@ test('desmarcar una materia elimina su inscripción mientras no tenga notas', fu
 });
 
 test('la ventana cerrada impide registrar la inscripción', function () {
-    AdmissionWindowSetting::query()->create([
+    EnrollmentWindowSetting::query()->create([
         'opens_on' => '2026-11-01',
         'closes_on' => '2026-12-15',
-        'mode' => AdmissionWindowSetting::MODE_CLOSED,
+        'mode' => EnrollmentWindowSetting::MODE_CLOSED,
     ]);
 
     ['user' => $user, 'subjects' => $subjects] = enrollmentScenario();
@@ -289,7 +346,7 @@ test('la ventana cerrada impide registrar la inscripción', function () {
         );
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('studentEnrollment.is_open', false)
@@ -334,7 +391,7 @@ test('una materia reprobada dos veces queda registrada y se puede cursar por ter
         ->assertSessionHas('success');
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('subjects', function ($items): bool {

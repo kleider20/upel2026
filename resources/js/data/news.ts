@@ -17,7 +17,9 @@ export type NewsItem = {
     title: string;
     excerpt: string;
     icon: NewsIcon;
-    gradient: string;
+    /** Gradiente propio; si no viene, se deriva del icono. */
+    gradient?: string;
+    link_url?: string | null;
 };
 
 export const news: NewsItem[] = [

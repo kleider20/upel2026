@@ -1,16 +1,27 @@
 import { useState } from 'react';
-import { Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { Menu } from 'lucide-react';
 import { ModuleIcon } from '@/components/admin/module-icon';
 import { ReviewNotifications } from '@/components/admin/review-notifications';
 import { FlashMessages } from '@/components/flash-messages';
-import { RoleBadge } from '@/components/portal/role-badge';
-import { UpelLogo } from '@/components/landing/brand';
+import {
+    PortalSidebar,
+    type PortalNavSection,
+} from '@/components/portal/portal-sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
-import { cn } from '@/lib/utils';
-import { landing, logout } from '@/routes';
+import { toUrl } from '@/lib/utils';
+import { landing } from '@/routes';
+import {
+    dashboard as adminDashboard,
+    module as adminModule,
+} from '@/routes/admin';
 import { index as admissionsIndex } from '@/routes/admin/admissions';
+import { index as bannersIndex } from '@/routes/admin/banners';
+import { index as newsIndex } from '@/routes/admin/news';
+import { index as inscripcionesIndex } from '@/routes/admin/inscripciones';
+import { index as preinscripcionesIndex } from '@/routes/admin/preinscripciones';
+import { index as classroomsIndex } from '@/routes/admin/classrooms';
 import {
     create as careersCreate,
     index as careersIndex,
@@ -24,10 +35,6 @@ import {
     create as subjectsCreate,
     index as subjectsIndex,
 } from '@/routes/admin/subjects';
-import {
-    dashboard as adminDashboard,
-    module as adminModule,
-} from '@/routes/admin';
 import type { AdminReviewRequestsData, Auth, NavItem } from '@/types';
 
 type AdminNavItem = NavItem & {
@@ -142,6 +149,46 @@ const navigation: AdminNavGroup[] = [
                 permission: 'schedules.manage',
                 iconName: 'plus-circle',
             },
+            {
+                title: 'Aulas',
+                href: classroomsIndex(),
+                permission: 'schedules.view',
+                iconName: 'library',
+            },
+        ],
+    },
+    {
+        label: 'Publicaciones',
+        items: [
+            {
+                title: 'Publicaciones de banner',
+                href: bannersIndex(),
+                permission: 'banners.view',
+                iconName: 'images',
+            },
+            {
+                title: 'Noticias y novedades',
+                href: newsIndex(),
+                permission: 'news.view',
+                iconName: 'newspaper',
+            },
+        ],
+    },
+    {
+        label: 'Inscripciones',
+        items: [
+            {
+                title: 'Habilitar Inscripciones',
+                href: inscripcionesIndex(),
+                permission: 'admissions.window',
+                iconName: 'calendar-days',
+            },
+            {
+                title: 'Habilitar Preinscripciones',
+                href: preinscripcionesIndex(),
+                permission: 'admissions.window',
+                iconName: 'calendar-days',
+            },
         ],
     },
     {
@@ -186,7 +233,6 @@ export default function AdminLayout({
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const getInitials = useInitials();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
     const permissions = auth.user?.permissions ?? [];
     const pendingStudents = adminReviewRequests?.pending_students ?? 0;
@@ -199,201 +245,113 @@ export default function AdminLayout({
         }))
         .filter((group) => group.items.length > 0);
 
-    const closeSidebar = () => setSidebarOpen(false);
+    // Enlace que corresponde exactamente a la página actual. Cuando varias
+    // rutas comparten prefijo ("/admin/careers" y "/admin/careers/create")
+    // gana la más específica, así que sólo se resalta un elemento del menú.
+    const activeHref = visibleGroups
+        .flatMap((group) => group.items)
+        .map((item) => toUrl(item.href))
+        .filter((href) => isCurrentOrParentUrl(href))
+        .reduce<string | null>(
+            (longest, href) =>
+                longest === null || href.length > longest.length
+                    ? href
+                    : longest,
+            null,
+        );
 
-    const toggleGroup = (label: string, isOpen: boolean) => {
-        setOpenGroups((groups) => ({ ...groups, [label]: !isOpen }));
-    };
+    const sections: PortalNavSection[] = visibleGroups.map((group) => {
+        const hasPending = group.items.some(
+            (item) => item.permission === 'students.view',
+        );
+        const pendingLabel = `${pendingStudents} estudiantes con solicitudes pendientes`;
+
+        return {
+            label: group.label,
+            // Todos los grupos del portal son menús principales: se resaltan
+            // para diferenciarlos de los enlaces (submenú) que contienen.
+            featured: true,
+            collapsible: true,
+            badge:
+                hasPending && pendingStudents > 0 ? (
+                    <span
+                        className="inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.55rem] font-extrabold text-white normal-case"
+                        aria-label={pendingLabel}
+                    >
+                        {pendingStudents > 99 ? '99+' : pendingStudents}
+                    </span>
+                ) : undefined,
+            items: group.items.map((item) => {
+                const href = toUrl(item.href);
+                const showPending =
+                    item.permission === 'students.view' && pendingStudents > 0;
+
+                return {
+                    key: href,
+                    label: item.title,
+                    href,
+                    icon: ({ className }) => (
+                        <ModuleIcon
+                            name={item.iconName}
+                            className={className}
+                        />
+                    ),
+                    badge: showPending ? (
+                        <span
+                            className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[0.62rem] font-extrabold text-white"
+                            aria-label={pendingLabel}
+                        >
+                            {pendingStudents > 99 ? '99+' : pendingStudents}
+                        </span>
+                    ) : undefined,
+                };
+            }),
+        };
+    });
 
     return (
-        <div className="min-h-screen bg-upel-cloud text-foreground dark:bg-background">
-            {sidebarOpen ? (
-                <button
-                    type="button"
-                    aria-label="Cerrar menú"
-                    className="fixed inset-0 z-40 bg-upel-navy/50 backdrop-blur-sm lg:hidden"
-                    onClick={closeSidebar}
-                />
-            ) : null}
+        <div className="min-h-screen bg-upel-cloud text-foreground dark:bg-background print:bg-white">
+            <FlashMessages />
 
-            <aside
-                className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-upel-navy text-white shadow-2xl transition-transform duration-300 lg:translate-x-0',
-                    sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-                )}
-            >
-                <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-5">
-                    <Link
-                        href={adminDashboard()}
-                        onClick={closeSidebar}
-                        className="flex items-center gap-3"
-                    >
-                        <span className="flex h-11 items-center rounded-xl bg-white px-3 shadow-sm">
-                            <UpelLogo className="h-8" />
-                        </span>
-                    </Link>
-
-                    <button
-                        type="button"
-                        aria-label="Cerrar menú"
-                        className="rounded-lg p-2 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:hidden"
-                        onClick={closeSidebar}
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
-
-                <div className="border-b border-white/10 px-5 py-4">
-                    <p className="text-[0.62rem] font-bold tracking-[0.2em] text-upel-gold-light uppercase">
-                        Portal administrativo
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-white/90">
-                        {auth.user?.name}
-                    </p>
-                    <RoleBadge
-                        role={auth.user?.portal_role}
-                        label={auth.user?.portal_role_label}
-                        className="mt-2 bg-white/10 text-white ring-white/20"
-                    />
-                </div>
-
-                <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-5">
-                    {visibleGroups.map((group, groupIndex) => {
-                        const panelId = `admin-nav-group-${groupIndex}`;
-                        const pendingInGroup = group.items.some(
-                            (item) => item.permission === 'students.view',
-                        )
-                            ? pendingStudents
-                            : 0;
-                        const isGroupOpen =
-                            openGroups[group.label] ??
-                            group.items.some((item) =>
-                                isCurrentOrParentUrl(item.href),
-                            );
-
-                        return (
-                            <div key={group.label}>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        toggleGroup(group.label, isGroupOpen)
-                                    }
-                                    aria-expanded={isGroupOpen}
-                                    aria-controls={panelId}
-                                    className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-[0.6rem] font-bold tracking-[0.18em] text-white/40 uppercase transition-colors hover:bg-white/5 hover:text-white/70"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        {group.label}
-                                        {!isGroupOpen && pendingInGroup > 0 ? (
-                                            <span
-                                                className="inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.55rem] font-extrabold text-white normal-case"
-                                                aria-label={`${pendingInGroup} estudiantes con solicitudes pendientes`}
-                                            >
-                                                {pendingInGroup > 99
-                                                    ? '99+'
-                                                    : pendingInGroup}
-                                            </span>
-                                        ) : null}
-                                    </span>
-                                    <ChevronDown
-                                        className={cn(
-                                            'h-3.5 w-3.5 shrink-0 transition-transform',
-                                            isGroupOpen && 'rotate-180',
-                                        )}
-                                        aria-hidden="true"
-                                    />
-                                </button>
-
-                                {isGroupOpen ? (
-                                    <div
-                                        id={panelId}
-                                        className="mt-1 space-y-1"
-                                    >
-                                        {group.items.map((item) => {
-                                            const active = isCurrentOrParentUrl(
-                                                item.href,
-                                            );
-                                            const pendingBadge =
-                                                item.permission ===
-                                                'students.view'
-                                                    ? pendingStudents
-                                                    : 0;
-
-                                            return (
-                                                <Link
-                                                    key={item.title}
-                                                    href={item.href}
-                                                    onClick={closeSidebar}
-                                                    className={cn(
-                                                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors',
-                                                        active
-                                                            ? 'bg-white text-upel-navy shadow-sm'
-                                                            : 'text-white/70 hover:bg-white/10 hover:text-white',
-                                                    )}
-                                                >
-                                                    <ModuleIcon
-                                                        name={item.iconName}
-                                                        className="h-4 w-4 shrink-0"
-                                                    />
-                                                    <span>{item.title}</span>
-                                                    {pendingBadge > 0 ? (
-                                                        <span
-                                                            className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[0.62rem] font-extrabold text-white"
-                                                            aria-label={`${pendingBadge} estudiantes con solicitudes pendientes`}
-                                                        >
-                                                            {pendingBadge > 99
-                                                                ? '99+'
-                                                                : pendingBadge}
-                                                        </span>
-                                                    ) : null}
-                                                </Link>
-                                            );
-                                        })}
-                                    </div>
-                                ) : null}
-                            </div>
-                        );
-                    })}
-                </nav>
-
-                <div className="border-t border-white/10 p-4">
+            <PortalSidebar
+                portalLabel="Portal administrativo"
+                sections={sections}
+                activeKey={activeHref}
+                mobileOpen={sidebarOpen}
+                onCloseMobile={() => setSidebarOpen(false)}
+                footerExtra={
                     <Link
                         href={landing.url()}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                        onClick={() => setSidebarOpen(false)}
+                        className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-bold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                     >
-                        <ArrowLeft className="h-4 w-4" />
-                        Volver al portal web
+                        <ModuleIcon
+                            name="library"
+                            className="h-4 w-4 shrink-0"
+                        />
+                        <span>Volver al portal web</span>
                     </Link>
-                    <button
-                        type="button"
-                        onClick={() => router.post(logout.url())}
-                        className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white/60 transition-colors hover:bg-red-500/15 hover:text-red-200"
-                    >
-                        <LogOut className="h-4 w-4" />
-                        Cerrar sesión
-                    </button>
-                </div>
-            </aside>
+                }
+            />
 
-            <div className="lg:pl-72">
-                <FlashMessages />
-                <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border/70 bg-white/85 px-4 backdrop-blur-md sm:px-6 lg:px-8 dark:bg-background/85">
+            <div className="lg:pl-[268px] print:pl-0">
+                <header className="sticky top-0 z-30 flex h-[74px] items-center justify-between gap-4 border-b border-border/80 bg-white/90 px-4 backdrop-blur-xl sm:px-6 lg:px-8 dark:bg-card/90 print:hidden">
                     <div className="flex items-center gap-3">
                         <button
                             type="button"
                             aria-label="Abrir menú"
-                            className="rounded-lg border border-border p-2 text-upel-navy transition-colors hover:bg-upel-cloud lg:hidden dark:text-foreground"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-upel-navy hover:bg-upel-cloud lg:hidden dark:text-foreground dark:hover:bg-muted"
                             onClick={() => setSidebarOpen(true)}
                         >
                             <Menu className="h-5 w-5" />
                         </button>
                         <div>
-                            <p className="text-[0.62rem] font-bold tracking-[0.18em] text-muted-foreground uppercase">
-                                Universidad Pedagógica Experimental Libertador
-                            </p>
-                            <p className="text-sm font-bold text-upel-navy dark:text-foreground">
+                            <span className="text-[0.62rem] font-bold tracking-[0.14em] text-upel-blue uppercase">
+                                Portal administrativo
+                            </span>
+                            <h2 className="font-display text-lg font-bold text-upel-navy sm:text-xl dark:text-foreground">
                                 Gestión institucional
-                            </p>
+                            </h2>
                         </div>
                     </div>
 
@@ -407,13 +365,13 @@ export default function AdminLayout({
                                 {auth.user?.portal_role_label}
                             </p>
                         </div>
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-upel-navy text-xs font-bold text-white">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-upel-navy text-xs font-extrabold text-upel-gold shadow-sm">
                             {getInitials(auth.user?.name ?? 'UP')}
                         </span>
                     </div>
                 </header>
 
-                <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+                <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8 print:max-w-none print:p-0">
                     {children}
                 </main>
             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Admission;
 use App\Models\Career;
 use App\Models\CareerOffering;
 use App\Support\AcademicOptions;
@@ -35,6 +36,9 @@ class StoreAdmissionRequest extends FormRequest
             'phone' => trim((string) $this->input('phone')),
             'high_school' => Str::of((string) $this->input('high_school'))->squish()->toString(),
             'address' => Str::of((string) $this->input('address'))->squish()->toString(),
+            'marital_status' => $this->filled('marital_status')
+                ? trim((string) $this->input('marital_status'))
+                : null,
         ]);
     }
 
@@ -63,6 +67,7 @@ class StoreAdmissionRequest extends FormRequest
                 'before_or_equal:'.now()->subYears(15)->toDateString(),
             ],
             'gender' => ['nullable', Rule::in(['masculino', 'femenino', 'otro', 'prefiero_no_decir'])],
+            'marital_status' => ['nullable', Rule::in(array_keys(Admission::MARITAL_STATUSES))],
             'email' => [
                 'required',
                 'email',
@@ -191,6 +196,7 @@ class StoreAdmissionRequest extends FormRequest
             'id_number.unique' => 'Ya existe una solicitud o un estudiante registrado con esta cédula.',
             'birth_date.required' => 'Indica tu fecha de nacimiento.',
             'birth_date.before_or_equal' => 'Debes tener al menos 15 años para preinscribirte.',
+            'marital_status.in' => 'Selecciona un estado civil válido.',
             'email.required' => 'Indica un correo electrónico.',
             'email.email' => 'El correo electrónico no es válido.',
             'email.unique' => 'Ya existe una cuenta o solicitud asociada a este correo.',
@@ -220,6 +226,7 @@ class StoreAdmissionRequest extends FormRequest
             'last_name' => 'apellidos',
             'id_number' => 'cédula',
             'birth_date' => 'fecha de nacimiento',
+            'marital_status' => 'estado civil',
             'email' => 'correo electrónico',
             'phone' => 'teléfono',
             'career_id' => 'carrera',

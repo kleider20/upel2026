@@ -9,10 +9,6 @@ import {
     LayoutGrid,
     Plus,
 } from 'lucide-react';
-import {
-    AdmissionWindowPanel,
-    type AdmissionWindowData,
-} from '@/components/admin/admission-window-panel';
 import { ModuleIcon } from '@/components/admin/module-icon';
 import { PageHeader } from '@/components/portal/page-header';
 import { RoleBadge } from '@/components/portal/role-badge';
@@ -57,7 +53,6 @@ type Props = {
     pensums: CareerPensum[];
     can_manage_pensums: boolean;
     active_period?: string | null;
-    admission_window: AdmissionWindowData;
 };
 
 /**
@@ -73,7 +68,6 @@ export default function AdminDashboard({
     pensums,
     can_manage_pensums,
     active_period,
-    admission_window,
 }: Props) {
     const { adminReviewRequests } = usePage<{
         adminReviewRequests: AdminReviewRequestsData;
@@ -145,10 +139,6 @@ export default function AdminDashboard({
                             </div>
                         ))}
                     </section>
-                ) : null}
-
-                {admission_window?.can_manage ? (
-                    <AdmissionWindowPanel admissionWindow={admission_window} />
                 ) : null}
 
                 <div className="grid gap-6 xl:grid-cols-[1fr_320px]">

@@ -35,7 +35,7 @@ class AdminPensumController extends Controller
         ], $this->pensum($career->subjects));
 
         $disposition = $request->boolean('download') ? 'attachment' : 'inline';
-        $filename = 'pensum-'.Str::slug($career->code).'.pdf';
+        $filename = 'pensum-'.Str::slug($career->name).'.pdf';
 
         return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',

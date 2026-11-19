@@ -544,6 +544,7 @@ class DashboardController extends Controller
                 'status_label' => $profile->statusLabel(),
                 'status_tone' => $profile->statusTone(),
                 'admission_year' => $profile->admission_year,
+                'cohort' => $profile->cohort,
                 'graduation_year' => $profile->graduation_year,
                 'phone' => $profile->phone ?? $admission?->phone,
                 'personal_email' => $profile->personal_email ?? ($admission !== null ? $admission->email : $user->email),

@@ -378,7 +378,11 @@ test('academic managers can create a schedule with the official template', funct
                 'starts_at' => '08:00',
                 'ends_at' => '12:00',
             ]),
-            scheduleSubject(3, $subjects->last()->id),
+            scheduleSubject(3, $subjects->last()->id, [
+                'dates' => ['2025-08-09'],
+                'starts_at' => '13:00',
+                'ends_at' => '17:00',
+            ]),
         ]))
         ->assertSessionHasNoErrors()
         ->assertRedirect();
@@ -1090,7 +1094,7 @@ test('the student schedule prefers the schedule published by the administration'
     ]);
 
     $this->actingAs($user)
-        ->get(route('student.dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/dashboard/index')

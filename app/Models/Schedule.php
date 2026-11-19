@@ -63,7 +63,7 @@ class Schedule extends Model
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'schedule_subjects')
-            ->withPivot('position', 'professor_id', 'teacher_name', 'dates', 'date_times', 'starts_at', 'ends_at')
+            ->withPivot('position', 'professor_id', 'classroom_id', 'teacher_name', 'dates', 'date_times', 'starts_at', 'ends_at')
             ->withTimestamps()
             ->orderBy('schedule_subjects.position');
     }
@@ -95,8 +95,18 @@ class Schedule extends Model
             ? new Collection
             : User::query()->whereKey($professorIds->all())->get()->keyBy('id');
 
+        $classroomIds = $this->subjects
+            ->pluck('pivot.classroom_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $classrooms = $classroomIds->isEmpty()
+            ? new Collection
+            : Classroom::query()->whereKey($classroomIds->all())->get()->keyBy('id');
+
         $subjects = $this->subjects
-            ->map(static function (Subject $subject) use ($assignedProfessors): array {
+            ->map(static function (Subject $subject) use ($assignedProfessors, $classrooms): array {
                 $chosenProfessorId = $subject->pivot->professor_id;
                 $chosenProfessor = $chosenProfessorId !== null
                     ? $assignedProfessors->get((int) $chosenProfessorId)
@@ -131,6 +141,12 @@ class Schedule extends Model
                         ?? $subject->professors->first()?->name,
                     'professor_id' => $matchedProfessor?->id
                         ?? ($chosenTeacherName === '' ? $subject->professors->first()?->id : null),
+                    'classroom_id' => $subject->pivot->classroom_id !== null
+                        ? (int) $subject->pivot->classroom_id
+                        : null,
+                    'classroom' => $subject->pivot->classroom_id !== null
+                        ? $classrooms->get((int) $subject->pivot->classroom_id)?->label()
+                        : null,
                     'modality' => $subject->modality,
                     'dates' => is_array($dates) ? array_values($dates) : [],
                     'date_times' => is_array($dateTimes) ? $dateTimes : [],

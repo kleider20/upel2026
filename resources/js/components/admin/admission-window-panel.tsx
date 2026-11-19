@@ -10,7 +10,8 @@ import {
 import InputError from '@/components/input-error';
 import { ToneBadge, type Tone } from '@/components/portal/tone-badge';
 import { cn } from '@/lib/utils';
-import { update as updateAdmissionWindow } from '@/routes/admin/inscripciones';
+
+export type AdmissionWindowVariant = 'inscripcion' | 'preinscripcion';
 
 export type AdmissionWindowData = {
     opens_on: string;
@@ -55,15 +56,43 @@ const modeOptions: { value: WindowMode; label: string; hint: string }[] = [
     },
 ];
 
+const labels: Record<
+    AdmissionWindowVariant,
+    {
+        title: string;
+        stateLabel: string;
+        stateAriaLabel: string;
+        note: string;
+    }
+> = {
+    inscripcion: {
+        title: 'Ventana de inscripciones',
+        stateLabel: 'Estado de las inscripciones',
+        stateAriaLabel: 'Estado de las inscripciones',
+        note: 'Al finalizar la fecha de cierre las inscripciones se deshabilitan automáticamente. El administrador y el decano pueden cerrarlas o reabrirlas manualmente.',
+    },
+    preinscripcion: {
+        title: 'Ventana de preinscripciones',
+        stateLabel: 'Estado de las preinscripciones',
+        stateAriaLabel: 'Estado de las preinscripciones',
+        note: 'Al finalizar la fecha de cierre las preinscripciones se deshabilitan automáticamente. El administrador y el decano pueden cerrarlas o reabrirlas manualmente.',
+    },
+};
+
 /**
- * Tarjeta del panel administrativo para habilitar o deshabilitar las
- * inscripciones y definir su rango de fechas.
+ * Tarjeta del panel administrativo para habilitar o deshabilitar las ventanas
+ * de inscripción o preinscripción y definir su rango de fechas.
  */
 export function AdmissionWindowPanel({
     admissionWindow,
+    variant,
+    updateUrl,
 }: {
     admissionWindow: AdmissionWindowData;
+    variant: AdmissionWindowVariant;
+    updateUrl: string;
 }) {
+    const copy = labels[variant];
     const form = useForm<AdmissionWindowFormData>({
         opens_on: admissionWindow.opens_on,
         closes_on: admissionWindow.closes_on,
@@ -73,12 +102,12 @@ export function AdmissionWindowPanel({
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        form.put(updateAdmissionWindow.url(), { preserveScroll: true });
+        form.put(updateUrl, { preserveScroll: true });
     };
 
     return (
         <section
-            aria-label="Ventana de inscripciones"
+            aria-label={copy.title}
             className="rounded-2xl border border-border/70 bg-white p-6 shadow-sm dark:bg-card"
         >
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -91,7 +120,7 @@ export function AdmissionWindowPanel({
                             Admisión en línea
                         </p>
                         <h2 className="mt-1 font-display text-xl font-bold text-upel-navy dark:text-foreground">
-                            Ventana de inscripciones
+                            {copy.title}
                         </h2>
                         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                             {admissionWindow.detail}
@@ -167,12 +196,10 @@ export function AdmissionWindowPanel({
                 </div>
 
                 <div>
-                    <span className={labelClass}>
-                        Estado de las inscripciones
-                    </span>
+                    <span className={labelClass}>{copy.stateLabel}</span>
                     <div
                         role="group"
-                        aria-label="Estado de las inscripciones"
+                        aria-label={copy.stateAriaLabel}
                         className="grid gap-2 sm:grid-cols-3"
                     >
                         {modeOptions.map((option) => {
@@ -219,9 +246,7 @@ export function AdmissionWindowPanel({
                             className="mt-0.5 size-3.5 shrink-0 text-upel-green"
                             aria-hidden="true"
                         />
-                        Al finalizar la fecha de cierre las inscripciones se
-                        deshabilitan automáticamente. El administrador y el
-                        decano pueden cerrarlas o reabrirlas manualmente.
+                        {copy.note}
                     </p>
 
                     <button

@@ -15,10 +15,10 @@ Universidad Pedagógica Experimental Libertador (UPEL).
 
 ## Estado verificado
 
-- `php artisan test --compact` → **390 pruebas aprobadas, 3944 aserciones**.
+- `php artisan test --compact` → **432 pruebas aprobadas, 4337 aserciones**.
 - `npm run types:check` → sin errores.
 - `vendor/bin/pint --dirty --format agent` → sin cambios pendientes.
-- Última verificación: **16 de noviembre de 2026**.
+- Última verificación: **19 de noviembre de 2026**.
 
 ## Cómo mantener esta documentación
 

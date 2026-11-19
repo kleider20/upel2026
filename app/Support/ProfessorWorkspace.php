@@ -33,7 +33,7 @@ final class ProfessorWorkspace
      *
      * @param  bool  $withGradeSheets  Incluye las evaluaciones y la planilla de notas.
      * @return array{
-     *     profile: array{employee_code: string, department: string|null, academic_title: string|null}|null,
+     *     profile: array{employee_code: string, department: string|null, academic_title: string|null, position: string|null, photo_url: string|null}|null,
      *     summary: array{
      *         careers_count: int,
      *         subjects_count: int,
@@ -164,6 +164,8 @@ final class ProfessorWorkspace
                 'employee_code' => $profile->employee_code,
                 'department' => $profile->department,
                 'academic_title' => $profile->academic_title,
+                'position' => $profile->position,
+                'photo_url' => $profile->photoUrl(),
             ] : null,
             'summary' => [
                 'careers_count' => $careers->count(),

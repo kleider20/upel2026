@@ -52,6 +52,7 @@ function validAdmissionPayload(Career $career, array $overrides = []): array
         'id_number' => '18765432',
         'birth_date' => '2004-03-14',
         'gender' => 'femenino',
+        'marital_status' => 'soltero',
         'email' => 'maria.rodriguez@example.com',
         'phone' => '0414 1234567',
         'address' => 'Caracas, Municipio Libertador.',
@@ -158,6 +159,7 @@ test('un aspirante puede registrar su solicitud y recibe su código', function (
     expect($admission->code)->toMatch('/^ASP-2027-\d{6}$/')
         ->and($admission->status)->toBe(AdmissionStatus::Recibida->value)
         ->and($admission->period_year)->toBe(2027)
+        ->and($admission->marital_status)->toBe('soltero')
         ->and($admission->submitted_at)->not->toBeNull()
         ->and($admission->statusHistories()->count())->toBe(1);
 
@@ -358,6 +360,20 @@ test('un aspirante menor de 15 años no puede preinscribirse', function () {
     $this->post(route('admissions.store'), validAdmissionPayload($career, [
         'birth_date' => now()->subYears(14)->toDateString(),
     ]))->assertSessionHasErrors('birth_date');
+});
+
+test('el estado civil debe ser una opción válida', function () {
+    Mail::fake();
+    $this->travelTo(Carbon::parse('2026-11-02T08:00:00-04:00'));
+
+    $career = offeredCareer();
+
+    $this->post(route('admissions.store'), validAdmissionPayload($career, [
+        'marital_status' => 'estado-no-valido',
+    ]))->assertSessionHasErrors('marital_status');
+
+    expect(Admission::query()->count())->toBe(0);
+    Mail::assertNothingQueued();
 });
 
 test('no se puede elegir una modalidad que la carrera no oferta', function () {

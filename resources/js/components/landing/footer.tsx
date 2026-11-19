@@ -3,6 +3,8 @@ import {
     ArrowUp,
     Clock3,
     Facebook,
+    Github,
+    Heart,
     Instagram,
     LayoutDashboard,
     Loader2,
@@ -339,10 +341,36 @@ export function Footer({ onLoginClick }: { onLoginClick: () => void }) {
                 </div>
 
                 <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-[0.72rem] font-medium text-white/40">
-                        © {new Date().getFullYear()} Universidad Pedagógica
-                        Experimental Libertador. Todos los derechos reservados.
-                    </p>
+                    <div>
+                        <p className="text-[0.72rem] font-medium text-white/40">
+                            © {new Date().getFullYear()} Universidad Pedagógica
+                            Experimental Libertador. Todos los derechos
+                            reservados.
+                        </p>
+                        <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[0.7rem] font-medium text-white/40">
+                            Creado con
+                            <Heart
+                                className="size-3 fill-upel-gold text-upel-gold"
+                                aria-hidden="true"
+                            />
+                            por
+                            <span className="font-semibold text-white/60">
+                                Kleider Rosamilia
+                            </span>
+                            <a
+                                href="https://github.com/kleider20"
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label="Perfil de GitHub de Kleider Rosamilia"
+                                className="inline-flex size-6 items-center justify-center rounded-full border border-white/15 text-white/60 transition-colors hover:border-upel-gold hover:text-upel-gold"
+                            >
+                                <Github
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                />
+                            </a>
+                        </p>
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                         {legalLinks.map((link) => (

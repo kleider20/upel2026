@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\AdminAdmissionController;
 use App\Http\Controllers\AdminAdmissionWindowController;
+use App\Http\Controllers\AdminBannerController;
 use App\Http\Controllers\AdminCareerController;
+use App\Http\Controllers\AdminClassroomController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminEntryController;
 use App\Http\Controllers\AdminLoginController;
 use App\Http\Controllers\AdminModuleController;
+use App\Http\Controllers\AdminNewsController;
 use App\Http\Controllers\AdminPensumController;
 use App\Http\Controllers\AdminProfessorController;
 use App\Http\Controllers\AdminRoleController;
@@ -17,21 +20,8 @@ use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\AdmissionLookupController;
 use App\Http\Controllers\Auth\PasswordDefinitionController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\EvaluationPlanItemController;
-use App\Http\Controllers\EvaluationPlanScoreController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\NewsletterSubscriptionController;
-use App\Http\Controllers\ProfessorEvaluationPlanController;
-use App\Http\Controllers\ProfessorGradeController;
-use App\Http\Controllers\ProfessorWorkspaceController;
-use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
-use App\Http\Controllers\Student\StudentDocumentController;
-use App\Http\Controllers\Student\StudentEnrollmentController;
-use App\Http\Controllers\Student\StudentNotificationController;
-use App\Http\Controllers\Student\StudentPhotoController;
-use App\Http\Controllers\Student\StudentProfessorController;
-use App\Http\Controllers\Student\StudentScheduleController;
-use App\Http\Controllers\Student\TramiteController as StudentTramiteController;
 use App\Http\Middleware\EnsureAdminPortal;
 use Illuminate\Support\Facades\Route;
 
@@ -160,8 +150,23 @@ Route::middleware(['auth', EnsureAdminPortal::class])
             ->name('schedules.show');
         Route::get('schedules/{schedule}/pdf', [AdminScheduleController::class, 'pdf'])
             ->name('schedules.pdf');
+        Route::get('schedules/{schedule}/ics', [AdminScheduleController::class, 'ics'])
+            ->name('schedules.ics');
         Route::delete('schedules/{schedule}', [AdminScheduleController::class, 'destroy'])
             ->name('schedules.destroy');
+
+        Route::get('classrooms', [AdminClassroomController::class, 'index'])
+            ->name('classrooms.index');
+        Route::get('classrooms/create', [AdminClassroomController::class, 'create'])
+            ->name('classrooms.create');
+        Route::post('classrooms', [AdminClassroomController::class, 'store'])
+            ->name('classrooms.store');
+        Route::get('classrooms/{classroom}/edit', [AdminClassroomController::class, 'edit'])
+            ->name('classrooms.edit');
+        Route::put('classrooms/{classroom}', [AdminClassroomController::class, 'update'])
+            ->name('classrooms.update');
+        Route::delete('classrooms/{classroom}', [AdminClassroomController::class, 'destroy'])
+            ->name('classrooms.destroy');
 
         Route::get('careers', [AdminCareerController::class, 'index'])
             ->name('careers.index');
@@ -175,6 +180,32 @@ Route::middleware(['auth', EnsureAdminPortal::class])
             ->name('careers.update');
         Route::delete('careers/{career}', [AdminCareerController::class, 'destroy'])
             ->name('careers.destroy');
+
+        Route::get('banners', [AdminBannerController::class, 'index'])
+            ->name('banners.index');
+        Route::get('banners/create', [AdminBannerController::class, 'create'])
+            ->name('banners.create');
+        Route::post('banners', [AdminBannerController::class, 'store'])
+            ->name('banners.store');
+        Route::get('banners/{banner}/edit', [AdminBannerController::class, 'edit'])
+            ->name('banners.edit');
+        Route::put('banners/{banner}', [AdminBannerController::class, 'update'])
+            ->name('banners.update');
+        Route::delete('banners/{banner}', [AdminBannerController::class, 'destroy'])
+            ->name('banners.destroy');
+
+        Route::get('news', [AdminNewsController::class, 'index'])
+            ->name('news.index');
+        Route::get('news/create', [AdminNewsController::class, 'create'])
+            ->name('news.create');
+        Route::post('news', [AdminNewsController::class, 'store'])
+            ->name('news.store');
+        Route::get('news/{newsPost}/edit', [AdminNewsController::class, 'edit'])
+            ->name('news.edit');
+        Route::put('news/{newsPost}', [AdminNewsController::class, 'update'])
+            ->name('news.update');
+        Route::delete('news/{newsPost}', [AdminNewsController::class, 'destroy'])
+            ->name('news.destroy');
 
         Route::get('pensums', [AdminPensumController::class, 'index'])
             ->name('pensums.index');
@@ -200,79 +231,26 @@ Route::middleware(['auth', EnsureAdminPortal::class])
         Route::put('users/{user}/access', [AdminRoleController::class, 'updateUser'])
             ->name('roles.users.update');
 
+        Route::get('inscripciones', [AdminAdmissionWindowController::class, 'inscripciones'])
+            ->name('inscripciones.index');
+        Route::get('preinscripciones', [AdminAdmissionWindowController::class, 'preinscripciones'])
+            ->name('preinscripciones.index');
         Route::put('inscripciones', [AdminAdmissionWindowController::class, 'update'])
             ->name('inscripciones.update');
+        Route::put('preinscripciones', [AdminAdmissionWindowController::class, 'updatePreinscripciones'])
+            ->name('preinscripciones.update');
 
         Route::get('{module}', [AdminModuleController::class, 'index'])->name('module');
     });
 
 Route::middleware(['auth', 'verified', 'password.defined'])->group(function () {
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::put('dashboard/notas/{enrollment}', [ProfessorGradeController::class, 'update'])
-        ->middleware('role:profesor')
-        ->name('professor.grades.update');
-
-    Route::middleware('role:profesor')->group(function () {
-        Route::get('dashboard/estudiantes', [ProfessorWorkspaceController::class, 'students'])
-            ->name('professor.students');
-        Route::get('dashboard/cargar-notas', [ProfessorWorkspaceController::class, 'grades'])
-            ->name('professor.grades.index');
-        Route::get('dashboard/mis-carreras', [ProfessorWorkspaceController::class, 'careers'])
-            ->name('professor.careers');
+        require __DIR__.'/estudiantes.php';
+        require __DIR__.'/profesores.php';
+        require __DIR__.'/graduados.php';
     });
-
-    Route::middleware('role:profesor')
-        ->prefix('dashboard/planes-evaluacion')
-        ->name('professor.plans.')
-        ->group(function () {
-            Route::get('/', [ProfessorEvaluationPlanController::class, 'index'])
-                ->name('index');
-            Route::get('crear', [ProfessorEvaluationPlanController::class, 'create'])
-                ->name('create');
-            Route::post('/', [ProfessorEvaluationPlanController::class, 'store'])
-                ->name('store');
-            Route::delete('{plan}', [ProfessorEvaluationPlanController::class, 'destroy'])
-                ->name('destroy');
-            Route::post('{plan}/evaluaciones', [EvaluationPlanItemController::class, 'store'])
-                ->name('items.store');
-            Route::put('{plan}/evaluaciones/{item}', [EvaluationPlanItemController::class, 'update'])
-                ->name('items.update');
-            Route::delete('{plan}/evaluaciones/{item}', [EvaluationPlanItemController::class, 'destroy'])
-                ->name('items.destroy');
-            Route::put('{plan}/notas', [EvaluationPlanScoreController::class, 'update'])
-                ->name('scores.update');
-            Route::get('{plan}', [ProfessorEvaluationPlanController::class, 'show'])
-                ->name('show');
-        });
 });
-
-Route::middleware(['auth', 'verified', 'role:estudiante', 'password.defined'])
-    ->prefix('estudiante')
-    ->name('student.')
-    ->group(function () {
-        Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/solicitud', [StudentDashboardController::class, 'solicitud'])->name('solicitud');
-        Route::get('/materias', [StudentDashboardController::class, 'materias'])->name('materias');
-        Route::get('/inscripciones', [StudentEnrollmentController::class, 'index'])->name('enrollment.index');
-        Route::post('/inscripciones', [StudentEnrollmentController::class, 'store'])->name('enrollment.store');
-        Route::get('/inscripciones/planilla', [StudentEnrollmentController::class, 'sheet'])->name('enrollment.sheet');
-        Route::get('/calificaciones', [StudentDashboardController::class, 'calificaciones'])->name('calificaciones');
-        Route::get('/profesores', [StudentDashboardController::class, 'profesores'])->name('profesores');
-        Route::get('/pensum', [StudentDashboardController::class, 'pensum'])->name('pensum');
-        Route::get('/horario', [StudentDashboardController::class, 'horario'])->name('horario');
-        Route::get('/perfil', [StudentDashboardController::class, 'perfil'])->name('perfil');
-        Route::get('/tramites', [StudentDashboardController::class, 'tramites'])->name('tramites');
-        Route::patch('/notificaciones/{notification}/leer', StudentNotificationController::class)
-            ->name('notifications.read');
-        Route::get('/horario/pdf', [StudentScheduleController::class, 'download'])->name('schedule.pdf');
-        Route::get('/profesores/{professor}', [StudentProfessorController::class, 'show'])->name('professors.show');
-        Route::get('/foto', StudentPhotoController::class)->name('photo');
-        Route::post('/documentos', [StudentDocumentController::class, 'store'])->name('documents.store');
-        Route::get('/documentos/{document}', [StudentDocumentController::class, 'preview'])->name('documents.preview');
-        Route::get('/documentos/{document}/descargar', [StudentDocumentController::class, 'download'])->name('documents.download');
-        Route::put('/perfil', [StudentDashboardController::class, 'updateProfile'])->name('profile.update');
-        Route::post('/tramites', [StudentTramiteController::class, 'store'])->name('tramites.store');
-    });
 
 require __DIR__.'/settings.php';

@@ -77,8 +77,9 @@ export function Inicio({
                             <strong className="text-white">
                                 {profile?.student_code ?? 'S/N'}
                             </strong>{' '}
-                            · {profile?.career ?? 'Carrera no asignada'} ·
-                            Período {profile?.current_semester ?? '—'}
+                            · {profile?.career ?? 'Carrera no asignada'} ·{' '}
+                            Período {profile?.current_semester ?? '—'} ·
+                            Cohorte: {profile?.cohort || active_period || '—'}
                         </p>
                     </div>
 

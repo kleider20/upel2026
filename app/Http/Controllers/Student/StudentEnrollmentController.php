@@ -42,7 +42,7 @@ class StudentEnrollmentController extends Controller
 
         abort_unless($user instanceof User && $user->isStudent(), 403);
         abort_unless(
-            (new AdmissionWindow)->isOpen(),
+            (new AdmissionWindow)->isEnrollmentOpen(),
             403,
             'La ventana de inscripciones está cerrada.',
         );

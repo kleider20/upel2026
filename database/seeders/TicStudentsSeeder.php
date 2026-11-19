@@ -2,12 +2,16 @@
 
 namespace Database\Seeders;
 
-use App\Enums\Role;
+use App\Enums\Role as RoleEnum;
 use App\Models\Admission;
 use App\Models\Career;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Support\StudentCodeGenerator;
+use Database\Seeders\Concerns\FormatsNames;
+use Database\Seeders\Concerns\ManagesStudentProfiles;
+use Database\Seeders\Concerns\ResolvesAcademicEntities;
+use Database\Seeders\Concerns\SyncsRolePermissions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +28,8 @@ use Illuminate\Support\Facades\DB;
  */
 class TicStudentsSeeder extends Seeder
 {
+    use FormatsNames, ManagesStudentProfiles, ResolvesAcademicEntities, SyncsRolePermissions;
+
     /**
      * Códigos de carrera usados por la planilla de la asignatura.
      *
@@ -34,13 +40,6 @@ class TicStudentsSeeder extends Seeder
         'L' => 'LENLI',
         'G' => 'GEHIS',
     ];
-
-    /**
-     * Conectores que se escriben en minúscula dentro de los nombres.
-     *
-     * @var array<int, string>
-     */
-    private const PARTICLES = ['de', 'del', 'la', 'las', 'los', 'y', 'e'];
 
     /**
      * Nómina tal como aparece en la planilla: cédula, especialidad, cohorte y nombre.
@@ -118,7 +117,7 @@ class TicStudentsSeeder extends Seeder
         $codes = app(StudentCodeGenerator::class);
 
         foreach (self::STUDENTS as [$idNumber, $especialidad, $cohort, $name]) {
-            $career = Career::query()->where('code', self::CAREERS[$especialidad])->first();
+            $career = $this->getCareerOrNull(self::CAREERS[$especialidad]);
 
             if ($career === null) {
                 $this->command?->warn('No existe la carrera '.self::CAREERS[$especialidad].'; se omite a '.$name.'.');
@@ -186,49 +185,27 @@ class TicStudentsSeeder extends Seeder
 
         DB::transaction(function () use ($name, $idNumber, $career, $cohort, $codes, $email, $year): void {
             $user = User::query()->create([
-                'name' => $this->displayName($name),
+                'name' => $this->formatDisplayName($name),
                 'email' => $email,
                 'password' => $idNumber,
                 'must_change_password' => true,
             ]);
 
             $user->markEmailAsVerified();
-            $user->assignRole(Role::Estudiante->value);
+            $this->assignExistingRoles($user, [RoleEnum::Estudiante]);
 
-            StudentProfile::query()->create([
-                'user_id' => $user->id,
-                'identity_document' => $idNumber,
-                'career_id' => $career->id,
-                'student_code' => $codes->generate($year),
-                'current_semester' => 1,
-                'status' => 'activo',
-                'personal_email' => $email,
-                'admission_year' => $year,
-                'cohort' => $cohort,
-            ]);
+            $this->createStudentProfile(
+                $user,
+                $career,
+                $codes->generate($year),
+                1,
+                'activo',
+                $year,
+                null,
+                $idNumber,
+                $cohort,
+                $email,
+            );
         });
-    }
-
-    /**
-     * Convierte el nombre en mayúsculas de la planilla a formato de título,
-     * conservando los conectores en minúscula.
-     */
-    private function displayName(string $name): string
-    {
-        $words = preg_split('/\s+/', mb_strtolower(trim($name), 'UTF-8')) ?: [];
-
-        $normalized = array_map(
-            static function (string $word, int $position): string {
-                if ($position > 0 && in_array($word, self::PARTICLES, true)) {
-                    return $word;
-                }
-
-                return mb_convert_case($word, MB_CASE_TITLE, 'UTF-8');
-            },
-            $words,
-            array_keys($words),
-        );
-
-        return implode(' ', $normalized);
     }
 }

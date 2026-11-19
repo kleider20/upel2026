@@ -12,6 +12,7 @@ use App\Http\Requests\UpdateAdmissionRequest;
 use App\Http\Requests\UpdateAdmissionStatusRequest;
 use App\Mail\AdmissionConverted;
 use App\Mail\AdmissionStatusChanged;
+use App\Models\AcademicPeriod;
 use App\Models\Admission;
 use App\Models\AdmissionDocument;
 use App\Models\Career;
@@ -205,6 +206,7 @@ class AdminAdmissionController extends Controller
                 'id_number' => $admission->id_number,
                 'birth_date' => $admission->birth_date->format('Y-m-d'),
                 'gender' => $admission->gender ?? '',
+                'marital_status' => $admission->marital_status ?? '',
                 'email' => $admission->email,
                 'phone' => $admission->phone,
                 'address' => $admission->address ?? '',
@@ -248,6 +250,7 @@ class AdminAdmissionController extends Controller
                 ['value' => 'otro', 'label' => 'Otro'],
                 ['value' => 'prefiero_no_decir', 'label' => 'Prefiero no decir'],
             ],
+            'maritalStatuses' => Admission::maritalStatusOptions(),
         ]);
     }
 
@@ -344,7 +347,11 @@ class AdminAdmissionController extends Controller
             ]);
         }
 
-        $user = DB::transaction(function () use ($admission, $codes): User {
+        // La cohorte de ingreso se asigna al convertir la solicitud aprobada,
+        // usando el período académico vigente en ese momento.
+        $cohort = AcademicPeriod::query()->where('is_active', true)->value('name');
+
+        $user = DB::transaction(function () use ($admission, $codes, $cohort): User {
             $disk = Storage::disk((string) config('admissions.documents.disk'));
 
             if (! $disk->makeDirectory($admission->documentsDirectoryPath())) {
@@ -374,6 +381,7 @@ class AdminAdmissionController extends Controller
                 'birth_date' => $admission->birth_date,
                 'shift' => $admission->shiftLabel(),
                 'admission_year' => $admission->period_year,
+                'cohort' => $cohort,
             ]);
 
             $admission->update([
@@ -517,6 +525,7 @@ class AdminAdmissionController extends Controller
             'birth_date' => $admission->birth_date->format('d/m/Y'),
             'age' => $admission->age(),
             'gender' => $admission->gender,
+            'marital_status' => $admission->maritalStatusLabel(),
             'email' => $admission->email,
             'phone' => $admission->phone,
             'address' => $admission->address,

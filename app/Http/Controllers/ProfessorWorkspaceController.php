@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\CalendarExport;
 use App\Support\EvaluationPlanGrading;
+use App\Support\ProfessorSchedule;
 use App\Support\ProfessorWorkspace;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -63,6 +66,34 @@ class ProfessorWorkspaceController extends Controller
             'summary' => $data['summary'],
             'active_period' => $data['active_period'],
             'limits' => EvaluationPlanGrading::limits(),
+        ]);
+    }
+
+    /**
+     * Página "Mi horario": fechas, horas y aulas de las materias asignadas.
+     */
+    public function schedule(Request $request): Response
+    {
+        $professor = $this->professor($request);
+
+        return Inertia::render('dashboard/professor/schedule', [
+            'schedules' => ProfessorSchedule::overview($professor),
+            'ics_url' => route('professor.schedule.ics'),
+        ]);
+    }
+
+    /**
+     * Descarga el horario del docente en formato iCalendar.
+     */
+    public function scheduleIcs(Request $request): \Illuminate\Http\Response
+    {
+        $professor = $this->professor($request);
+        $events = ProfessorSchedule::events($professor);
+        $filename = 'horario-docente-'.Str::slug($professor->name).'.ics';
+
+        return response(CalendarExport::make($events), 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 

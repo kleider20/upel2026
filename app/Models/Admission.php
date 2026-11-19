@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\URL;
  * @property string $id_number
  * @property Carbon $birth_date
  * @property string|null $gender
+ * @property string|null $marital_status
  * @property string $email
  * @property string $phone
  * @property string|null $address
@@ -54,6 +55,7 @@ use Illuminate\Support\Facades\URL;
     'id_number',
     'birth_date',
     'gender',
+    'marital_status',
     'email',
     'phone',
     'address',
@@ -76,6 +78,20 @@ class Admission extends Model
 {
     /** @use HasFactory<AdmissionFactory> */
     use HasFactory;
+
+    /**
+     * Estados civiles aceptados en la preinscripción y su etiqueta legible.
+     *
+     * @var array<string, string>
+     */
+    public const MARITAL_STATUSES = [
+        'soltero' => 'Soltero(a)',
+        'casado' => 'Casado(a)',
+        'divorciado' => 'Divorciado(a)',
+        'viudo' => 'Viudo(a)',
+        'concubino' => 'Concubino(a)',
+        'otro' => 'Otro',
+    ];
 
     /**
      * @return array<string, string>
@@ -247,6 +263,32 @@ class Admission extends Model
             'prefiero_no_decir' => 'Prefiero no decir',
             default => null,
         };
+    }
+
+    /**
+     * Etiqueta legible del estado civil declarado en la solicitud.
+     */
+    public function maritalStatusLabel(): ?string
+    {
+        return $this->marital_status !== null
+            ? (self::MARITAL_STATUSES[$this->marital_status] ?? null)
+            : null;
+    }
+
+    /**
+     * Opciones de estado civil para los formularios.
+     *
+     * @return array<int, array{value: string, label: string}>
+     */
+    public static function maritalStatusOptions(): array
+    {
+        return collect(self::MARITAL_STATUSES)
+            ->map(static fn (string $label, string $value): array => [
+                'value' => $value,
+                'label' => $label,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

@@ -13,8 +13,10 @@ import type { ProfessorCareer } from '@/components/professor/workspace-types';
 import { PageHeader } from '@/components/portal/page-header';
 import { RoleBadge } from '@/components/portal/role-badge';
 import { StatCard } from '@/components/portal/stat-card';
+import { useInitials } from '@/hooks/use-initials';
 import professorRoutes from '@/routes/professor';
 import plans from '@/routes/professor/plans';
+import profileRoutes from '@/routes/professor/profile';
 import type { Auth } from '@/types';
 
 type Props = {
@@ -22,6 +24,8 @@ type Props = {
         employee_code: string;
         department: string | null;
         academic_title: string | null;
+        position: string | null;
+        photo_url: string | null;
     } | null;
     summary: {
         careers_count: number;
@@ -46,6 +50,7 @@ export default function ProfessorDashboard({
     active_period,
 }: Props) {
     const { auth } = usePage<{ auth: Auth }>().props;
+    const getInitials = useInitials();
 
     const accesses = [
         {
@@ -139,9 +144,29 @@ export default function ProfessorDashboard({
                             <p className="text-[0.65rem] font-bold tracking-[0.14em] text-muted-foreground uppercase">
                                 Datos del profesor
                             </p>
-                            <p className="mt-2 text-sm font-bold text-upel-navy dark:text-foreground">
-                                {auth.user?.name}
-                            </p>
+                            <div className="mt-3 flex items-center gap-3">
+                                {profile?.photo_url ? (
+                                    <img
+                                        src={profile.photo_url}
+                                        alt={`Fotografía de ${auth.user?.name ?? 'profesor'}`}
+                                        className="size-12 rounded-xl object-cover ring-1 ring-border"
+                                    />
+                                ) : (
+                                    <span className="flex size-12 items-center justify-center rounded-xl bg-upel-navy text-xs font-extrabold text-upel-gold">
+                                        {getInitials(auth.user?.name ?? 'UP')}
+                                    </span>
+                                )}
+                                <div>
+                                    <p className="text-sm leading-tight font-bold text-upel-navy dark:text-foreground">
+                                        {auth.user?.name}
+                                    </p>
+                                    <p className="mt-1 text-[0.66rem] leading-tight font-semibold text-muted-foreground">
+                                        {profile?.position ??
+                                            profile?.academic_title ??
+                                            'Docente UPEL'}
+                                    </p>
+                                </div>
+                            </div>
                             <dl className="mt-4 space-y-3 border-t border-border pt-4 text-xs">
                                 <div className="flex items-center justify-between gap-3">
                                     <dt className="text-muted-foreground">
@@ -178,6 +203,13 @@ export default function ProfessorDashboard({
                                     </dd>
                                 </div>
                             </dl>
+                            <Link
+                                href={profileRoutes.edit.url()}
+                                className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-[0.66rem] font-bold text-upel-navy shadow-sm transition-colors hover:bg-upel-cloud dark:bg-card dark:text-foreground"
+                            >
+                                Editar mi perfil
+                                <ChevronRight className="size-3" />
+                            </Link>
                         </div>
 
                         <div className="rounded-2xl border border-border/70 bg-white p-5 shadow-sm dark:bg-card">
